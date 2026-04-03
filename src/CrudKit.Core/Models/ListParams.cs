@@ -2,6 +2,11 @@ using Microsoft.AspNetCore.Http;
 
 namespace CrudKit.Core.Models;
 
+/// <summary>
+/// HTTP query string parametrelerini yapılandırılmış forma dönüştürür.
+/// Page, PerPage, Sort ve Filters parametrelerini ayırır.
+/// Kullanım: ?page=2&amp;per_page=25&amp;sort=-created_at&amp;name=like:ali
+/// </summary>
 public class ListParams
 {
     private static readonly HashSet<string> ReservedKeys =
