@@ -18,20 +18,20 @@ public class AppError : Exception
         Details = details;
     }
 
-    public static AppError NotFound(string message = "Kayıt bulunamadı")
+    public static AppError NotFound(string message = "Record not found")
         => new(404, "NOT_FOUND", message);
 
     public static AppError BadRequest(string message)
         => new(400, "BAD_REQUEST", message);
 
-    public static AppError Unauthorized(string message = "Yetkisiz erişim")
+    public static AppError Unauthorized(string message = "Unauthorized")
         => new(401, "UNAUTHORIZED", message);
 
-    public static AppError Forbidden(string message = "Erişim engellendi")
+    public static AppError Forbidden(string message = "Access denied")
         => new(403, "FORBIDDEN", message);
 
     public static AppError Validation(ValidationErrors errors)
-        => new(400, "VALIDATION_ERROR", "Validasyon hatası", errors);
+        => new(400, "VALIDATION_ERROR", "Validation failed", errors);
 
     public static AppError Conflict(string message)
         => new(409, "CONFLICT", message);
