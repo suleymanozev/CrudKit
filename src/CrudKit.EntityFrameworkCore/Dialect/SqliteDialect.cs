@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 namespace CrudKit.EntityFrameworkCore.Dialect;
 
 /// <summary>
-/// SQLite dialect. Uses ToLower() for case-insensitive operations since
+/// SQLite dialect. Uses ToLowerInvariant() for case-insensitive operations since
 /// SQLite LIKE is only ASCII case-insensitive by default.
 /// SQLite supports the same ON CONFLICT syntax as PostgreSQL.
 /// </summary>

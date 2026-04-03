@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore;
 namespace CrudKit.EntityFrameworkCore.Dialect;
 
 /// <summary>
-/// SQL Server dialect. Uses EF.Functions.Like (SQL Server default collation is case-insensitive).
-/// Requires Microsoft.EntityFrameworkCore.SqlServer to be loaded at runtime.
-/// Falls back to GenericDialect if unavailable.
+/// SQL Server dialect. Uses EF.Functions.Like which is always available in the base EF Core package.
+/// Produces native LIKE SQL, giving better performance on SQL Server with its default CI collation
+/// compared to GenericDialect which relies on in-memory string operations.
 /// </summary>
 public class SqlServerDialect : IDbDialect
 {

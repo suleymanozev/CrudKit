@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 
 namespace CrudKit.EntityFrameworkCore.Dialect;
@@ -12,28 +13,38 @@ public class PostgresDialect : IDbDialect
 {
     private readonly GenericDialect _fallback = new();
 
+    private static readonly MethodInfo? _iLikeMethod = FindILikeMethod();
+
+    private static MethodInfo? FindILikeMethod()
+    {
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (!assembly.GetName().Name?.Contains("Npgsql") == true) continue;
+
+            foreach (var type in assembly.GetExportedTypes())
+            {
+                if (!type.Name.Contains("DbFunctions")) continue;
+                var method = type.GetMethod("ILike",
+                    [typeof(DbFunctions), typeof(string), typeof(string)]);
+                if (method != null) return method;
+            }
+        }
+        return null;
+    }
+
     public IQueryable<T> ApplyLike<T>(
         IQueryable<T> query,
         Expression<Func<T, string>> property,
         string value) where T : class
     {
-        // Resolve NpgsqlDbFunctionsExtensions.ILike at runtime to avoid hard Npgsql dependency.
-        var npgsqlType = Type.GetType(
-            "NpgsqlEFCore.DbFunctionsExtensions, Npgsql.EntityFrameworkCore.PostgreSQL") ??
-            Type.GetType(
-            "Microsoft.EntityFrameworkCore.NpgsqlDbFunctionsExtensions, Npgsql.EntityFrameworkCore.PostgreSQL");
-
-        var iLikeMethod = npgsqlType?.GetMethod("ILike",
-            [typeof(DbFunctions), typeof(string), typeof(string)]);
-
-        if (iLikeMethod == null)
+        if (_iLikeMethod == null)
             return _fallback.ApplyLike(query, property, value);
 
         var param = property.Parameters[0];
         var memberAccess = property.Body;
         var pattern = Expression.Constant($"%{value}%");
         var call = Expression.Call(
-            iLikeMethod,
+            _iLikeMethod,
             Expression.Constant(EF.Functions),
             memberAccess,
             pattern);
@@ -45,22 +56,14 @@ public class PostgresDialect : IDbDialect
         Expression<Func<T, string>> property,
         string value) where T : class
     {
-        var npgsqlType = Type.GetType(
-            "NpgsqlEFCore.DbFunctionsExtensions, Npgsql.EntityFrameworkCore.PostgreSQL") ??
-            Type.GetType(
-            "Microsoft.EntityFrameworkCore.NpgsqlDbFunctionsExtensions, Npgsql.EntityFrameworkCore.PostgreSQL");
-
-        var iLikeMethod = npgsqlType?.GetMethod("ILike",
-            [typeof(DbFunctions), typeof(string), typeof(string)]);
-
-        if (iLikeMethod == null)
+        if (_iLikeMethod == null)
             return _fallback.ApplyStartsWith(query, property, value);
 
         var param = property.Parameters[0];
         var memberAccess = property.Body;
         var pattern = Expression.Constant($"{value}%");
         var call = Expression.Call(
-            iLikeMethod,
+            _iLikeMethod,
             Expression.Constant(EF.Functions),
             memberAccess,
             pattern);
