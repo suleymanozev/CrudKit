@@ -10,6 +10,15 @@ namespace CrudKit.Core.Auth;
 /// </summary>
 public class FakeCurrentUser : ICurrentUser
 {
+    /// <summary>Parameterless constructor — uses default dev values.</summary>
+    public FakeCurrentUser() { }
+
+    /// <summary>Constructor for multi-tenant tests — overrides the default TenantId.</summary>
+    public FakeCurrentUser(string? tenantId = "test-tenant")
+    {
+        TenantId = tenantId;
+    }
+
     public string? Id { get; set; } = "dev-user-1";
     public string? Username { get; set; } = "developer";
     public string? TenantId { get; set; } = "dev-tenant";

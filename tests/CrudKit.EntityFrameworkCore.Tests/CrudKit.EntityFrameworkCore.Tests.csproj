@@ -13,5 +13,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\CrudKit.EntityFrameworkCore\CrudKit.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\CrudKit.Core\CrudKit.Core.csproj" />
   </ItemGroup>
 </Project>
