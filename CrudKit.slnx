@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/CrudKit.Core/CrudKit.Core.csproj" />
+  <Project Path="tests/CrudKit.Core.Tests/CrudKit.Core.Tests.csproj" />
+</Solution>
