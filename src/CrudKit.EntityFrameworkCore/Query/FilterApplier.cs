@@ -116,6 +116,10 @@ public class FilterApplier
     private static IQueryable<T> ApplyNull<T>(IQueryable<T> query, PropertyInfo prop)
         where T : class
     {
+        // Value types cannot be null — skip this filter silently
+        if (prop.PropertyType.IsValueType && Nullable.GetUnderlyingType(prop.PropertyType) == null)
+            return query;
+
         var param = Expression.Parameter(typeof(T), "e");
         var member = Expression.Property(param, prop);
         var nullConst = Expression.Constant(null, prop.PropertyType);
@@ -126,6 +130,10 @@ public class FilterApplier
     private static IQueryable<T> ApplyNotNull<T>(IQueryable<T> query, PropertyInfo prop)
         where T : class
     {
+        // Value types are never null — skip this filter silently
+        if (prop.PropertyType.IsValueType && Nullable.GetUnderlyingType(prop.PropertyType) == null)
+            return query;
+
         var param = Expression.Parameter(typeof(T), "e");
         var member = Expression.Property(param, prop);
         var nullConst = Expression.Constant(null, prop.PropertyType);
@@ -143,7 +151,7 @@ public class FilterApplier
         var member = Expression.Property(param, prop);
         var constant = Expression.Constant(convertedValue, prop.PropertyType);
 
-        Expression body = op.Operator switch
+        Expression? body = op.Operator switch
         {
             "eq"  => Expression.Equal(member, constant),
             "neq" => Expression.NotEqual(member, constant),
@@ -151,9 +159,10 @@ public class FilterApplier
             "gte" => Expression.GreaterThanOrEqual(member, constant),
             "lt"  => Expression.LessThan(member, constant),
             "lte" => Expression.LessThanOrEqual(member, constant),
-            _     => Expression.Equal(member, constant),
+            _     => null,
         };
 
+        if (body == null) return query;
         return query.Where(Expression.Lambda<Func<T, bool>>(body, param));
     }
 
