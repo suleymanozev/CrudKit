@@ -114,6 +114,7 @@ public class DbContextTests
         await db1.SaveChangesAsync();
 
         using var db2 = new TestDbContext(options2, new FakeCurrentUser("tenant-2"));
+        db2.Database.EnsureCreated(); // tables already exist; makes intent explicit
         db2.TenantPersons.Add(new TenantPersonEntity { Name = "Bob", TenantId = "tenant-2" });
         await db2.SaveChangesAsync();
 

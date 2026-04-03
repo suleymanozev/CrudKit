@@ -155,13 +155,25 @@ public abstract class CrudKitDbContext : DbContext
 
     private void BeforeSaveChanges()
     {
+        // Step 1: Generate IDs for new entities first (needed by audit log)
+        foreach (var entry in ChangeTracker.Entries<IEntity>()
+            .Where(e => e.State == EntityState.Added).ToList())
+        {
+            if (string.IsNullOrEmpty(entry.Entity.Id))
+                entry.Entity.Id = Guid.NewGuid().ToString();
+        }
+
+        // Step 2: Write audit logs (now IDs are available for new entities,
+        // and Deleted state is still intact for soft-delete detection)
+        WriteAuditLogs();
+
+        // Step 3: Set remaining fields and handle soft-delete conversion
         foreach (var entry in ChangeTracker.Entries<IEntity>().ToList())
         {
             switch (entry.State)
             {
                 case EntityState.Added:
-                    if (string.IsNullOrEmpty(entry.Entity.Id))
-                        entry.Entity.Id = Guid.NewGuid().ToString();
+                    // Id already set in Step 1
                     entry.Entity.CreatedAt = DateTime.UtcNow;
                     entry.Entity.UpdatedAt = DateTime.UtcNow;
                     if (entry.Entity is IMultiTenant mt && _currentUser.TenantId != null)
@@ -183,8 +195,6 @@ public abstract class CrudKitDbContext : DbContext
                     break;
             }
         }
-
-        WriteAuditLogs();
     }
 
     private void WriteAuditLogs()

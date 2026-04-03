@@ -1,16 +1,23 @@
 using CrudKit.Core.Interfaces;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace CrudKit.EntityFrameworkCore.Tests.Helpers;
 
 /// <summary>
 /// Concrete DbContext for tests. Inherits CrudKitDbContext.
-/// Only adds DbSets — no configuration needed.
+/// Owns the SqliteConnection and disposes it when the context is disposed.
 /// </summary>
 public class TestDbContext : CrudKitDbContext
 {
-    public TestDbContext(DbContextOptions<TestDbContext> options, ICurrentUser currentUser)
-        : base(options, currentUser) { }
+    private readonly SqliteConnection? _connection;
+
+    public TestDbContext(DbContextOptions<TestDbContext> options, ICurrentUser currentUser,
+        SqliteConnection? connection = null)
+        : base(options, currentUser)
+    {
+        _connection = connection;
+    }
 
     public DbSet<PersonEntity> Persons => Set<PersonEntity>();
     public DbSet<SoftPersonEntity> SoftPersons => Set<SoftPersonEntity>();
@@ -19,4 +26,16 @@ public class TestDbContext : CrudKitDbContext
     public DbSet<ConcurrentEntity> ConcurrentEntities => Set<ConcurrentEntity>();
     public DbSet<InvoiceEntity> Invoices => Set<InvoiceEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection?.Dispose();
+    }
+
+    public override ValueTask DisposeAsync()
+    {
+        _connection?.Dispose();
+        return base.DisposeAsync();
+    }
 }
