@@ -249,7 +249,7 @@ public abstract class CrudKitDbContext : DbContext
     // ---- Runtime tenant value used by EF Core global filter ----
     // EF Core captures a reference to the DbContext instance, so this property
     // is evaluated fresh on every query.
-    private string? CurrentTenantId => _currentUser.TenantId;
+    internal string? CurrentTenantId => _currentUser.TenantId;
 
     // ---- Filter expression builders ----
 

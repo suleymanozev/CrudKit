@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Reflection;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
@@ -49,12 +50,23 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
         if (prop == null) return [];
 
-        var all = await _db.Set<T>().AsNoTracking().ToListAsync(ct);
-        return all.Where(e =>
+        object? converted;
+        try
         {
-            var propVal = prop.GetValue(e);
-            return propVal != null && propVal.Equals(value);
-        }).ToList();
+            converted = Convert.ChangeType(value, prop.PropertyType);
+        }
+        catch
+        {
+            return [];
+        }
+
+        var param = Expression.Parameter(typeof(T), "e");
+        var body = Expression.Equal(
+            Expression.Property(param, prop),
+            Expression.Constant(converted, prop.PropertyType));
+        var predicate = Expression.Lambda<Func<T, bool>>(body, param);
+
+        return await _db.Set<T>().AsNoTracking().Where(predicate).ToListAsync(ct);
     }
 
     public async Task<T> Create(object createDto, CancellationToken ct = default)
@@ -99,6 +111,14 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         var entity = await _db.Set<T>().IgnoreQueryFilters()
             .FirstOrDefaultAsync(e => e.Id == id, ct)
             ?? throw AppError.NotFound($"Deleted {typeof(T).Name} with id '{id}' was not found.");
+
+        // Re-enforce tenant isolation since IgnoreQueryFilters bypasses the tenant filter.
+        if (entity is IMultiTenant multiTenant)
+        {
+            var currentTenantId = _db.CurrentTenantId;
+            if (currentTenantId != null && multiTenant.TenantId != currentTenantId)
+                throw AppError.NotFound($"Deleted {typeof(T).Name} with id '{id}' was not found.");
+        }
 
         ((ISoftDeletable)entity).DeletedAt = null;
         await _db.SaveChangesAsync(ct);
