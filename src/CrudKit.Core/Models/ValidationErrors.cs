@@ -2,12 +2,13 @@ namespace CrudKit.Core.Models;
 
 public class ValidationErrors
 {
-    public List<FieldError> Errors { get; set; } = new();
+    private readonly List<FieldError> _errors = new();
+    public IReadOnlyList<FieldError> Errors => _errors;
 
-    public bool IsEmpty => Errors.Count == 0;
+    public bool IsEmpty => _errors.Count == 0;
 
     public void Add(string field, string code, string message)
-        => Errors.Add(new FieldError(field, code, message));
+        => _errors.Add(new FieldError(field, code, message));
 
     public void ThrowIfInvalid()
     {
