@@ -148,9 +148,8 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
                 continue;
             }
 
-            // Apply BCrypt hashing for [Hashed] fields on Create
-            if (isCreate
-                && entityProp.GetCustomAttribute<HashedAttribute>() != null
+            // Apply BCrypt hashing for [Hashed] fields
+            if (entityProp.GetCustomAttribute<HashedAttribute>() != null
                 && dtoValue is string plainText)
             {
                 entityProp.SetValue(entity, BCrypt.Net.BCrypt.HashPassword(plainText));
@@ -168,11 +167,9 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
     {
         foreach (var prop in typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
-            if (prop.GetCustomAttribute<SkipResponseAttribute>() != null
-                && prop.CanWrite)
-            {
-                prop.SetValue(entity, null);
-            }
+            if (prop.GetCustomAttribute<SkipResponseAttribute>() == null || !prop.CanWrite) continue;
+            if (prop.PropertyType.IsValueType && Nullable.GetUnderlyingType(prop.PropertyType) == null) continue;
+            prop.SetValue(entity, null);
         }
     }
 }
