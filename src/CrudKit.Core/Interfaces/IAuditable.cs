@@ -1,6 +1,6 @@
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>
-/// Marker interface — CrudKitDbContext bu entity'nin değişikliklerini AuditLog tablosuna yazar.
+/// Marker interface — CrudKitDbContext writes all changes for this entity to the AuditLog table.
 /// </summary>
 public interface IAuditable { }

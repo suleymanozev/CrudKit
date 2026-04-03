@@ -4,7 +4,7 @@ using CrudKit.Core.Models;
 
 namespace CrudKit.Core.Serialization;
 
-/// <summary>Optional&lt;T&gt; tipini JSON serializasyonunda destekler.</summary>
+/// <summary>Enables JSON serialization support for Optional&lt;T&gt;.</summary>
 public class OptionalJsonConverterFactory : JsonConverterFactory
 {
     public override bool CanConvert(Type typeToConvert)

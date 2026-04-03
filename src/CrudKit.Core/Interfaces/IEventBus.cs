@@ -3,9 +3,9 @@ using CrudKit.Core.Events;
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>
-/// Domain event yayını için soyutlama.
-/// Kullanıcı kendi IEventBus implementasyonunu sağlar (MediatR, MassTransit, vb.).
-/// CrudKit EfRepo, SaveChanges sonrasında event yayınlar.
+/// Abstraction for publishing domain events.
+/// The application provides its own implementation (MediatR, MassTransit, etc.).
+/// CrudKit's EfRepo publishes events after SaveChanges completes.
 /// </summary>
 public interface IEventBus
 {

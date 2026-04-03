@@ -1,6 +1,6 @@
 namespace CrudKit.Core.Models;
 
-/// <summary>Sıralama yönü.</summary>
+/// <summary>Sort direction.</summary>
 public enum SortDirection
 {
     Asc,

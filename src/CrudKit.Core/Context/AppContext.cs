@@ -3,8 +3,8 @@ using CrudKit.Core.Interfaces;
 namespace CrudKit.Core.Context;
 
 /// <summary>
-/// Request context — hook'lara ve handler'lara geçirilir.
-/// Kullanıcı bilgisi ve DI container'a erişim sağlar.
+/// Per-request context passed to hooks and handlers.
+/// Provides access to the current user and the DI container.
 /// </summary>
 public class AppContext
 {

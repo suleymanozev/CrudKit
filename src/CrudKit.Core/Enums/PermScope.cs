@@ -1,9 +1,9 @@
 namespace CrudKit.Core.Enums;
 
-/// <summary>İzin kapsamı — hangi kayıtlara erişilebileceğini belirler.</summary>
+/// <summary>Permission scope — determines which records are accessible.</summary>
 public enum PermScope
 {
-    Own,           // Sadece kendi kayıtları
-    Department,    // Departmanındaki kayıtlar
-    All            // Tüm kayıtlar
+    Own,           // Only the user's own records
+    Department,    // Records within the user's department
+    All            // All records
 }

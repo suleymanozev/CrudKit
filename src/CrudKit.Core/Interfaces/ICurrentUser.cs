@@ -4,9 +4,9 @@ using CrudKit.Core.Models;
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>
-/// Mevcut oturumdaki kullanıcı bilgisi.
-/// Bu interface'i uygulama tarafı implemente eder (JWT, OAuth, Cookie, custom, vb.).
-/// CrudKit sadece bu interface üzerinden kullanıcı bilgisine erişir.
+/// Represents the currently authenticated user.
+/// Implemented by the application layer (JWT, OAuth, Cookie, custom, etc.).
+/// CrudKit accesses user information exclusively through this interface.
 /// </summary>
 public interface ICurrentUser
 {

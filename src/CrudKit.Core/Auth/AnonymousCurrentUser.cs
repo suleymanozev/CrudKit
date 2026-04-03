@@ -5,8 +5,8 @@ using CrudKit.Core.Models;
 namespace CrudKit.Core.Auth;
 
 /// <summary>
-/// ICurrentUser DI'a kayıtlı değilse veya token yoksa kullanılır.
-/// CrudKit.Api TryAddScoped ile fallback olarak register eder.
+/// Used when no ICurrentUser is registered in DI or when the request has no auth token.
+/// CrudKit.Api registers this as a TryAddScoped fallback.
 /// </summary>
 public class AnonymousCurrentUser : ICurrentUser
 {

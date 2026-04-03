@@ -5,8 +5,8 @@ using CrudKit.Core.Models;
 namespace CrudKit.Core.Auth;
 
 /// <summary>
-/// Test ve geliştirme ortamı için ICurrentUser implementasyonu.
-/// Her izne onay verir. DatabaseFixture'da kullanılır.
+/// ICurrentUser implementation for tests and development.
+/// Grants all permissions. Used by DatabaseFixture in integration tests.
 /// </summary>
 public class FakeCurrentUser : ICurrentUser
 {

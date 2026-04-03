@@ -1,8 +1,8 @@
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>
-/// Otomatik belge numarası üretimi (ör: INV-2025-001).
-/// EfRepo.Create çağrıldığında DocumentNumber otomatik atanır.
+/// Automatic document number generation (e.g. INV-2025-001).
+/// DocumentNumber is assigned automatically when EfRepo.Create is called.
 /// </summary>
 public interface IDocumentNumbering
 {

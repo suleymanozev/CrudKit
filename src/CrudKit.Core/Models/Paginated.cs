@@ -1,7 +1,7 @@
 namespace CrudKit.Core.Models;
 
 /// <summary>
-/// Sayfalandırılmış sorgu sonucu. EfRepo.List() bu tipi döner.
+/// Paginated query result. Returned by EfRepo.List().
 /// </summary>
 public class Paginated<T>
 {

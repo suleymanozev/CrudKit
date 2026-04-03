@@ -8,7 +8,7 @@ public class OptionalJsonConverter<T> : JsonConverter<Optional<T>>
 {
     public override Optional<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        // Bu metod çağrıldıysa JSON'da alan var demektir → HasValue = true
+        // If this method is called, the field was present in JSON → HasValue = true
         var value = JsonSerializer.Deserialize<T>(ref reader, options);
         return Optional<T>.From(value);
     }
@@ -18,6 +18,6 @@ public class OptionalJsonConverter<T> : JsonConverter<Optional<T>>
         if (value.HasValue)
             JsonSerializer.Serialize(writer, value.Value, options);
         else
-            writer.WriteNullValue();  // Geçerli JSON üret — Undefined alanlar null olarak serialize edilir
+            writer.WriteNullValue();  // Produce valid JSON — undefined fields serialize as null
     }
 }

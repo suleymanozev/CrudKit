@@ -3,9 +3,9 @@ using CrudKit.Core.Context;
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>
-/// Entity lifecycle hook'ları. Tüm metodların default implementasyonu boştur.
-/// Kullanıcı sadece ihtiyacı olanı override eder.
-/// Hook sırası: Validate → Before* → DB op → After*
+/// Entity lifecycle hooks. All methods have empty default implementations.
+/// Override only the hooks you need.
+/// Execution order: Validate → Before* → DB op → After*
 /// </summary>
 public interface ICrudHooks<T> where T : class, IEntity
 {
@@ -19,9 +19,9 @@ public interface ICrudHooks<T> where T : class, IEntity
     Task AfterRestore(T entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
 
     /// <summary>
-    /// List ve FindById sorgularına ek filtre uygular.
-    /// Row-level security, PermScope.Own gibi filtreleri buraya yaz.
-    /// Default: query olduğu gibi döner.
+    /// Applies additional filters to List and FindById queries.
+    /// Use for row-level security and PermScope.Own-style filtering.
+    /// Default: returns the query unchanged.
     /// </summary>
     IQueryable<T> ApplyScope(IQueryable<T> query, CrudKit.Core.Context.AppContext ctx) => query;
 }

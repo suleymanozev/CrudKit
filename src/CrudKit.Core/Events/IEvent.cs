@@ -1,6 +1,6 @@
 namespace CrudKit.Core.Events;
 
-/// <summary>Domain event marker interface.</summary>
+/// <summary>Marker interface for domain events.</summary>
 public interface IEvent
 {
     string EventId { get; }

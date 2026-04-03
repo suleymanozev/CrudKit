@@ -1,8 +1,8 @@
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>
-/// State machine (durum makinesi) davranışı olan entity'ler için.
-/// Transitions, geçerli durum geçişlerini tanımlar.
+/// For entities with state machine behavior.
+/// Transitions defines the valid state changes.
 /// </summary>
 public interface IStateMachine<TState> where TState : struct, Enum
 {

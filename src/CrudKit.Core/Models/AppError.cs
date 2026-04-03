@@ -1,8 +1,8 @@
 namespace CrudKit.Core.Models;
 
 /// <summary>
-/// Uygulama düzeyinde hata. Handler'lardan fırlatılır, AppErrorFilter tarafından
-/// uygun HTTP status code'a dönüştürülür.
+/// Application-level error. Thrown from handlers and converted to the
+/// appropriate HTTP status code by AppErrorFilter.
 /// </summary>
 public class AppError : Exception
 {

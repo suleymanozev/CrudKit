@@ -1,6 +1,6 @@
 namespace CrudKit.Core.Interfaces;
 
-/// <summary>Multi-tenant uygulamalarda TenantId taşıyan entity'ler için.</summary>
+/// <summary>For entities that carry a TenantId in multi-tenant applications.</summary>
 public interface IMultiTenant
 {
     string TenantId { get; set; }

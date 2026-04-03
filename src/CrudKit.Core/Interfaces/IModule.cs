@@ -5,8 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>
-/// Modular monolith desteği. Her modül bu interface'i implemente eder.
-/// AddCrudKit() assembly scan veya manuel kayıt ile modülleri bulur.
+/// Modular monolith support. Each module implements this interface.
+/// AddCrudKit() discovers modules via assembly scan or manual registration.
 /// </summary>
 public interface IModule
 {

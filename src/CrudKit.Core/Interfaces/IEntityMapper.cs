@@ -1,8 +1,8 @@
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>
-/// Entity'yi response DTO'suna dönüştürür.
-/// Kullanıcı bu interface'i implemente eder — CrudKit sağlamaz.
+/// Maps an entity to a response DTO.
+/// Implemented by the application layer — CrudKit does not provide a default.
 /// </summary>
 public interface IEntityMapper<TEntity, TResponse>
     where TEntity : class, IEntity

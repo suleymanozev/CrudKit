@@ -1,9 +1,9 @@
 namespace CrudKit.Core.Models;
 
 /// <summary>
-/// Filtreleme operatörü ve değeri.
-/// Desteklenen operatörler: eq, neq, gt, gte, lt, lte, like, starts, in, null, notnull
-/// Query string formatı: ?field=gte:18  ?field=like:ali  ?field=in:a,b,c  ?field=null
+/// Filter operator and value parsed from a query string parameter.
+/// Supported operators: eq, neq, gt, gte, lt, lte, like, starts, in, null, notnull
+/// Query string format: ?field=gte:18  ?field=like:ali  ?field=in:a,b,c  ?field=null
 /// </summary>
 public class FilterOp
 {

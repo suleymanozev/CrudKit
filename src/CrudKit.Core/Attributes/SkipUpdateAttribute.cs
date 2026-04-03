@@ -1,5 +1,5 @@
 namespace CrudKit.Core.Attributes;
 
-/// <summary>Bu property Update işleminde güncellenmez — sadece Create sırasında set edilir.</summary>
+/// <summary>This property is not updated during Update operations — set only on Create.</summary>
 [AttributeUsage(AttributeTargets.Property)]
 public class SkipUpdateAttribute : Attribute { }

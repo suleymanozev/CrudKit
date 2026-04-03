@@ -1,8 +1,8 @@
 namespace CrudKit.Core.Attributes;
 
 /// <summary>
-/// Navigation property'ye eklenir. Üst entity (ICascadeSoftDelete) silindiğinde
-/// bu koleksiyon da soft-delete yapılır.
+/// Applied to navigation properties. When the parent entity (ICascadeSoftDelete) is deleted,
+/// this collection is also soft-deleted.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property)]
 public class CascadeSoftDeleteAttribute : Attribute { }

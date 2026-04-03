@@ -1,8 +1,8 @@
 namespace CrudKit.Core.Attributes;
 
 /// <summary>
-/// PUT isteğinde bu alan gönderilemez — WorkflowProtectionFilter engeller.
-/// Workflow veya sistem tarafından yönetilen alanlar için kullanılır.
+/// This field cannot be set via PUT requests — WorkflowProtectionFilter blocks it.
+/// Use for fields managed by the workflow engine or the system.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property)]
 public class ProtectedAttribute : Attribute { }
