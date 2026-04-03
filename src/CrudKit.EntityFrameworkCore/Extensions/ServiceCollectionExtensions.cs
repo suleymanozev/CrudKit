@@ -21,7 +21,7 @@ public static class ServiceCollectionExtensions
         where TContext : CrudKitDbContext
     {
         // Register TContext also as CrudKitDbContext so EfRepo<T> can receive it.
-        services.AddScoped<CrudKitDbContext>(sp => sp.GetRequiredService<TContext>());
+        services.TryAddScoped<CrudKitDbContext>(sp => sp.GetRequiredService<TContext>());
 
         // Dialect — auto-detected from TContext's provider.
         services.TryAddScoped<IDbDialect>(sp =>
@@ -32,10 +32,10 @@ public static class ServiceCollectionExtensions
 
         // Query pipeline
         services.TryAddScoped<FilterApplier>();
-        services.AddScoped(typeof(QueryBuilder<>));
+        services.TryAdd(ServiceDescriptor.Scoped(typeof(QueryBuilder<>), typeof(QueryBuilder<>)));
 
         // Open generic repository: IRepo<T> → EfRepo<T>
-        services.AddScoped(typeof(IRepo<>), typeof(EfRepo<>));
+        services.TryAdd(ServiceDescriptor.Scoped(typeof(IRepo<>), typeof(EfRepo<>)));
 
         // Document numbering
         services.TryAddScoped<SequenceGenerator>();
