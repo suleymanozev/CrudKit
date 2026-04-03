@@ -73,6 +73,24 @@ public class OptionalTests
         Assert.Null(dto.Name.Value);
     }
 
+    [Fact]
+    public void Serialize_PresentValue_ShouldWriteValue()
+    {
+        var dto = new TestDto { Name = Optional<string?>.From("test"), Price = Optional<decimal?>.From(99m) };
+        var json = JsonSerializer.Serialize(dto, Options);
+        Assert.Contains("\"Name\":\"test\"", json);
+        Assert.Contains("\"Price\":99", json);
+    }
+
+    [Fact]
+    public void Serialize_UndefinedValue_ShouldWriteNull()
+    {
+        var dto = new TestDto { Name = Optional<string?>.Undefined, Price = Optional<decimal?>.From(99m) };
+        var json = JsonSerializer.Serialize(dto, Options);
+        Assert.Contains("\"Name\":null", json);
+        Assert.Contains("\"Price\":99", json);
+    }
+
     private record TestDto
     {
         public Optional<string?> Name { get; init; }

@@ -17,6 +17,7 @@ public class OptionalJsonConverter<T> : JsonConverter<Optional<T>>
     {
         if (value.HasValue)
             JsonSerializer.Serialize(writer, value.Value, options);
-        // HasValue = false ise hiçbir şey yazılmaz
+        else
+            writer.WriteNullValue();  // Geçerli JSON üret — Undefined alanlar null olarak serialize edilir
     }
 }
