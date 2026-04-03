@@ -126,6 +126,7 @@ public abstract class CrudKitDbContext : DbContext
         {
             b.ToTable("__crud_sequences");
             b.HasIndex(e => new { e.EntityType, e.TenantId, e.Year }).IsUnique();
+            b.Property(e => e.CurrentVal).IsConcurrencyToken();
         });
 
         OnModelCreatingCustom(modelBuilder);

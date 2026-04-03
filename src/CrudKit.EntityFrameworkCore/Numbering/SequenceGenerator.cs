@@ -25,10 +25,16 @@ public class SequenceGenerator
         var year = yearlyReset ? DateTime.UtcNow.Year.ToString() : "0000";
 
         long nextVal;
+        const int MaxRetries = 10;
+        var attempts = 0;
 
-        // Retry loop handles concurrent requests cleanly.
+        // Retry loop — handles concurrent requests via optimistic concurrency.
         while (true)
         {
+            if (++attempts > MaxRetries)
+                throw new InvalidOperationException(
+                    $"Failed to generate sequence number for {entityType} after {MaxRetries} attempts.");
+
             await using var tx = await _db.Database.BeginTransactionAsync(ct);
             try
             {
@@ -63,8 +69,7 @@ public class SequenceGenerator
             }
             catch (DbUpdateConcurrencyException)
             {
-                await tx.RollbackAsync(ct);
-                // Detach stale entries and retry
+                // Transaction auto-rolls back on dispose; detach stale entries and retry.
                 foreach (var efEntry in _db.ChangeTracker.Entries())
                     efEntry.State = EntityState.Detached;
             }
