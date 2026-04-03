@@ -5,6 +5,7 @@ using Xunit;
 
 namespace CrudKit.EntityFrameworkCore.Tests.Dialect;
 
+
 public class DialectTests
 {
     private static Expression<Func<PersonEntity, string>> NameExpr()
@@ -87,5 +88,13 @@ public class DialectTests
         var sql = dialect.GetUpsertSql("test_table", ["col1", "col2"], ["col1"]);
         Assert.Contains("ON CONFLICT", sql);
         Assert.Contains("test_table", sql);
+    }
+
+    [Fact]
+    public void DialectDetector_DetectsSqlite_ForSqliteProvider()
+    {
+        using var db = DbHelper.CreateDb();
+        var dialect = DialectDetector.Detect(db);
+        Assert.IsType<SqliteDialect>(dialect);
     }
 }
