@@ -212,7 +212,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
     public async Task<long> BulkCount(Dictionary<string, FilterOp> filters, CancellationToken ct = default)
     {
-        var query = _db.Set<T>().AsNoTracking().AsQueryable();
+        var query = _db.Set<T>().AsNoTracking();
         foreach (var (field, op) in filters)
             query = _filterApplier.Apply(query, field, op);
         return await query.LongCountAsync(ct);
@@ -265,11 +265,14 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             .ToList();
 
         // Pick the overload where the second parameter is TProperty (not Expression<Func<T,TProperty>>)
-        var setPropertyBase = setPropertyMethods.First(m =>
+        var setPropertyBase = setPropertyMethods.FirstOrDefault(m =>
         {
             var p = m.GetParameters()[1];
             return !p.ParameterType.IsGenericType || p.ParameterType.GetGenericTypeDefinition() != typeof(Expression<>);
         });
+
+        if (setPropertyBase == null)
+            throw new InvalidOperationException($"Could not find SetProperty<TProperty>(Expression<Func<T,TProperty>>, TProperty) method on UpdateSettersBuilder<{typeof(T).Name}>");
 
         // Pre-build the list of (MethodInfo, lambda, convertedValue) tuples
         var setterCalls = new List<(MethodInfo method, object lambda, object? value)>();
