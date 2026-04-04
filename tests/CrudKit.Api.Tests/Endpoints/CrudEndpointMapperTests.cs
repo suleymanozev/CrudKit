@@ -276,7 +276,7 @@ public class CrudEndpointMapperTests
         Assert.Equal(0, doc.RootElement.GetProperty("data").GetArrayLength());
     }
 
-    // ---- IEntityMapper ----
+    // ---- IResponseMapper ----
 
     [Fact]
     public async Task Get_WithMapper_ReturnsMappedResponse()
@@ -284,7 +284,7 @@ public class CrudEndpointMapperTests
         await using var app = await TestWebApp.CreateAsync(
             configureServices: s =>
             {
-                s.AddSingleton<IEntityMapper<ProductEntity, ProductResponse>>(new TestProductMapper());
+                s.AddSingleton<IResponseMapper<ProductEntity, ProductResponse>>(new TestProductMapper());
             },
             configureEndpoints: web =>
             {
@@ -429,9 +429,9 @@ public class TestProductHooks : ICrudHooks<ProductEntity>
 }
 
 /// <summary>
-/// Test IEntityMapper that adds a DisplayName field to the response.
+/// Test IResponseMapper that adds a DisplayName field to the response.
 /// </summary>
-public class TestProductMapper : IEntityMapper<ProductEntity, ProductResponse>
+public class TestProductMapper : IResponseMapper<ProductEntity, ProductResponse>
 {
     public ProductResponse Map(ProductEntity entity)
         => new(entity.Id, entity.Name, entity.Price, $"{entity.Name} (mapped)");

@@ -1,10 +1,10 @@
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>
-/// Maps an entity to a response DTO.
-/// Implemented by the application layer — CrudKit does not provide a default.
+/// Maps an entity to a response DTO for API output.
+/// If registered in DI, CrudEndpointMapper uses it instead of returning raw entities.
 /// </summary>
-public interface IEntityMapper<TEntity, TResponse>
+public interface IResponseMapper<TEntity, TResponse>
     where TEntity : class, IEntity
     where TResponse : class
 {

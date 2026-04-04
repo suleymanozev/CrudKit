@@ -346,7 +346,7 @@ public static class CrudEndpointMapper
     }
 
     /// <summary>
-    /// Attempts to find a registered IEntityMapper for TEntity and map a single entity.
+    /// Attempts to find a registered IResponseMapper for TEntity and map a single entity.
     /// Returns the mapped response if a mapper is found, otherwise the raw entity.
     /// </summary>
     private static object TryMapSingle<TEntity>(IServiceProvider services, TEntity entity)
@@ -361,7 +361,7 @@ public static class CrudEndpointMapper
     }
 
     /// <summary>
-    /// Attempts to find a registered IEntityMapper for TEntity and map a paginated result.
+    /// Attempts to find a registered IResponseMapper for TEntity and map a paginated result.
     /// Returns the mapped paginated response if a mapper is found, otherwise the raw result.
     /// </summary>
     private static object TryMapPaginated<TEntity>(IServiceProvider services, Paginated<TEntity> result)
@@ -385,17 +385,17 @@ public static class CrudEndpointMapper
     }
 
     /// <summary>
-    /// Scans DI service descriptors for any registered IEntityMapper&lt;TEntity, ?&gt; implementation.
+    /// Scans DI service descriptors for any registered IResponseMapper&lt;TEntity, ?&gt; implementation.
     /// </summary>
     private static object? ResolveEntityMapper<TEntity>(IServiceProvider services)
         where TEntity : class, IEntity
     {
-        // Try to find any service registration that implements IEntityMapper<TEntity, ?>
+        // Try to find any service registration that implements IResponseMapper<TEntity, ?>
         // by scanning the service collection stored in the root provider.
-        var mapperInterfaceBase = typeof(IEntityMapper<,>);
+        var mapperInterfaceBase = typeof(IResponseMapper<,>);
 
         // Approach: get all service descriptors from the IServiceCollection snapshot
-        // available via IServiceProvider. We look for registrations matching IEntityMapper<TEntity, *>.
+        // available via IServiceProvider. We look for registrations matching IResponseMapper<TEntity, *>.
         // The concrete registered service type tells us the TResponse.
         using var scope = services.CreateScope();
         var serviceCollection = services.GetService<IServiceProviderIsService>();
@@ -409,10 +409,10 @@ public static class CrudEndpointMapper
         var descriptors = services.GetService<IServiceCollection>();
 
         // Since IServiceCollection isn't registered by default, use reflection to check
-        // the IServiceProviderIsService for IEntityMapper<TEntity, ?> with all types
+        // the IServiceProviderIsService for IResponseMapper<TEntity, ?> with all types
         // that have been registered.
 
-        // Practical approach: enumerate all types implementing IEntityMapper<TEntity, *>
+        // Practical approach: enumerate all types implementing IResponseMapper<TEntity, *>
         // from loaded assemblies where the type has been registered
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
