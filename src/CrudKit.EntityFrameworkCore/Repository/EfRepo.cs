@@ -26,7 +26,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
     public async Task<T> FindById(string id, CancellationToken ct = default)
     {
         var query = _db.Set<T>().AsNoTracking();
-        query = IncludeApplier.Apply(query);
+        query = IncludeApplier.Apply(query, includeParam: null, isDetailQuery: true);
         var entity = await query.FirstOrDefaultAsync(e => e.Id == id, ct);
         return entity ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
     }
@@ -34,7 +34,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
     public async Task<T?> FindByIdOrDefault(string id, CancellationToken ct = default)
     {
         var query = _db.Set<T>().AsNoTracking();
-        query = IncludeApplier.Apply(query);
+        query = IncludeApplier.Apply(query, includeParam: null, isDetailQuery: true);
         return await query.FirstOrDefaultAsync(e => e.Id == id, ct);
     }
 

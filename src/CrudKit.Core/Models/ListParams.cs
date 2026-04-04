@@ -10,11 +10,12 @@ namespace CrudKit.Core.Models;
 public class ListParams
 {
     private static readonly HashSet<string> ReservedKeys =
-        new(StringComparer.OrdinalIgnoreCase) { "page", "per_page", "sort" };
+        new(StringComparer.OrdinalIgnoreCase) { "page", "per_page", "sort", "include" };
 
     public int Page { get; set; } = 1;
     public int PerPage { get; set; } = 20;
     public string? Sort { get; set; }
+    public string? Include { get; set; }
     public Dictionary<string, FilterOp> Filters { get; set; } = new();
 
     public static ListParams FromQuery(IQueryCollection query)
@@ -29,6 +30,9 @@ public class ListParams
 
         if (query.TryGetValue("sort", out var sortVal))
             result.Sort = sortVal.ToString();
+
+        if (query.TryGetValue("include", out var includeVal))
+            result.Include = includeVal.ToString();
 
         foreach (var key in query.Keys)
         {

@@ -18,8 +18,8 @@ public class QueryBuilder<T> where T : class
         ListParams listParams,
         CancellationToken ct = default)
     {
-        // 1. Apply [DefaultInclude] navigation properties
-        query = IncludeApplier.Apply(query);
+        // 1. Apply [DefaultInclude] navigation properties (list context)
+        query = IncludeApplier.Apply(query, listParams.Include, isDetailQuery: false);
 
         // 2. Apply filters
         foreach (var (field, op) in listParams.Filters)
