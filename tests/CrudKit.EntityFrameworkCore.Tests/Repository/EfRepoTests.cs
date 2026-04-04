@@ -224,4 +224,58 @@ public class EfRepoTests
         var result = await repo.FindByField("Age", 35);
         Assert.Equal(2, result.Count);
     }
+
+    // ---- ICrudHooks.ApplyScope integration ----
+
+    /// <summary>
+    /// Hooks implementation that filters PersonEntity rows by minimum age.
+    /// </summary>
+    private class AgeFilterHooks : ICrudHooks<PersonEntity>
+    {
+        private readonly int _minAge;
+        public AgeFilterHooks(int minAge) => _minAge = minAge;
+
+        public IQueryable<PersonEntity> ApplyScope(IQueryable<PersonEntity> query,
+            CrudKit.Core.Context.AppContext ctx)
+            => query.Where(p => p.Age >= _minAge);
+    }
+
+    private static (TestDbContext db, EfRepo<PersonEntity> repo) CreatePersonRepoWithHooks(
+        ICrudHooks<PersonEntity> hooks)
+    {
+        var db = DbHelper.CreateDb();
+        var dialect = DialectDetector.Detect(db);
+        var queryBuilder = new QueryBuilder<PersonEntity>(new FilterApplier(dialect));
+        var repo = new EfRepo<PersonEntity>(db, queryBuilder, hooks);
+        return (db, repo);
+    }
+
+    [Fact]
+    public async Task List_WithHooks_AppliesScope()
+    {
+        // Arrange: three people with ages 20, 25, 30; scope filters to Age >= 25
+        var (_, repo) = CreatePersonRepoWithHooks(new AgeFilterHooks(minAge: 25));
+        await repo.Create(new { Name = "Young",  Age = 20 });
+        await repo.Create(new { Name = "Middle", Age = 25 });
+        await repo.Create(new { Name = "Senior", Age = 30 });
+
+        // Act
+        var result = await repo.List(new ListParams { Page = 1, PerPage = 10 });
+
+        // Assert: only the two people with Age >= 25 are returned
+        Assert.Equal(2, result.Total);
+        Assert.All(result.Data, p => Assert.True(p.Age >= 25));
+    }
+
+    [Fact]
+    public async Task FindById_WithHooks_AppliesScope_ThrowsWhenOutOfScope()
+    {
+        // Arrange: entity with Age = 20 is outside the scope (Age >= 25)
+        var (_, repo) = CreatePersonRepoWithHooks(new AgeFilterHooks(minAge: 25));
+        var created = await repo.Create(new { Name = "OutOfScope", Age = 20 });
+
+        // Act & Assert: FindById must throw NotFound because scope excludes this entity
+        var ex = await Assert.ThrowsAsync<AppError>(() => repo.FindById(created.Id));
+        Assert.Equal(404, ex.StatusCode);
+    }
 }

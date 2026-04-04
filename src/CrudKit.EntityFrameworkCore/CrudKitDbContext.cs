@@ -258,6 +258,9 @@ public abstract class CrudKitDbContext : DbContext
     // is evaluated fresh on every query.
     internal string? CurrentTenantId => _currentUser.TenantId;
 
+    // Exposed for EfRepo so it can build AppContext without taking ICurrentUser as a separate dependency.
+    internal ICurrentUser CurrentUser => _currentUser;
+
     // ---- Filter expression builders ----
 
     private static LambdaExpression BuildSoftDeleteFilter(Type entityType)

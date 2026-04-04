@@ -16,17 +16,34 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 {
     private readonly CrudKitDbContext _db;
     private readonly QueryBuilder<T> _queryBuilder;
+    private readonly ICrudHooks<T>? _hooks;
 
-    public EfRepo(CrudKitDbContext db, QueryBuilder<T> queryBuilder)
+    public EfRepo(CrudKitDbContext db, QueryBuilder<T> queryBuilder, ICrudHooks<T>? hooks = null)
     {
         _db = db;
         _queryBuilder = queryBuilder;
+        _hooks = hooks;
+    }
+
+    /// <summary>
+    /// Builds a minimal AppContext for hook calls. Services is null because EfRepo
+    /// does not hold a reference to IServiceProvider.
+    /// </summary>
+    private CrudKit.Core.Context.AppContext BuildAppContext()
+    {
+        return new CrudKit.Core.Context.AppContext
+        {
+            Services = null!,
+            CurrentUser = _db.CurrentUser,
+        };
     }
 
     public async Task<T> FindById(string id, CancellationToken ct = default)
     {
         var query = _db.Set<T>().AsNoTracking();
         query = IncludeApplier.Apply(query, includeParam: null, isDetailQuery: true);
+        if (_hooks != null)
+            query = _hooks.ApplyScope(query, BuildAppContext());
         var entity = await query.FirstOrDefaultAsync(e => e.Id == id, ct);
         return entity ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
     }
@@ -35,12 +52,16 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
     {
         var query = _db.Set<T>().AsNoTracking();
         query = IncludeApplier.Apply(query, includeParam: null, isDetailQuery: true);
+        if (_hooks != null)
+            query = _hooks.ApplyScope(query, BuildAppContext());
         return await query.FirstOrDefaultAsync(e => e.Id == id, ct);
     }
 
     public async Task<Paginated<T>> List(ListParams listParams, CancellationToken ct = default)
     {
         var query = _db.Set<T>().AsNoTracking();
+        if (_hooks != null)
+            query = _hooks.ApplyScope(query, BuildAppContext());
         return await _queryBuilder.Apply(query, listParams, ct);
     }
 
