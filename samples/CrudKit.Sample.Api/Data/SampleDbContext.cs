@@ -1,7 +1,7 @@
 using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore;
-using CrudKit.Sample.Api.Entities;
 using Microsoft.EntityFrameworkCore;
+using CrudKit.Sample.Api.Entities;
 
 namespace CrudKit.Sample.Api.Data;
 
@@ -14,5 +14,4 @@ public class SampleDbContext : CrudKitDbContext
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();
-    public new DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 }
