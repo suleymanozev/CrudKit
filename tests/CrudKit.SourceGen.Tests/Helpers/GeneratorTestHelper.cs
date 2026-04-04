@@ -83,6 +83,10 @@ public static class GeneratorTestHelper
         yield return MetadataReference.CreateFromFile(Path.Combine(runtimeDir, "netstandard.dll"));
         yield return MetadataReference.CreateFromFile(
             Assembly.Load("System.ComponentModel.DataAnnotations").Location);
+        // RequiredAttribute, MaxLengthAttribute, RangeAttribute live in
+        // System.ComponentModel.Annotations in modern .NET runtimes.
+        yield return MetadataReference.CreateFromFile(
+            typeof(System.ComponentModel.DataAnnotations.RequiredAttribute).Assembly.Location);
     }
 
     // ---------------------------------------------------------------------------
