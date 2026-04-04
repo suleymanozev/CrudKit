@@ -225,6 +225,66 @@ public class EfRepoTests
         Assert.Equal(2, result.Count);
     }
 
+    private static (TestDbContext db, EfRepo<UniqueCodeEntity> repo) CreateUniqueCodeRepo()
+    {
+        var db = DbHelper.CreateDb();
+        var dialect = DialectDetector.Detect(db);
+        var queryBuilder = new QueryBuilder<UniqueCodeEntity>(new FilterApplier(dialect));
+        var repo = new EfRepo<UniqueCodeEntity>(db, queryBuilder);
+        return (db, repo);
+    }
+
+    // ---- Restore — unique constraint checks ----
+
+    [Fact]
+    public async Task Restore_ThrowsConflict_WhenUniqueFieldClashesWithActiveRecord()
+    {
+        // Arrange: create entity with code "ABC", soft-delete it,
+        // then create another active entity with the same code
+        var (_, repo) = CreateUniqueCodeRepo();
+        var first = await repo.Create(new { Code = "ABC", Name = "First" });
+        await repo.Delete(first.Id);
+        await repo.Create(new { Code = "ABC", Name = "Second" }); // active record
+
+        // Act & Assert: restoring first should fail with 409 Conflict
+        var ex = await Assert.ThrowsAsync<AppError>(() => repo.Restore(first.Id));
+        Assert.Equal(409, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task Restore_Succeeds_WhenUniqueFieldDoesNotClash()
+    {
+        // Arrange: create entity, soft-delete it — no other record with same code
+        var (_, repo) = CreateUniqueCodeRepo();
+        var entity = await repo.Create(new { Code = "XYZ", Name = "Solo" });
+        await repo.Delete(entity.Id);
+
+        // Act: restore should succeed without exception
+        await repo.Restore(entity.Id);
+
+        // Assert: entity is active again
+        var restored = await repo.FindById(entity.Id);
+        Assert.Null(restored.DeletedAt);
+    }
+
+    [Fact]
+    public async Task Restore_Succeeds_WhenUniqueFieldClashesWithDeletedRecord()
+    {
+        // Arrange: create two entities with different codes, delete both
+        var (_, repo) = CreateUniqueCodeRepo();
+        var first  = await repo.Create(new { Code = "DEF", Name = "Alpha" });
+        var second = await repo.Create(new { Code = "GHI", Name = "Beta" });
+        await repo.Delete(first.Id);
+        await repo.Delete(second.Id);
+
+        // Act: restoring first — no active record conflicts, other record is also deleted
+        await repo.Restore(first.Id);
+
+        // Assert: first is active again
+        var restored = await repo.FindById(first.Id);
+        Assert.Null(restored.DeletedAt);
+    }
+
     // ---- ICrudHooks.ApplyScope integration ----
 
     /// <summary>

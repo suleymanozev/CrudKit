@@ -114,7 +114,7 @@ public abstract class CrudKitDbContext : DbContext
                     .IsUnique();
 
                 if (isSoftDeletable)
-                    indexBuilder.HasFilter("deleted_at IS NULL");
+                    indexBuilder.HasFilter($"\"{nameof(ISoftDeletable.DeletedAt)}\" IS NULL");
             }
         }
 

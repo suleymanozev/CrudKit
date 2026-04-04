@@ -142,6 +142,35 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         }
 
         ((ISoftDeletable)entity).DeletedAt = null;
+
+        // Check [Unique] properties for conflicts with active (non-deleted) records before restoring
+        var uniqueProps = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.GetCustomAttribute<UniqueAttribute>() != null)
+            .ToList();
+
+        foreach (var prop in uniqueProps)
+        {
+            var value = prop.GetValue(entity);
+            if (value == null) continue;
+
+            // Build predicate: e => e.Id != entity.Id && e.<prop> == value
+            var param = Expression.Parameter(typeof(T), "e");
+            var body = Expression.AndAlso(
+                Expression.NotEqual(
+                    Expression.Property(param, nameof(IEntity.Id)),
+                    Expression.Constant(entity.Id)),
+                Expression.Equal(
+                    Expression.Property(param, prop),
+                    Expression.Constant(value, prop.PropertyType)));
+            var predicate = Expression.Lambda<Func<T, bool>>(body, param);
+
+            // Normal query (no IgnoreQueryFilters) — checks only active records
+            var conflicts = await _db.Set<T>().Where(predicate).AnyAsync(ct);
+            if (conflicts)
+                throw AppError.Conflict(
+                    $"Cannot restore: active {typeof(T).Name} with {prop.Name} = '{value}' already exists.");
+        }
+
         await _db.SaveChangesAsync(ct);
 
         // Cascade restore to child entities declared via [CascadeSoftDelete] attributes

@@ -131,6 +131,24 @@ public class NoteEntity : IEntity
 }
 
 // ---------------------------------------------------------------------------
+// Entities used by Unique constraint restore tests
+// ---------------------------------------------------------------------------
+
+/// <summary>ISoftDeletable entity with a [Unique] property for restore-conflict tests.</summary>
+public class UniqueCodeEntity : IEntity, ISoftDeletable
+{
+    public string Id { get; set; } = string.Empty;
+
+    [Unique]
+    public string Code { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
+}
+
+// ---------------------------------------------------------------------------
 // Entities used by CascadeSoftDelete tests
 // ---------------------------------------------------------------------------
 

@@ -36,6 +36,9 @@ public class TestDbContext : CrudKitDbContext
     public DbSet<ParentItemEntity> ParentItems => Set<ParentItemEntity>();
     public DbSet<ChildItemEntity> ChildItems => Set<ChildItemEntity>();
 
+    // DbSets for Unique constraint restore tests
+    public DbSet<UniqueCodeEntity> UniqueCodeEntities => Set<UniqueCodeEntity>();
+
     public override void Dispose()
     {
         base.Dispose();
