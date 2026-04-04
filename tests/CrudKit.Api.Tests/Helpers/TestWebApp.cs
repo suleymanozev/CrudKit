@@ -1,6 +1,6 @@
+using CrudKit.Api.Extensions;
 using CrudKit.Core.Auth;
 using CrudKit.Core.Interfaces;
-using CrudKit.EntityFrameworkCore.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -41,11 +41,12 @@ public sealed class TestWebApp : IAsyncDisposable
 
         builder.Services.AddDbContext<ApiTestDbContext>((_, opts) => opts.UseSqlite(connection));
         builder.Services.AddScoped<ICurrentUser>(_ => currentUser ?? new FakeCurrentUser());
-        builder.Services.AddCrudKitEf<ApiTestDbContext>();
+        builder.Services.AddCrudKit<ApiTestDbContext>();
 
         configureServices?.Invoke(builder.Services);
 
         var app = builder.Build();
+        app.UseCrudKit();
         configureEndpoints?.Invoke(app);
 
         using (var scope = app.Services.CreateScope())
