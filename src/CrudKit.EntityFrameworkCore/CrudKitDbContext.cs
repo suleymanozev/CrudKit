@@ -159,6 +159,10 @@ public abstract class CrudKitDbContext : DbContext
 
     private void BeforeSaveChanges()
     {
+        // Capture current UTC time once to ensure consistency across all timestamps
+        // for this SaveChanges operation, preventing time skew between CreatedAt/UpdatedAt
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+
         // Step 1: Generate IDs for new entities first (needed by audit log)
         foreach (var entry in ChangeTracker.Entries<IEntity>()
             .Where(e => e.State == EntityState.Added).ToList())
@@ -169,7 +173,7 @@ public abstract class CrudKitDbContext : DbContext
 
         // Step 2: Write audit logs (now IDs are available for new entities,
         // and Deleted state is still intact for soft-delete detection)
-        WriteAuditLogs();
+        WriteAuditLogs(now);
 
         // Step 3: Set remaining fields and handle soft-delete conversion
         foreach (var entry in ChangeTracker.Entries<IEntity>().ToList())
@@ -178,14 +182,14 @@ public abstract class CrudKitDbContext : DbContext
             {
                 case EntityState.Added:
                     // Id already set in Step 1
-                    entry.Entity.CreatedAt = _timeProvider.GetUtcNow().UtcDateTime;
-                    entry.Entity.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
+                    entry.Entity.CreatedAt = now;
+                    entry.Entity.UpdatedAt = now;
                     if (entry.Entity is IMultiTenant mt && _currentUser.TenantId != null)
                         mt.TenantId = _currentUser.TenantId;
                     break;
 
                 case EntityState.Modified:
-                    entry.Entity.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
+                    entry.Entity.UpdatedAt = now;
                     entry.Property(nameof(IEntity.CreatedAt)).IsModified = false;
                     break;
 
@@ -193,15 +197,15 @@ public abstract class CrudKitDbContext : DbContext
                     if (entry.Entity is ISoftDeletable sd)
                     {
                         entry.State = EntityState.Modified;
-                        sd.DeletedAt = _timeProvider.GetUtcNow().UtcDateTime;
-                        entry.Entity.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
+                        sd.DeletedAt = now;
+                        entry.Entity.UpdatedAt = now;
                     }
                     break;
             }
         }
     }
 
-    private void WriteAuditLogs()
+    private void WriteAuditLogs(DateTime now)
     {
         var entries = ChangeTracker.Entries()
             .Where(e => e.Entity is IAuditable
@@ -218,7 +222,7 @@ public abstract class CrudKitDbContext : DbContext
                 EntityType = entry.Entity.GetType().Name,
                 EntityId = (entry.Entity as IEntity)?.Id ?? string.Empty,
                 UserId = _currentUser.Id,
-                Timestamp = _timeProvider.GetUtcNow().UtcDateTime,
+                Timestamp = now,
             };
 
             switch (entry.State)
