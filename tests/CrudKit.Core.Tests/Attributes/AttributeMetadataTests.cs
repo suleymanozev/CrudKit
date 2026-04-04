@@ -78,4 +78,49 @@ public class AttributeMetadataTests
     {
         Assert.True(typeof(ISoftDeletable).IsAssignableFrom(typeof(TestUser)));
     }
+
+    // --- Operation control tests ---
+
+    [Fact]
+    public void DefaultValues_AllEnabled()
+    {
+        // Default attribute has no ReadOnly, all Enable* flags are true
+        var attr = new CrudEntityAttribute();
+        Assert.False(attr.ReadOnly);
+        Assert.True(attr.EnableCreate);
+        Assert.True(attr.EnableUpdate);
+        Assert.True(attr.EnableDelete);
+        Assert.False(attr.EnableBulkDelete);
+        Assert.True(attr.IsCreateEnabled);
+        Assert.True(attr.IsUpdateEnabled);
+        Assert.True(attr.IsDeleteEnabled);
+    }
+
+    [Fact]
+    public void ReadOnly_DisablesAllMutations()
+    {
+        // ReadOnly=true must make all mutation computed props return false
+        var attr = new CrudEntityAttribute { ReadOnly = true };
+        Assert.False(attr.IsCreateEnabled);
+        Assert.False(attr.IsUpdateEnabled);
+        Assert.False(attr.IsDeleteEnabled);
+    }
+
+    [Fact]
+    public void EnableCreateFalse_OnlyDisablesCreate()
+    {
+        // Only EnableCreate=false; Update and Delete remain enabled
+        var attr = new CrudEntityAttribute { EnableCreate = false };
+        Assert.False(attr.IsCreateEnabled);
+        Assert.True(attr.IsUpdateEnabled);
+        Assert.True(attr.IsDeleteEnabled);
+    }
+
+    [Fact]
+    public void ReadOnly_OverridesEnableFlags()
+    {
+        // Even with EnableCreate=true explicitly, ReadOnly=true must win
+        var attr = new CrudEntityAttribute { ReadOnly = true, EnableCreate = true };
+        Assert.False(attr.IsCreateEnabled);
+    }
 }

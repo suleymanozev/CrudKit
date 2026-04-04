@@ -22,4 +22,29 @@ public class CrudEntityAttribute : Attribute
     /// Used with PermScope.Own to filter entities by owner.
     /// </summary>
     public string? OwnerField { get; set; }
+
+    // Operation control
+
+    /// <summary>
+    /// When true, only List and GetById endpoints are generated. No Create/Update/Delete.
+    /// Shortcut for setting EnableCreate/Update/Delete all to false.
+    /// </summary>
+    public bool ReadOnly { get; set; }
+
+    /// <summary>When true, POST endpoint is generated. Ignored if ReadOnly=true.</summary>
+    public bool EnableCreate { get; set; } = true;
+
+    /// <summary>When true, PUT endpoint is generated. Ignored if ReadOnly=true.</summary>
+    public bool EnableUpdate { get; set; } = true;
+
+    /// <summary>When true, DELETE endpoint is generated. Ignored if ReadOnly=true.</summary>
+    public bool EnableDelete { get; set; } = true;
+
+    /// <summary>When true, bulk delete endpoint is generated.</summary>
+    public bool EnableBulkDelete { get; set; }
+
+    // Computed — returns effective state considering ReadOnly
+    public bool IsCreateEnabled => !ReadOnly && EnableCreate;
+    public bool IsUpdateEnabled => !ReadOnly && EnableUpdate;
+    public bool IsDeleteEnabled => !ReadOnly && EnableDelete;
 }
