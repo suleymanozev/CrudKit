@@ -33,9 +33,11 @@ public sealed class TestWebApp : IAsyncDisposable
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
 
-        var builder = WebApplication.CreateBuilder();
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = environment
+        });
         builder.WebHost.UseTestServer();
-        builder.Environment.EnvironmentName = environment;
 
         builder.Services.AddDbContext<ApiTestDbContext>((_, opts) => opts.UseSqlite(connection));
         builder.Services.AddScoped<ICurrentUser>(_ => currentUser ?? new FakeCurrentUser());
