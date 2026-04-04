@@ -18,8 +18,9 @@ public class EfRepoTests
     {
         var db = DbHelper.CreateDb(user);
         var dialect = DialectDetector.Detect(db);
-        var queryBuilder = new QueryBuilder<PersonEntity>(new FilterApplier(dialect));
-        var repo = new EfRepo<PersonEntity>(db, queryBuilder);
+        var filterApplier = new FilterApplier(dialect);
+        var queryBuilder = new QueryBuilder<PersonEntity>(filterApplier);
+        var repo = new EfRepo<PersonEntity>(db, queryBuilder, filterApplier);
         return (db, repo);
     }
 
@@ -27,8 +28,9 @@ public class EfRepoTests
     {
         var db = DbHelper.CreateDb();
         var dialect = DialectDetector.Detect(db);
-        var queryBuilder = new QueryBuilder<SoftPersonEntity>(new FilterApplier(dialect));
-        var repo = new EfRepo<SoftPersonEntity>(db, queryBuilder);
+        var filterApplier = new FilterApplier(dialect);
+        var queryBuilder = new QueryBuilder<SoftPersonEntity>(filterApplier);
+        var repo = new EfRepo<SoftPersonEntity>(db, queryBuilder, filterApplier);
         return (db, repo);
     }
 
@@ -36,8 +38,9 @@ public class EfRepoTests
     {
         var db = DbHelper.CreateDb();
         var dialect = DialectDetector.Detect(db);
-        var queryBuilder = new QueryBuilder<UserEntity>(new FilterApplier(dialect));
-        var repo = new EfRepo<UserEntity>(db, queryBuilder);
+        var filterApplier = new FilterApplier(dialect);
+        var queryBuilder = new QueryBuilder<UserEntity>(filterApplier);
+        var repo = new EfRepo<UserEntity>(db, queryBuilder, filterApplier);
         return (db, repo);
     }
 
@@ -229,8 +232,9 @@ public class EfRepoTests
     {
         var db = DbHelper.CreateDb();
         var dialect = DialectDetector.Detect(db);
-        var queryBuilder = new QueryBuilder<UniqueCodeEntity>(new FilterApplier(dialect));
-        var repo = new EfRepo<UniqueCodeEntity>(db, queryBuilder);
+        var filterApplier = new FilterApplier(dialect);
+        var queryBuilder = new QueryBuilder<UniqueCodeEntity>(filterApplier);
+        var repo = new EfRepo<UniqueCodeEntity>(db, queryBuilder, filterApplier);
         return (db, repo);
     }
 
@@ -305,8 +309,9 @@ public class EfRepoTests
     {
         var db = DbHelper.CreateDb();
         var dialect = DialectDetector.Detect(db);
-        var queryBuilder = new QueryBuilder<PersonEntity>(new FilterApplier(dialect));
-        var repo = new EfRepo<PersonEntity>(db, queryBuilder, hooks);
+        var filterApplier = new FilterApplier(dialect);
+        var queryBuilder = new QueryBuilder<PersonEntity>(filterApplier);
+        var repo = new EfRepo<PersonEntity>(db, queryBuilder, filterApplier, hooks);
         return (db, repo);
     }
 
@@ -337,5 +342,125 @@ public class EfRepoTests
         // Act & Assert: FindById must throw NotFound because scope excludes this entity
         var ex = await Assert.ThrowsAsync<AppError>(() => repo.FindById(created.Id));
         Assert.Equal(404, ex.StatusCode);
+    }
+
+    // ---- BulkCount ----
+
+    [Fact]
+    public async Task BulkCount_ReturnsMatchingCount()
+    {
+        var (_, repo) = CreatePersonRepo();
+        for (var i = 1; i <= 5; i++)
+            await repo.Create(new { Name = $"Person{i}", Age = 20 + i });
+
+        var filters = new Dictionary<string, FilterOp>
+        {
+            ["Age"] = new FilterOp { Operator = "gte", Value = "23" }
+        };
+
+        var count = await repo.BulkCount(filters);
+        Assert.Equal(3, count); // Ages 23, 24, 25
+    }
+
+    [Fact]
+    public async Task BulkCount_ReturnsZero_WhenNoMatch()
+    {
+        var (_, repo) = CreatePersonRepo();
+        await repo.Create(new { Name = "Alice", Age = 20 });
+
+        var filters = new Dictionary<string, FilterOp>
+        {
+            ["Age"] = new FilterOp { Operator = "eq", Value = "99" }
+        };
+
+        var count = await repo.BulkCount(filters);
+        Assert.Equal(0, count);
+    }
+
+    // ---- BulkDelete ----
+
+    [Fact]
+    public async Task BulkDelete_SoftDeletable_SetsDeletedAt()
+    {
+        var (db, repo) = CreateSoftRepo();
+        await repo.Create(new { Name = "Alpha" });
+        await repo.Create(new { Name = "Beta" });
+        await repo.Create(new { Name = "Keep" });
+
+        var filters = new Dictionary<string, FilterOp>
+        {
+            ["Name"] = new FilterOp { Operator = "in", Values = ["Alpha", "Beta"] }
+        };
+
+        var affected = await repo.BulkDelete(filters);
+        Assert.Equal(2, affected);
+
+        // Detach all tracked entities so re-queries hit the database
+        foreach (var entry in db.ChangeTracker.Entries().ToList())
+            entry.State = EntityState.Detached;
+
+        // Verify soft-deleted (rows still exist with DeletedAt set)
+        var deleted = await db.SoftPersons.IgnoreQueryFilters()
+            .Where(e => e.DeletedAt != null).ToListAsync();
+        Assert.Equal(2, deleted.Count);
+        Assert.All(deleted, e => Assert.NotNull(e.DeletedAt));
+
+        // "Keep" should remain active
+        var active = await db.SoftPersons.ToListAsync();
+        Assert.Single(active);
+        Assert.Equal("Keep", active[0].Name);
+    }
+
+    [Fact]
+    public async Task BulkDelete_NonSoftDeletable_RemovesEntities()
+    {
+        var (db, repo) = CreatePersonRepo();
+        await repo.Create(new { Name = "Alice", Age = 30 });
+        await repo.Create(new { Name = "Bob", Age = 25 });
+        await repo.Create(new { Name = "Carol", Age = 30 });
+
+        var filters = new Dictionary<string, FilterOp>
+        {
+            ["Age"] = new FilterOp { Operator = "eq", Value = "30" }
+        };
+
+        var affected = await repo.BulkDelete(filters);
+        Assert.Equal(2, affected);
+
+        // Only Bob should remain
+        var remaining = await db.Persons.ToListAsync();
+        Assert.Single(remaining);
+        Assert.Equal("Bob", remaining[0].Name);
+    }
+
+    // ---- BulkUpdate ----
+
+    [Fact]
+    public async Task BulkUpdate_UpdatesMatchingEntities()
+    {
+        var (db, repo) = CreatePersonRepo();
+        await repo.Create(new { Name = "Alice", Age = 30 });
+        await repo.Create(new { Name = "Bob", Age = 25 });
+        await repo.Create(new { Name = "Carol", Age = 30 });
+
+        var filters = new Dictionary<string, FilterOp>
+        {
+            ["Age"] = new FilterOp { Operator = "eq", Value = "30" }
+        };
+        var values = new Dictionary<string, object?>
+        {
+            ["Name"] = "Updated"
+        };
+
+        var affected = await repo.BulkUpdate(filters, values);
+        Assert.Equal(2, affected);
+
+        // Verify the matching entities were updated
+        var updated = await db.Persons.Where(p => p.Name == "Updated").ToListAsync();
+        Assert.Equal(2, updated.Count);
+
+        // Bob should remain unchanged
+        var bob = await db.Persons.FirstAsync(p => p.Name == "Bob");
+        Assert.Equal(25, bob.Age);
     }
 }

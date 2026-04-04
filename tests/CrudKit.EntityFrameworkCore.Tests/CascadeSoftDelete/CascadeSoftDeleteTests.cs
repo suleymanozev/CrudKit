@@ -14,8 +14,9 @@ public class CascadeSoftDeleteTests
     {
         var db = DbHelper.CreateDb(timeProvider: timeProvider);
         var dialect = DialectDetector.Detect(db);
-        var queryBuilder = new QueryBuilder<ParentItemEntity>(new FilterApplier(dialect));
-        var repo = new EfRepo<ParentItemEntity>(db, queryBuilder);
+        var filterApplier = new FilterApplier(dialect);
+        var queryBuilder = new QueryBuilder<ParentItemEntity>(filterApplier);
+        var repo = new EfRepo<ParentItemEntity>(db, queryBuilder, filterApplier);
         return (db, repo);
     }
 

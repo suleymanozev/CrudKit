@@ -16,12 +16,14 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 {
     private readonly CrudKitDbContext _db;
     private readonly QueryBuilder<T> _queryBuilder;
+    private readonly FilterApplier _filterApplier;
     private readonly ICrudHooks<T>? _hooks;
 
-    public EfRepo(CrudKitDbContext db, QueryBuilder<T> queryBuilder, ICrudHooks<T>? hooks = null)
+    public EfRepo(CrudKitDbContext db, QueryBuilder<T> queryBuilder, FilterApplier filterApplier, ICrudHooks<T>? hooks = null)
     {
         _db = db;
         _queryBuilder = queryBuilder;
+        _filterApplier = filterApplier;
         _hooks = hooks;
     }
 
@@ -205,6 +207,106 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
     public Task<long> Count(CancellationToken ct = default)
         => _db.Set<T>().LongCountAsync(ct);
+
+    // ---- Bulk operations ----
+
+    public async Task<long> BulkCount(Dictionary<string, FilterOp> filters, CancellationToken ct = default)
+    {
+        var query = _db.Set<T>().AsNoTracking().AsQueryable();
+        foreach (var (field, op) in filters)
+            query = _filterApplier.Apply(query, field, op);
+        return await query.LongCountAsync(ct);
+    }
+
+    public async Task<int> BulkDelete(Dictionary<string, FilterOp> filters, CancellationToken ct = default)
+    {
+        var query = _db.Set<T>().AsQueryable();
+        foreach (var (field, op) in filters)
+            query = _filterApplier.Apply(query, field, op);
+
+        if (typeof(ISoftDeletable).IsAssignableFrom(typeof(T)))
+        {
+            var now = DateTime.UtcNow;
+
+            // Build property expressions without interface casts so EF Core can translate them.
+            var deletedAtProp = typeof(T).GetProperty(nameof(ISoftDeletable.DeletedAt))!;
+            var updatedAtProp = typeof(T).GetProperty(nameof(IEntity.UpdatedAt))!;
+
+            var param = Expression.Parameter(typeof(T), "e");
+            var deletedAtLambda = Expression.Lambda<Func<T, DateTime?>>(
+                Expression.Property(param, deletedAtProp), param);
+            var updatedAtLambda = Expression.Lambda<Func<T, DateTime>>(
+                Expression.Property(param, updatedAtProp), param);
+
+            return await query.ExecuteUpdateAsync(setters =>
+            {
+                setters.SetProperty(deletedAtLambda, now);
+                setters.SetProperty(updatedAtLambda, now);
+            }, ct);
+        }
+
+        return await query.ExecuteDeleteAsync(ct);
+    }
+
+    public async Task<int> BulkUpdate(Dictionary<string, FilterOp> filters, Dictionary<string, object?> values, CancellationToken ct = default)
+    {
+        var query = _db.Set<T>().AsQueryable();
+        foreach (var (field, op) in filters)
+            query = _filterApplier.Apply(query, field, op);
+
+        // Build an Action<UpdateSettersBuilder<T>> that calls SetProperty for each value.
+        // We use expression trees to construct property-access lambdas and reflection
+        // to invoke the generic SetProperty<TProperty> method on UpdateSettersBuilder<T>.
+        var builderType = typeof(Microsoft.EntityFrameworkCore.Query.UpdateSettersBuilder<T>);
+
+        // Resolve the SetProperty overload: SetProperty<TProperty>(Expression<Func<T,TProperty>>, TProperty)
+        var setPropertyMethods = builderType.GetMethods()
+            .Where(m => m.Name == "SetProperty" && m.IsGenericMethodDefinition && m.GetParameters().Length == 2)
+            .ToList();
+
+        // Pick the overload where the second parameter is TProperty (not Expression<Func<T,TProperty>>)
+        var setPropertyBase = setPropertyMethods.First(m =>
+        {
+            var p = m.GetParameters()[1];
+            return !p.ParameterType.IsGenericType || p.ParameterType.GetGenericTypeDefinition() != typeof(Expression<>);
+        });
+
+        // Pre-build the list of (MethodInfo, lambda, convertedValue) tuples
+        var setterCalls = new List<(MethodInfo method, object lambda, object? value)>();
+        var entityParam = Expression.Parameter(typeof(T), "e");
+
+        foreach (var (fieldName, value) in values)
+        {
+            var prop = typeof(T).GetProperty(fieldName,
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (prop == null) continue;
+
+            // Convert value to target property type
+            object? converted;
+            try
+            {
+                converted = value == null ? null : Convert.ChangeType(value, prop.PropertyType);
+            }
+            catch
+            {
+                continue; // skip unconvertible values
+            }
+
+            // Build: e => e.Property as Expression<Func<T, TProperty>>
+            var propAccess = Expression.Property(entityParam, prop);
+            var funcType = typeof(Func<,>).MakeGenericType(typeof(T), prop.PropertyType);
+            var lambda = Expression.Lambda(funcType, propAccess, entityParam);
+
+            var typedSetProperty = setPropertyBase.MakeGenericMethod(prop.PropertyType);
+            setterCalls.Add((typedSetProperty, lambda, converted));
+        }
+
+        return await query.ExecuteUpdateAsync(setters =>
+        {
+            foreach (var (method, lambda, value) in setterCalls)
+                method.Invoke(setters, [lambda, value]);
+        }, ct);
+    }
 
     // ---- Reflection-based DTO mapping ----
 

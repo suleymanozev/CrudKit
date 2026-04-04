@@ -16,4 +16,13 @@ public interface IRepo<T> where T : class, IEntity
     Task Restore(string id, CancellationToken ct = default);
     Task<bool> Exists(string id, CancellationToken ct = default);
     Task<long> Count(CancellationToken ct = default);
+
+    /// <summary>Bulk update entities matching the given filters.</summary>
+    Task<int> BulkUpdate(Dictionary<string, FilterOp> filters, Dictionary<string, object?> values, CancellationToken ct = default);
+
+    /// <summary>Bulk delete entities matching the given filters. Soft-deletes if ISoftDeletable.</summary>
+    Task<int> BulkDelete(Dictionary<string, FilterOp> filters, CancellationToken ct = default);
+
+    /// <summary>Count entities matching the given filters.</summary>
+    Task<long> BulkCount(Dictionary<string, FilterOp> filters, CancellationToken ct = default);
 }
