@@ -13,8 +13,8 @@ public class TestDbContext : CrudKitDbContext
     private readonly SqliteConnection? _connection;
 
     public TestDbContext(DbContextOptions<TestDbContext> options, ICurrentUser currentUser,
-        SqliteConnection? connection = null)
-        : base(options, currentUser)
+        SqliteConnection? connection = null, TimeProvider? timeProvider = null)
+        : base(options, currentUser, timeProvider)
     {
         _connection = connection;
     }

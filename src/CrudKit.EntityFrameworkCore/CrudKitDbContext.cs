@@ -25,14 +25,17 @@ namespace CrudKit.EntityFrameworkCore;
 public abstract class CrudKitDbContext : DbContext
 {
     private readonly ICurrentUser _currentUser;
+    private readonly TimeProvider _timeProvider;
 
     public DbSet<AuditLogEntry> AuditLogs => Set<AuditLogEntry>();
     public DbSet<SequenceEntry> Sequences => Set<SequenceEntry>();
 
-    protected CrudKitDbContext(DbContextOptions options, ICurrentUser currentUser)
+    protected CrudKitDbContext(DbContextOptions options, ICurrentUser currentUser,
+        TimeProvider? timeProvider = null)
         : base(options)
     {
         _currentUser = currentUser;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -175,14 +178,14 @@ public abstract class CrudKitDbContext : DbContext
             {
                 case EntityState.Added:
                     // Id already set in Step 1
-                    entry.Entity.CreatedAt = DateTime.UtcNow;
-                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    entry.Entity.CreatedAt = _timeProvider.GetUtcNow().UtcDateTime;
+                    entry.Entity.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
                     if (entry.Entity is IMultiTenant mt && _currentUser.TenantId != null)
                         mt.TenantId = _currentUser.TenantId;
                     break;
 
                 case EntityState.Modified:
-                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    entry.Entity.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
                     entry.Property(nameof(IEntity.CreatedAt)).IsModified = false;
                     break;
 
@@ -190,8 +193,8 @@ public abstract class CrudKitDbContext : DbContext
                     if (entry.Entity is ISoftDeletable sd)
                     {
                         entry.State = EntityState.Modified;
-                        sd.DeletedAt = DateTime.UtcNow;
-                        entry.Entity.UpdatedAt = DateTime.UtcNow;
+                        sd.DeletedAt = _timeProvider.GetUtcNow().UtcDateTime;
+                        entry.Entity.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
                     }
                     break;
             }
@@ -215,7 +218,7 @@ public abstract class CrudKitDbContext : DbContext
                 EntityType = entry.Entity.GetType().Name,
                 EntityId = (entry.Entity as IEntity)?.Id ?? string.Empty,
                 UserId = _currentUser.Id,
-                Timestamp = DateTime.UtcNow,
+                Timestamp = _timeProvider.GetUtcNow().UtcDateTime,
             };
 
             switch (entry.State)

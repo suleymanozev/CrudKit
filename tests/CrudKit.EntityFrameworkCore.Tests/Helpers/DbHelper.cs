@@ -12,7 +12,7 @@ namespace CrudKit.EntityFrameworkCore.Tests.Helpers;
 /// </summary>
 public static class DbHelper
 {
-    public static TestDbContext CreateDb(ICurrentUser? user = null)
+    public static TestDbContext CreateDb(ICurrentUser? user = null, TimeProvider? timeProvider = null)
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -21,7 +21,7 @@ public static class DbHelper
             .UseSqlite(connection)
             .Options;
 
-        var db = new TestDbContext(options, user ?? new FakeCurrentUser(), connection);
+        var db = new TestDbContext(options, user ?? new FakeCurrentUser(), connection, timeProvider);
         db.Database.EnsureCreated();
         return db;
     }
