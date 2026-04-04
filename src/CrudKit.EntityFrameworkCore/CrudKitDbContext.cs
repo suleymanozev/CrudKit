@@ -7,6 +7,7 @@ using CrudKit.EntityFrameworkCore.Concurrency;
 using CrudKit.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.ValueGeneration;
 
 namespace CrudKit.EntityFrameworkCore;
@@ -145,19 +146,23 @@ public abstract class CrudKitDbContext : DbContext
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        BeforeSaveChanges();
-        return base.SaveChanges(acceptAllChangesOnSuccess);
+        var cascadeOps = BeforeSaveChanges();
+        var result = base.SaveChanges(acceptAllChangesOnSuccess);
+        ExecuteCascadeOps(cascadeOps);
+        return result;
     }
 
     public override async Task<int> SaveChangesAsync(
         bool acceptAllChangesOnSuccess,
         CancellationToken ct = default)
     {
-        BeforeSaveChanges();
-        return await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
+        var cascadeOps = BeforeSaveChanges();
+        var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
+        ExecuteCascadeOps(cascadeOps);
+        return result;
     }
 
-    private void BeforeSaveChanges()
+    private List<(string Sql, object[] Params)> BeforeSaveChanges()
     {
         // Capture current UTC time once to ensure consistency across all timestamps
         // for this SaveChanges operation, preventing time skew between CreatedAt/UpdatedAt
@@ -202,6 +207,69 @@ public abstract class CrudKitDbContext : DbContext
                     }
                     break;
             }
+        }
+
+        // Step 4: Collect cascade soft-delete operations (executed after base.SaveChanges)
+        return CollectCascadeSoftDeleteOps(now);
+    }
+
+    /// <summary>
+    /// Finds entities that were just soft-deleted in this SaveChanges batch and
+    /// collects cascade soft-delete SQL operations to run after the main save completes.
+    /// Uses raw SQL to avoid loading children into the change tracker.
+    /// </summary>
+    private List<(string Sql, object[] Params)> CollectCascadeSoftDeleteOps(DateTime now)
+    {
+        var ops = new List<(string Sql, object[] Params)>();
+
+        var softDeletedEntries = ChangeTracker.Entries<IEntity>()
+            .Where(e => e.State == EntityState.Modified
+                && e.Entity is ISoftDeletable
+                && ((ISoftDeletable)e.Entity).DeletedAt != null
+                && e.Property(nameof(ISoftDeletable.DeletedAt)).IsModified)
+            .ToList();
+
+        foreach (var entry in softDeletedEntries)
+        {
+            var entityType = entry.Entity.GetType();
+            var cascadeAttributes = entityType.GetCustomAttributes<CascadeSoftDeleteAttribute>();
+
+            foreach (var attr in cascadeAttributes)
+            {
+                var childEntityType = Model.FindEntityType(attr.ChildType);
+                if (childEntityType == null) continue;
+
+                var tableName = childEntityType.GetTableName();
+                var schema = childEntityType.GetSchema();
+                if (tableName == null) continue;
+
+                var storeObject = StoreObjectIdentifier.Table(tableName, schema);
+
+                var fkColumn = childEntityType.FindProperty(attr.ForeignKeyProperty)?.GetColumnName(storeObject);
+                var deletedAtColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeletedAt))?.GetColumnName(storeObject);
+                var updatedAtColumn = childEntityType.FindProperty(nameof(IEntity.UpdatedAt))?.GetColumnName(storeObject);
+
+                if (fkColumn == null || deletedAtColumn == null || updatedAtColumn == null)
+                    continue;
+
+                var sql = string.Format(
+                    "UPDATE \"{0}\" SET \"{1}\" = {{0}}, \"{2}\" = {{1}} WHERE \"{3}\" = {{2}} AND \"{1}\" IS NULL",
+                    tableName, deletedAtColumn, updatedAtColumn, fkColumn);
+                ops.Add((sql, new object[] { now, now, entry.Entity.Id }));
+            }
+        }
+
+        return ops;
+    }
+
+    /// <summary>
+    /// Executes collected cascade soft-delete SQL operations after the main save.
+    /// </summary>
+    private void ExecuteCascadeOps(List<(string Sql, object[] Params)> ops)
+    {
+        foreach (var (sql, parameters) in ops)
+        {
+            Database.ExecuteSqlRaw(sql, parameters[0], parameters[1], parameters[2]);
         }
     }
 

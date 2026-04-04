@@ -143,6 +143,32 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
         ((ISoftDeletable)entity).DeletedAt = null;
         await _db.SaveChangesAsync(ct);
+
+        // Cascade restore to child entities declared via [CascadeSoftDelete] attributes
+        var cascadeAttributes = typeof(T).GetCustomAttributes<CascadeSoftDeleteAttribute>();
+        foreach (var attr in cascadeAttributes)
+        {
+            var childEntityType = _db.Model.FindEntityType(attr.ChildType);
+            if (childEntityType == null) continue;
+
+            var tableName = childEntityType.GetTableName();
+            var schema = childEntityType.GetSchema();
+            if (tableName == null) continue;
+
+            var storeObject = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(tableName, schema);
+            var fkColumn = childEntityType.FindProperty(attr.ForeignKeyProperty)?.GetColumnName(storeObject);
+            var deletedAtColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeletedAt))?.GetColumnName(storeObject);
+            var updatedAtColumn = childEntityType.FindProperty(nameof(IEntity.UpdatedAt))?.GetColumnName(storeObject);
+
+            if (fkColumn == null || deletedAtColumn == null || updatedAtColumn == null)
+                continue;
+
+            var now = entity.UpdatedAt; // Use the same timestamp set by SaveChanges
+            var sql = string.Format(
+                "UPDATE \"{0}\" SET \"{1}\" = NULL, \"{2}\" = {{0}} WHERE \"{3}\" = {{1}} AND \"{1}\" IS NOT NULL",
+                tableName, deletedAtColumn, updatedAtColumn, fkColumn);
+            _db.Database.ExecuteSqlRaw(sql, now, id);
+        }
     }
 
     public Task<bool> Exists(string id, CancellationToken ct = default)

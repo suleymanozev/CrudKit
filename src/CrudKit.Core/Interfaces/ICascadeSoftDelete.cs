@@ -1,7 +1,11 @@
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>
-/// When this entity is deleted, navigation properties marked with
-/// [CascadeSoftDelete] are also soft-deleted.
+/// Implemented by child entities that participate in cascade soft-delete.
+/// The parent entity must be decorated with [CascadeSoftDelete] attributes.
 /// </summary>
-public interface ICascadeSoftDelete : ISoftDeletable { }
+public interface ICascadeSoftDelete<TParent> : ISoftDeletable
+    where TParent : class, IEntity, ISoftDeletable
+{
+    static abstract string ParentForeignKey { get; }
+}

@@ -129,3 +129,31 @@ public class NoteEntity : IEntity
 
     public ParentEntity? Parent { get; set; }
 }
+
+// ---------------------------------------------------------------------------
+// Entities used by CascadeSoftDelete tests
+// ---------------------------------------------------------------------------
+
+/// <summary>Parent entity that cascade soft-deletes its children.</summary>
+[CascadeSoftDelete(typeof(ChildItemEntity), nameof(ChildItemEntity.ParentItemId))]
+public class ParentItemEntity : IEntity, ISoftDeletable
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public List<ChildItemEntity> Children { get; set; } = new();
+}
+
+/// <summary>Child entity that participates in cascade soft-delete with <see cref="ParentItemEntity"/>.</summary>
+public class ChildItemEntity : IEntity, ISoftDeletable, ICascadeSoftDelete<ParentItemEntity>
+{
+    public string Id { get; set; } = string.Empty;
+    public string ParentItemId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public static string ParentForeignKey => nameof(ParentItemId);
+}

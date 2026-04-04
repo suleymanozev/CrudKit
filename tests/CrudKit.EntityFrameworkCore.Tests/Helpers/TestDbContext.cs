@@ -32,6 +32,10 @@ public class TestDbContext : CrudKitDbContext
     public DbSet<ChildEntity> Children => Set<ChildEntity>();
     public DbSet<NoteEntity> Notes => Set<NoteEntity>();
 
+    // DbSets for CascadeSoftDelete tests
+    public DbSet<ParentItemEntity> ParentItems => Set<ParentItemEntity>();
+    public DbSet<ChildItemEntity> ChildItems => Set<ChildItemEntity>();
+
     public override void Dispose()
     {
         base.Dispose();
