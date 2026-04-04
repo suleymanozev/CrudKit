@@ -1,6 +1,8 @@
 <Solution>
   <Project Path="src/CrudKit.Core/CrudKit.Core.csproj" />
   <Project Path="src/CrudKit.EntityFrameworkCore/CrudKit.EntityFrameworkCore.csproj" />
+  <Project Path="src/CrudKit.Api/CrudKit.Api.csproj" />
   <Project Path="tests/CrudKit.Core.Tests/CrudKit.Core.Tests.csproj" />
   <Project Path="tests/CrudKit.EntityFrameworkCore.Tests/CrudKit.EntityFrameworkCore.Tests.csproj" />
+  <Project Path="tests/CrudKit.Api.Tests/CrudKit.Api.Tests.csproj" />
 </Solution>
