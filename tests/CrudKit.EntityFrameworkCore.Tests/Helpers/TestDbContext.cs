@@ -27,6 +27,11 @@ public class TestDbContext : CrudKitDbContext
     public DbSet<InvoiceEntity> Invoices => Set<InvoiceEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
 
+    // DbSets for IncludeApplier integration tests
+    public DbSet<ParentEntity> Parents => Set<ParentEntity>();
+    public DbSet<ChildEntity> Children => Set<ChildEntity>();
+    public DbSet<NoteEntity> Notes => Set<NoteEntity>();
+
     public override void Dispose()
     {
         base.Dispose();

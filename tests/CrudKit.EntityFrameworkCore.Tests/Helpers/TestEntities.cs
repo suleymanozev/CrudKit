@@ -1,5 +1,6 @@
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Attributes;
+using CrudKit.Core.Enums;
 using CrudKit.EntityFrameworkCore.Concurrency;
 
 namespace CrudKit.EntityFrameworkCore.Tests.Helpers;
@@ -78,4 +79,53 @@ public class UserEntity : IEntity
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+}
+
+// ---------------------------------------------------------------------------
+// Entities used by IncludeApplier integration tests
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Parent entity with two navigations:
+///   - Children (Scope.All)     → loaded for both list and detail queries
+///   - Notes   (DetailOnly)     → loaded only for detail queries
+/// </summary>
+[DefaultInclude("Children")]
+[DefaultInclude("Notes", Scope = IncludeScope.DetailOnly)]
+public class ParentEntity : IEntity
+{
+    public string Id { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
+    /// <summary>Navigation: always included (Scope.All).</summary>
+    public List<ChildEntity> Children { get; set; } = [];
+
+    /// <summary>Navigation: included only for detail queries (DetailOnly).</summary>
+    public List<NoteEntity> Notes { get; set; } = [];
+}
+
+/// <summary>Child entity — belongs to <see cref="ParentEntity"/>.</summary>
+public class ChildEntity : IEntity
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string ParentId { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
+    public ParentEntity? Parent { get; set; }
+}
+
+/// <summary>Note entity — belongs to <see cref="ParentEntity"/>.</summary>
+public class NoteEntity : IEntity
+{
+    public string Id { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public string ParentId { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
+    public ParentEntity? Parent { get; set; }
 }
