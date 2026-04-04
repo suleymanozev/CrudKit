@@ -24,4 +24,11 @@ public interface ICrudHooks<T> where T : class, IEntity
     /// Default: returns the query unchanged.
     /// </summary>
     IQueryable<T> ApplyScope(IQueryable<T> query, CrudKit.Core.Context.AppContext ctx) => query;
+
+    /// <summary>
+    /// Customizes EF Core Include() calls for complex include scenarios (e.g., ThenInclude).
+    /// Applied before [DefaultInclude] attributes.
+    /// Default: returns the query unchanged.
+    /// </summary>
+    IQueryable<T> ApplyIncludes(IQueryable<T> query) => query;
 }

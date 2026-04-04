@@ -16,4 +16,10 @@ public class CrudEntityAttribute : Attribute
     public bool NumberingYearlyReset { get; set; } = true;
     public bool EnableBulkUpdate { get; set; }
     public int BulkLimit { get; set; } = 0; // 0 = use global default from CrudKitApiOptions
+
+    /// <summary>
+    /// Property name on the entity that holds the owner user ID.
+    /// Used with PermScope.Own to filter entities by owner.
+    /// </summary>
+    public string? OwnerField { get; set; }
 }

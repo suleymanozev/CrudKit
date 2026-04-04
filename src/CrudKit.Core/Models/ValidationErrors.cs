@@ -15,4 +15,17 @@ public class ValidationErrors
         if (!IsEmpty)
             throw AppError.Validation(this);
     }
+
+    /// <summary>
+    /// Converts errors to the format expected by Results.ValidationProblem().
+    /// Groups errors by field name, each field maps to an array of error messages.
+    /// </summary>
+    public Dictionary<string, string[]> ToDictionary()
+    {
+        return _errors
+            .GroupBy(e => e.Field)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(e => e.Message).ToArray());
+    }
 }
