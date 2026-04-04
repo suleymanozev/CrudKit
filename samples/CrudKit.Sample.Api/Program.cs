@@ -38,6 +38,9 @@ app.MapCrudEndpoints<Category, CreateCategory, UpdateCategory>("categories");
 app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders");
 app.MapCrudDetailEndpoints<Order, OrderLine, CreateOrderLine>("orders", "lines", "OrderId");
 
+// Read-only endpoint — only GET /api/units and GET /api/units/{id}
+app.MapReadOnlyEndpoints<Unit>("units");
+
 // OpenAPI
 app.MapOpenApi();
 

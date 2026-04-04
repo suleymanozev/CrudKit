@@ -20,6 +20,49 @@ namespace CrudKit.Api.Endpoints;
 public static class CrudEndpointMapper
 {
     /// <summary>
+    /// Maps read-only endpoints: GET / (list) and GET /{id} (get by id).
+    /// Use for entities that should not be created, updated, or deleted via API.
+    /// </summary>
+    public static RouteGroupBuilder MapReadOnlyEndpoints<TEntity>(
+        this WebApplication app,
+        string route)
+        where TEntity : class, IEntity
+    {
+        var tag = typeof(TEntity).Name.Replace("Entity", "");
+        var group = app.MapGroup($"/api/{route}").WithTags(tag);
+        group.AddEndpointFilter<AppErrorFilter>();
+
+        // GET /api/{route} — List
+        group.MapGet("/", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
+        {
+            var listParams = ListParams.FromQuery(httpCtx.Request.Query);
+            var result = await repo.List(listParams, ct);
+            var mapped = TryMapPaginated(httpCtx.RequestServices, result);
+            return Results.Ok(mapped);
+        })
+        .WithName($"List{tag}")
+        .Produces<Paginated<TEntity>>(200)
+        .ProducesProblem(500);
+
+        // GET /api/{route}/{id} — Get by ID
+        group.MapGet("/{id}", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
+        {
+            var entity = await repo.FindByIdOrDefault(id, ct);
+            if (entity is null)
+                return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TEntity).Name} with id '{id}' was not found." }, statusCode: 404);
+
+            var mapped = TryMapSingle(httpCtx.RequestServices, entity);
+            return Results.Ok(mapped);
+        })
+        .WithName($"Get{tag}")
+        .Produces<TEntity>(200)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
+
+        return group;
+    }
+
+    /// <summary>
     /// Maps GET (list), GET (by id), POST, PUT, DELETE endpoints for the entity.
     /// Conditionally maps restore (ISoftDeletable) and transition (IStateMachine) endpoints.
     /// </summary>

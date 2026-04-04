@@ -7,5 +7,8 @@
   <Project Path="tests/CrudKit.Api.Tests/CrudKit.Api.Tests.csproj" />
   <Project Path="src/CrudKit.SourceGen/CrudKit.SourceGen.csproj" />
   <Project Path="tests/CrudKit.SourceGen.Tests/CrudKit.SourceGen.Tests.csproj" />
+  <Folder Name="/samples/" />
+  <Folder Name="/src/" />
+  <Folder Name="/tests/" />
   <Project Path="samples/CrudKit.Sample.Api/CrudKit.Sample.Api.csproj" />
 </Solution>

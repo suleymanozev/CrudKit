@@ -14,4 +14,5 @@ public class SampleDbContext : CrudKitDbContext
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();
+    public DbSet<Unit> Units => Set<Unit>();
 }
