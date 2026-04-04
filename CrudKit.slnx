@@ -5,4 +5,6 @@
   <Project Path="tests/CrudKit.Core.Tests/CrudKit.Core.Tests.csproj" />
   <Project Path="tests/CrudKit.EntityFrameworkCore.Tests/CrudKit.EntityFrameworkCore.Tests.csproj" />
   <Project Path="tests/CrudKit.Api.Tests/CrudKit.Api.Tests.csproj" />
+  <Project Path="src/CrudKit.SourceGen/CrudKit.SourceGen.csproj" />
+  <Project Path="tests/CrudKit.SourceGen.Tests/CrudKit.SourceGen.Tests.csproj" />
 </Solution>
