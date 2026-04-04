@@ -35,11 +35,11 @@ app.UseCrudKit();
 // Map CRUD endpoints
 app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>("products");
 app.MapCrudEndpoints<Category, CreateCategory, UpdateCategory>("categories");
-app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders");
-app.MapCrudDetailEndpoints<Order, OrderLine, CreateOrderLine>("orders", "lines", "OrderId");
+app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders")
+    .WithDetail<OrderLine, CreateOrderLine>("lines", "OrderId");
 
 // Read-only endpoint — only GET /api/units and GET /api/units/{id}
-app.MapReadOnlyEndpoints<Unit>("units");
+app.MapCrudEndpoints<Unit>("units");
 
 // OpenAPI
 app.MapOpenApi();

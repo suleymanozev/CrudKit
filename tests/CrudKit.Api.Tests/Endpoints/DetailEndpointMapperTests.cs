@@ -16,9 +16,8 @@ public class DetailEndpointMapperTests
 
     private static Task<TestWebApp> CreateApp() => TestWebApp.CreateAsync(configureEndpoints: web =>
     {
-        web.MapCrudEndpoints<InvoiceEntity, CreateInvoiceDto, UpdateInvoiceDto>("invoices");
-        web.MapCrudDetailEndpoints<InvoiceEntity, InvoiceLineEntity, CreateInvoiceLineDto>(
-            "invoices", "lines", "InvoiceId");
+        web.MapCrudEndpoints<InvoiceEntity, CreateInvoiceDto, UpdateInvoiceDto>("invoices")
+            .WithDetail<InvoiceLineEntity, CreateInvoiceLineDto>("lines", "InvoiceId");
     });
 
     private static async Task<string> CreateInvoice(TestWebApp app, string title = "Test Invoice")

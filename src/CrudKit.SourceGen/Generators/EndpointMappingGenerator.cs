@@ -7,8 +7,8 @@ namespace CrudKit.SourceGen.Generators;
 /// <summary>
 /// Generates <c>CrudKitEndpoints.g.cs</c> containing a <c>MapAllCrudEndpoints()</c>
 /// extension method on <c>IEndpointRouteBuilder</c>.
-/// Each entity uses <c>MapCrudEndpoints</c> (full) or <c>MapReadOnlyEndpoints</c>
-/// depending on its operation flags.
+/// Each entity uses <c>MapCrudEndpoints</c> (full CRUD with 3 generic params) or
+/// <c>MapCrudEndpoints</c> (read-only with 1 generic param) depending on its operation flags.
 /// </summary>
 internal static class EndpointMappingGenerator
 {
@@ -55,7 +55,7 @@ internal static class EndpointMappingGenerator
             if (entity.ReadOnly || (!entity.IsCreateEnabled && !entity.IsUpdateEnabled))
             {
                 // Read-only: only GET endpoints
-                sb.AppendLine($"        app.MapReadOnlyEndpoints<{entity.Name}, {entity.Name}Response, {entity.Name}Mapper, {entity.Name}Hooks>();");
+                sb.AppendLine($"        app.MapCrudEndpoints<{entity.Name}, {entity.Name}Response, {entity.Name}Mapper, {entity.Name}Hooks>();");
             }
             else if (entity.IsCreateEnabled && entity.IsUpdateEnabled)
             {

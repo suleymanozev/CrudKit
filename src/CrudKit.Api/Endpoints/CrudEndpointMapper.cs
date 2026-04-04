@@ -14,6 +14,201 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CrudKit.Api.Endpoints;
 
 /// <summary>
+/// Wrapper returned by <see cref="CrudEndpointMapper.MapCrudEndpoints{TEntity}(WebApplication, string)"/>
+/// and its overloads. Carries enough context for fluent <c>.WithDetail</c> chaining.
+/// </summary>
+public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
+{
+    /// <summary>The route group created for the master entity.</summary>
+    public RouteGroupBuilder Group { get; }
+
+    /// <summary>The host application (needed to map additional route groups).</summary>
+    public WebApplication App { get; }
+
+    /// <summary>The route prefix used for the master entity (e.g. "products").</summary>
+    public string Route { get; }
+
+    internal CrudEndpointGroup(RouteGroupBuilder group, WebApplication app, string route)
+    {
+        Group = group;
+        App = app;
+        Route = route;
+    }
+
+    /// <summary>
+    /// Maps nested CRUD endpoints for a detail (child) entity scoped under the master route.
+    /// Returns the same group for further fluent chaining.
+    /// </summary>
+    public CrudEndpointGroup<TMaster> WithDetail<TDetail, TCreateDetail>(
+        string detailRoute,
+        string foreignKeyProperty)
+        where TDetail : class, IEntity
+        where TCreateDetail : class
+    {
+        var masterTag = typeof(TMaster).Name.Replace("Entity", "");
+        var detailTag = typeof(TDetail).Name.Replace("Entity", "");
+        var tag = $"{masterTag}{detailTag}";
+
+        var group = App.MapGroup($"/api/{Route}/{{masterId}}/{detailRoute}").WithTags(tag);
+        group.AddEndpointFilter<AppErrorFilter>();
+
+        var fkProp = typeof(TDetail).GetProperty(foreignKeyProperty,
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
+            ?? throw new InvalidOperationException(
+                $"Property '{foreignKeyProperty}' not found on {typeof(TDetail).Name}.");
+
+        var masterRoute = Route;
+
+        // GET /api/{masterRoute}/{masterId}/{detailRoute} — List details by master
+        group.MapGet("/", async (string masterId, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
+        {
+            if (!await masterRepo.Exists(masterId, ct))
+                throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
+
+            var details = await detailRepo.FindByField(foreignKeyProperty, masterId, ct);
+            return Results.Ok(details);
+        })
+        .WithName($"List{tag}")
+        .Produces<List<TDetail>>(200)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
+
+        // GET /api/{masterRoute}/{masterId}/{detailRoute}/{id} — Get single detail
+        group.MapGet("/{id}", async (string masterId, string id, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
+        {
+            if (!await masterRepo.Exists(masterId, ct))
+                throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
+
+            var entity = await detailRepo.FindByIdOrDefault(id, ct);
+            if (entity is null)
+                return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TDetail).Name} with id '{id}' was not found." }, statusCode: 404);
+
+            var fkValue = fkProp.GetValue(entity)?.ToString();
+            if (fkValue != masterId)
+                return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TDetail).Name} with id '{id}' was not found." }, statusCode: 404);
+
+            return Results.Ok(entity);
+        })
+        .WithName($"Get{tag}")
+        .Produces<TDetail>(200)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
+
+        // POST /api/{masterRoute}/{masterId}/{detailRoute} — Create detail
+        group.MapPost("/", async (string masterId, TCreateDetail dto, HttpContext httpCtx, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
+        {
+            if (!await masterRepo.Exists(masterId, ct))
+                throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
+
+            var dtoFkProp = typeof(TCreateDetail).GetProperty(foreignKeyProperty,
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (dtoFkProp != null)
+                dtoFkProp.SetValue(dto, masterId);
+
+            var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                var entity = await detailRepo.Create(dto, ct);
+
+                if (dtoFkProp == null)
+                {
+                    fkProp.SetValue(entity, masterId);
+                    await db.SaveChangesAsync(ct);
+                }
+
+                await tx.CommitAsync(ct);
+                return Results.Created($"/api/{masterRoute}/{masterId}/{detailRoute}/{entity.Id}", entity);
+            }
+            catch
+            {
+                await tx.RollbackAsync(ct);
+                throw;
+            }
+        })
+        .WithName($"Create{tag}")
+        .AddEndpointFilter<ValidationFilter<TCreateDetail>>()
+        .Produces<TDetail>(201)
+        .ProducesProblem(400)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
+
+        // DELETE /api/{masterRoute}/{masterId}/{detailRoute}/{id} — Delete detail
+        group.MapDelete("/{id}", async (string masterId, string id, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
+        {
+            if (!await masterRepo.Exists(masterId, ct))
+                throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
+
+            var entity = await detailRepo.FindByIdOrDefault(id, ct);
+            if (entity is null)
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
+
+            var fkValue = fkProp.GetValue(entity)?.ToString();
+            if (fkValue != masterId)
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
+
+            await detailRepo.Delete(id, ct);
+            return Results.NoContent();
+        })
+        .WithName($"Delete{tag}")
+        .Produces(204)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
+
+        // PUT /api/{masterRoute}/{masterId}/{detailRoute}/batch — Batch upsert (replace all)
+        group.MapPut("/batch", async (string masterId, List<TCreateDetail> dtos, HttpContext httpCtx, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
+        {
+            if (!await masterRepo.Exists(masterId, ct))
+                throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
+
+            var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                var existing = await detailRepo.FindByField(foreignKeyProperty, masterId, ct);
+                foreach (var e in existing)
+                    await detailRepo.Delete(e.Id, ct);
+
+                var created = new List<TDetail>();
+                var dtoFkProp = typeof(TCreateDetail).GetProperty(foreignKeyProperty,
+                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
+                foreach (var dto in dtos)
+                {
+                    if (dtoFkProp != null)
+                        dtoFkProp.SetValue(dto, masterId);
+
+                    var entity = await detailRepo.Create(dto, ct);
+
+                    if (dtoFkProp == null)
+                    {
+                        fkProp.SetValue(entity, masterId);
+                        await db.SaveChangesAsync(ct);
+                    }
+
+                    created.Add(entity);
+                }
+
+                await tx.CommitAsync(ct);
+                return Results.Ok(created);
+            }
+            catch
+            {
+                await tx.RollbackAsync(ct);
+                throw;
+            }
+        })
+        .WithName($"BatchUpsert{tag}")
+        .Produces<List<TDetail>>(200)
+        .ProducesProblem(400)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
+
+        return this;
+    }
+}
+
+/// <summary>
 /// Maps a full set of CRUD endpoints for a given entity type.
 /// Each mutating operation runs inside a database transaction and invokes lifecycle hooks.
 /// </summary>
@@ -23,7 +218,7 @@ public static class CrudEndpointMapper
     /// Maps read-only endpoints: GET / (list) and GET /{id} (get by id).
     /// Use for entities that should not be created, updated, or deleted via API.
     /// </summary>
-    public static RouteGroupBuilder MapReadOnlyEndpoints<TEntity>(
+    public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity>(
         this WebApplication app,
         string route)
         where TEntity : class, IEntity
@@ -59,14 +254,14 @@ public static class CrudEndpointMapper
         .ProducesProblem(404)
         .ProducesProblem(500);
 
-        return group;
+        return new CrudEndpointGroup<TEntity>(group, app, route);
     }
 
     /// <summary>
     /// Maps GET (list), GET (by id), POST, PUT, DELETE endpoints for the entity.
     /// Conditionally maps restore (ISoftDeletable) and transition (IStateMachine) endpoints.
     /// </summary>
-    public static RouteGroupBuilder MapCrudEndpoints<TEntity, TCreate, TUpdate>(
+    public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity, TCreate, TUpdate>(
         this WebApplication app,
         string route)
         where TEntity : class, IEntity
@@ -306,7 +501,7 @@ public static class CrudEndpointMapper
         .ProducesProblem(400)
         .ProducesProblem(500);
 
-        return group;
+        return new CrudEndpointGroup<TEntity>(group, app, route);
     }
 
     /// <summary>

@@ -57,7 +57,7 @@ public class EndpointMappingGeneratorTests
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(TwoEntities);
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CrudKitEndpoints.g.cs");
 
-        Assert.Contains("MapReadOnlyEndpoints<Catalog,", source);
+        Assert.Contains("MapCrudEndpoints<Catalog,", source);
     }
 
     [Fact]
