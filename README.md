@@ -157,7 +157,31 @@ public class Category : IEntity, ISoftDeletable
 
 The restore endpoint is mapped automatically: `POST /api/categories/{id}/restore`.
 
-To cascade soft-delete to child entities, decorate the navigation property with `[CascadeSoftDelete]`.
+**Cascade Soft Delete** — when a parent is soft-deleted, cascade to children automatically:
+
+```csharp
+[CrudEntity(Table = "orders", SoftDelete = true)]
+[CascadeSoftDelete(typeof(OrderLine), nameof(OrderLine.OrderId))]
+public class Order : IEntity, ISoftDeletable
+{
+    // ...
+}
+```
+
+Children can also declare their parent via interface:
+
+```csharp
+public class OrderLine : IEntity, ISoftDeletable, ICascadeSoftDelete<Order>
+{
+    public string OrderId { get; set; } = string.Empty;
+    public static string ParentForeignKey => nameof(OrderId);
+    // ...
+}
+```
+
+Both approaches trigger raw SQL cascade — no N+1 queries. Restore also cascades: restoring the parent restores all its children.
+
+**Restore Unique Constraint** — when restoring a soft-deleted entity, CrudKit checks `[Unique]` properties against active records. If a conflict exists (another active record has the same unique value), the restore fails with `409 Conflict`.
 
 ---
 
@@ -187,7 +211,33 @@ builder.Services.AddScoped<ICrudHooks<Product>, ProductHooks>();
 
 Execution order: `Validate` → `Before*` → DB operation → `After*`
 
-Override only the hooks you need — all methods have empty default implementations. Use `ApplyScope` for row-level security and `ApplyIncludes` for custom `ThenInclude` scenarios.
+Override only the hooks you need — all methods have empty default implementations.
+
+**Row-Level Security with `ApplyScope`** — filter queries so users only see their own data:
+
+```csharp
+public class OrderHooks : ICrudHooks<Order>
+{
+    public IQueryable<Order> ApplyScope(IQueryable<Order> query, AppContext ctx)
+    {
+        // PermScope.Own — users see only their own orders
+        if (!ctx.CurrentUser.HasRole("admin"))
+            return query.Where(o => o.CreatedById == ctx.CurrentUser.Id);
+        return query;
+    }
+}
+```
+
+`ApplyScope` is called on `List`, `FindById`, and `FindByIdOrDefault`. An out-of-scope `FindById` returns `404`.
+
+**Custom Includes with `ApplyIncludes`** — for `ThenInclude` or conditional includes:
+
+```csharp
+public class OrderHooks : ICrudHooks<Order>
+{
+    public IQueryable<Order> ApplyIncludes(IQueryable<Order> query)
+        => query.Include(o => o.Lines).ThenInclude(l => l.Product);
+}
 
 ---
 
@@ -578,6 +628,57 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 ```
 
 When `EnableIdempotency` is true, clients can send an `Idempotency-Key` header on mutating requests. The response is cached and replayed on duplicate requests. Expired records are cleaned up hourly by a background service.
+
+---
+
+### Migrations
+
+CrudKit uses standard EF Core migrations. `CrudKitDbContext` defines internal tables (`__crud_audit_logs`, `__crud_sequences`) in `OnModelCreating` — they are picked up automatically by `dotnet ef migrations add`.
+
+```bash
+# Initial migration includes CrudKit tables + your entities
+dotnet ef migrations add InitialCreate -c AppDbContext
+
+# Apply
+dotnet ef database update -c AppDbContext
+
+# After adding new entities or upgrading CrudKit
+dotnet ef migrations add AddInvoiceEntity -c AppDbContext
+```
+
+CrudKit never calls `EnsureCreated` or `Migrate` in production. In the sample project, `EnsureCreated` is used only for development convenience.
+
+---
+
+### TimeProvider (Testable Timestamps)
+
+`CrudKitDbContext` accepts an optional `TimeProvider` for testable timestamps. All `CreatedAt`, `UpdatedAt`, `DeletedAt`, and audit log `Timestamp` values use it:
+
+```csharp
+// Production — defaults to TimeProvider.System (no config needed)
+builder.Services.AddDbContext<AppDbContext>(opts => opts.UseSqlite(...));
+
+// Testing — inject a fake
+var fakeTime = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+var db = new AppDbContext(options, currentUser, fakeTime);
+
+// Advance time between operations
+fakeTime.Advance(TimeSpan.FromHours(5));
+```
+
+The constructor signature: `CrudKitDbContext(DbContextOptions, ICurrentUser, TimeProvider? timeProvider = null)`. A single timestamp is captured per `SaveChanges` call — `CreatedAt` and `UpdatedAt` on the same entity are always identical.
+
+---
+
+### Startup Validation
+
+`CrudKitStartupValidator` runs as an `IHostedService` when the application starts. It validates entity metadata at startup, catching configuration errors before the first request:
+
+- `[CrudEntity(OwnerField = "X")]` — verifies property `X` exists on the entity. Throws if missing.
+- `[CrudEntity(WorkflowProtected = ["Status"])]` — verifies each field exists. Throws if missing.
+- `IConcurrent` + `EnableBulkUpdate` — logs a warning (bulk updates bypass optimistic concurrency).
+
+Validation errors at startup prevent the application from accepting requests.
 
 ---
 
