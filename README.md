@@ -20,6 +20,13 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - ReadOnly entities (List + Get only)
 - Source generation — DTOs, mappers, endpoint mapping, hook stubs
 - `Optional<T>` for partial updates (distinguishes null from missing)
+- Property attributes: `[Hashed]`, `[SkipResponse]`, `[SkipUpdate]`, `[Protected]`, `[Unique]`, `[Searchable]`
+- Document numbering (e.g. `ORD-2026-00001`) with tenant-scoped sequences
+- Modular monolith support (`IModule` with assembly scan)
+- Multi-database dialect (SQLite, PostgreSQL, SQL Server) — auto-detected
+- Enum properties stored as strings automatically
+- Domain events (`IEventBus`) — publish from hooks
+- Structured error responses (409 concurrency, dev/prod stack trace toggle)
 
 ---
 
@@ -380,6 +387,197 @@ public class Product : IEntity { ... }
 | POST | `/api/products/bulk-update` | Update multiple records by IDs |
 
 The global default bulk limit is set via `CrudKitApiOptions.BulkLimit` (default: 10,000). Override per entity with `BulkLimit`.
+
+---
+
+### Property Attributes
+
+| Attribute | Target | Effect |
+|---|---|---|
+| `[Hashed]` | Property | BCrypt-hashes the value on Create and Update (e.g. passwords) |
+| `[SkipResponse]` | Property | Excluded from JSON responses (e.g. password hashes, internal tokens) |
+| `[SkipUpdate]` | Property | Set only on Create, ignored on Update (e.g. immutable SKU) |
+| `[Protected]` | Property | Cannot be set via Update DTO — managed by workflow or hooks only |
+| `[Unique]` | Property | Creates a partial unique index (soft-delete compatible) |
+| `[Searchable]` | Property | Included in global search queries |
+| `[DefaultInclude]` | Class | Auto-includes navigation property in queries (with `IncludeScope.All` or `DetailOnly`) |
+
+```csharp
+[CrudEntity(Table = "users", SoftDelete = true)]
+public class User : IEntity, ISoftDeletable
+{
+    public string Id { get; set; } = string.Empty;
+
+    [Required, MaxLength(50), Searchable, Unique]
+    public string Username { get; set; } = string.Empty;
+
+    [Required, Hashed, SkipResponse]
+    public string PasswordHash { get; set; } = string.Empty;
+
+    [SkipUpdate]
+    public string RegistrationSource { get; set; } = "web";
+
+    [Protected]
+    public string Role { get; set; } = "user";
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
+}
+```
+
+`[Hashed]` applies BCrypt on both Create and Update — if the user sends a new password, it gets hashed. `[SkipResponse]` ensures `PasswordHash` never appears in API responses.
+
+---
+
+### Document Numbering
+
+Auto-generate sequential document numbers scoped by entity type, tenant, and year:
+
+```csharp
+[CrudEntity(Table = "invoices", NumberingPrefix = "INV", NumberingYearlyReset = true)]
+public class Invoice : IEntity, IDocumentNumbering
+{
+    public string Id { get; set; } = string.Empty;
+    public string DocumentNumber { get; set; } = string.Empty; // INV-2026-00001
+    // ...
+    public static string Prefix => "INV";
+    public static bool YearlyReset => true;
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+```
+
+The `SequenceGenerator` uses optimistic concurrency with retry to handle concurrent numbering safely. Sequences are tenant-scoped in multi-tenant applications.
+
+---
+
+### Modular Monolith
+
+Implement `IModule` to self-register services and endpoints per domain:
+
+```csharp
+public class OrderModule : IModule
+{
+    public string Name => "Orders";
+
+    public void RegisterServices(IServiceCollection services, IConfiguration config)
+    {
+        services.AddScoped<ICrudHooks<Order>, OrderHooks>();
+    }
+
+    public void MapEndpoints(WebApplication app)
+    {
+        app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders")
+           .WithDetail<OrderLine, CreateOrderLine>("lines", "OrderId")
+           .RequireAuth();
+    }
+}
+```
+
+Modules are discovered automatically via assembly scan:
+
+```csharp
+builder.Services.AddCrudKit<AppDbContext>(opts =>
+{
+    opts.ScanModulesFromAssembly = typeof(Program).Assembly;
+});
+```
+
+Or register manually:
+
+```csharp
+builder.Services.AddCrudKitModule<OrderModule>();
+```
+
+`UseCrudKit()` calls `MapEndpoints` on all discovered modules.
+
+---
+
+### Database Dialect
+
+CrudKit auto-detects the database provider and adapts SQL generation accordingly. Supported providers:
+
+| Provider | Dialect | LIKE behavior |
+|---|---|---|
+| SQLite | `SqliteDialect` | `LIKE` (case-insensitive by default) |
+| PostgreSQL | `PostgresDialect` | `ILIKE` (case-insensitive) |
+| SQL Server | `SqlServerDialect` | `EF.Functions.Like` |
+| Other | `GenericDialect` | `LIKE` fallback |
+
+No configuration needed — the dialect is detected from the EF Core provider name at startup.
+
+---
+
+### Enum Storage
+
+All enum properties on any entity are automatically stored as strings in the database. No `HasConversion` configuration needed — `CrudKitDbContext` handles this in `OnModelCreating`.
+
+```csharp
+public OrderStatus Status { get; set; } = OrderStatus.Pending;
+// Stored in DB as "Pending", not 0
+```
+
+---
+
+### Domain Events
+
+CrudKit defines an `IEventBus` interface and event types. The framework does **not** publish events automatically — you publish from hooks using your preferred infrastructure (MediatR, MassTransit, etc.):
+
+```csharp
+public class OrderHooks : ICrudHooks<Order>
+{
+    private readonly IEventBus _eventBus;
+    public OrderHooks(IEventBus eventBus) => _eventBus = eventBus;
+
+    public async Task AfterCreate(Order entity, AppContext ctx)
+    {
+        await _eventBus.Publish(new EntityCreatedEvent
+        {
+            EntityType = nameof(Order),
+            EntityId = entity.Id
+        });
+    }
+}
+```
+
+---
+
+### Error Handling
+
+`AppErrorFilter` catches all exceptions and returns structured JSON:
+
+| Exception | Status | Code |
+|---|---|---|
+| `AppError.NotFound()` | 404 | `NOT_FOUND` |
+| `AppError.BadRequest()` | 400 | `BAD_REQUEST` |
+| `AppError.Validation()` | 400 | `VALIDATION_ERROR` |
+| `AppError.Unauthorized()` | 401 | `UNAUTHORIZED` |
+| `AppError.Forbidden()` | 403 | `FORBIDDEN` |
+| `AppError.Conflict()` | 409 | `CONFLICT` |
+| `DbUpdateConcurrencyException` | 409 | `CONFLICT` |
+| Unhandled exception | 500 | `INTERNAL_ERROR` |
+
+In Development, unhandled exceptions include the full stack trace. In Production, only a generic message is returned.
+
+---
+
+### Configuration Options
+
+```csharp
+builder.Services.AddCrudKit<AppDbContext>(opts =>
+{
+    opts.DefaultPageSize = 25;           // Default: 20
+    opts.MaxPageSize = 100;              // Default: 100
+    opts.ApiPrefix = "/api";             // Default: "/api"
+    opts.BulkLimit = 10_000;             // Default: 10,000
+    opts.EnableIdempotency = true;       // Default: false
+    opts.ScanModulesFromAssembly = typeof(Program).Assembly;
+});
+```
+
+When `EnableIdempotency` is true, clients can send an `Idempotency-Key` header on mutating requests. The response is cached and replayed on duplicate requests. Expired records are cleaned up hourly by a background service.
 
 ---
 
