@@ -8,5 +8,6 @@
     <ProjectReference Include="..\..\src\CrudKit.Api\CrudKit.Api.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.*" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.*" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
   </ItemGroup>
 </Project>

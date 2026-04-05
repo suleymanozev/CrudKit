@@ -4,6 +4,7 @@ using CrudKit.Sample.Api.Data;
 using CrudKit.Sample.Api.Dtos;
 using CrudKit.Sample.Api.Entities;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,7 +42,8 @@ app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders")
 // Read-only endpoint — only GET /api/units and GET /api/units/{id}
 app.MapCrudEndpoints<Unit>("units");
 
-// OpenAPI
+// OpenAPI + Scalar UI
 app.MapOpenApi();
+app.MapScalarApiReference();
 
 app.Run();
