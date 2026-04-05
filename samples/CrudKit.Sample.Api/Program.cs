@@ -19,8 +19,18 @@ builder.Services.AddCrudKit<SampleDbContext>(opts =>
     opts.MaxPageSize = 100;
 });
 
-// OpenAPI
-builder.Services.AddOpenApi();
+// OpenAPI — set decimal format to "decimal" instead of "double"
+builder.Services.AddOpenApi(opts =>
+{
+    opts.AddSchemaTransformer((schema, ctx, _) =>
+    {
+        if (ctx.JsonTypeInfo.Type == typeof(decimal) || ctx.JsonTypeInfo.Type == typeof(decimal?))
+        {
+            schema.Format = "decimal";
+        }
+        return Task.CompletedTask;
+    });
+});
 
 var app = builder.Build();
 
