@@ -12,7 +12,7 @@ namespace CrudKit.EntityFrameworkCore.Repository;
 /// Generic EF Core repository. Handles DTO→entity mapping via reflection.
 /// All cross-cutting concerns (timestamps, tenant, soft delete, audit) are in CrudKitDbContext.
 /// </summary>
-public class EfRepo<T> : IRepo<T> where T : class, IEntity
+public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 {
     private readonly CrudKitDbContext _db;
     private readonly QueryBuilder<T> _queryBuilder;
@@ -40,7 +40,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         };
     }
 
-    public async Task<T> FindById(string id, CancellationToken ct = default)
+    public async Task<T> FindById(Guid id, CancellationToken ct = default)
     {
         var query = _db.Set<T>().AsNoTracking();
         query = IncludeApplier.Apply(query, includeParam: null, isDetailQuery: true);
@@ -50,7 +50,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         return entity ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
     }
 
-    public async Task<T?> FindByIdOrDefault(string id, CancellationToken ct = default)
+    public async Task<T?> FindByIdOrDefault(Guid id, CancellationToken ct = default)
     {
         var query = _db.Set<T>().AsNoTracking();
         query = IncludeApplier.Apply(query, includeParam: null, isDetailQuery: true);
@@ -104,7 +104,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         return entity;
     }
 
-    public async Task<T> Update(string id, object updateDto, CancellationToken ct = default)
+    public async Task<T> Update(Guid id, object updateDto, CancellationToken ct = default)
     {
         var entity = await _db.Set<T>().FirstOrDefaultAsync(e => e.Id == id, ct)
             ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
@@ -116,7 +116,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         return entity;
     }
 
-    public async Task Delete(string id, CancellationToken ct = default)
+    public async Task Delete(Guid id, CancellationToken ct = default)
     {
         var entity = await _db.Set<T>().FirstOrDefaultAsync(e => e.Id == id, ct)
             ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
@@ -126,7 +126,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task Restore(string id, CancellationToken ct = default)
+    public async Task Restore(Guid id, CancellationToken ct = default)
     {
         if (typeof(T).IsAssignableTo(typeof(ISoftDeletable)) == false)
             throw new InvalidOperationException($"{typeof(T).Name} does not implement ISoftDeletable.");
@@ -159,7 +159,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             var param = Expression.Parameter(typeof(T), "e");
             var body = Expression.AndAlso(
                 Expression.NotEqual(
-                    Expression.Property(param, nameof(IEntity.Id)),
+                    Expression.Property(param, nameof(IAuditableEntity.Id)),
                     Expression.Constant(entity.Id)),
                 Expression.Equal(
                     Expression.Property(param, prop),
@@ -189,7 +189,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             var storeObject = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(tableName, schema);
             var fkColumn = childEntityType.FindProperty(attr.ForeignKeyProperty)?.GetColumnName(storeObject);
             var deletedAtColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeletedAt))?.GetColumnName(storeObject);
-            var updatedAtColumn = childEntityType.FindProperty(nameof(IEntity.UpdatedAt))?.GetColumnName(storeObject);
+            var updatedAtColumn = childEntityType.FindProperty(nameof(IAuditableEntity.UpdatedAt))?.GetColumnName(storeObject);
 
             if (fkColumn == null || deletedAtColumn == null || updatedAtColumn == null)
                 continue;
@@ -202,7 +202,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         }
     }
 
-    public Task<bool> Exists(string id, CancellationToken ct = default)
+    public Task<bool> Exists(Guid id, CancellationToken ct = default)
         => _db.Set<T>().AnyAsync(e => e.Id == id, ct);
 
     public Task<long> Count(CancellationToken ct = default)
@@ -230,7 +230,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
             // Build property expressions without interface casts so EF Core can translate them.
             var deletedAtProp = typeof(T).GetProperty(nameof(ISoftDeletable.DeletedAt))!;
-            var updatedAtProp = typeof(T).GetProperty(nameof(IEntity.UpdatedAt))!;
+            var updatedAtProp = typeof(T).GetProperty(nameof(IAuditableEntity.UpdatedAt))!;
 
             var param = Expression.Parameter(typeof(T), "e");
             var deletedAtLambda = Expression.Lambda<Func<T, DateTime?>>(
@@ -254,17 +254,12 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         foreach (var (field, op) in filters)
             query = _filterApplier.Apply(query, field, op);
 
-        // Build an Action<UpdateSettersBuilder<T>> that calls SetProperty for each value.
-        // We use expression trees to construct property-access lambdas and reflection
-        // to invoke the generic SetProperty<TProperty> method on UpdateSettersBuilder<T>.
         var builderType = typeof(Microsoft.EntityFrameworkCore.Query.UpdateSettersBuilder<T>);
 
-        // Resolve the SetProperty overload: SetProperty<TProperty>(Expression<Func<T,TProperty>>, TProperty)
         var setPropertyMethods = builderType.GetMethods()
             .Where(m => m.Name == "SetProperty" && m.IsGenericMethodDefinition && m.GetParameters().Length == 2)
             .ToList();
 
-        // Pick the overload where the second parameter is TProperty (not Expression<Func<T,TProperty>>)
         var setPropertyBase = setPropertyMethods.FirstOrDefault(m =>
         {
             var p = m.GetParameters()[1];
@@ -274,7 +269,6 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         if (setPropertyBase == null)
             throw new InvalidOperationException($"Could not find SetProperty<TProperty>(Expression<Func<T,TProperty>>, TProperty) method on UpdateSettersBuilder<{typeof(T).Name}>");
 
-        // Pre-build the list of (MethodInfo, lambda, convertedValue) tuples
         var setterCalls = new List<(MethodInfo method, object lambda, object? value)>();
         var entityParam = Expression.Parameter(typeof(T), "e");
 
@@ -284,7 +278,6 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
                 BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if (prop == null) continue;
 
-            // Convert value to target property type
             object? converted;
             try
             {
@@ -292,10 +285,9 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             }
             catch
             {
-                continue; // skip unconvertible values
+                continue;
             }
 
-            // Build: e => e.Property as Expression<Func<T, TProperty>>
             var propAccess = Expression.Property(entityParam, prop);
             var funcType = typeof(Func<,>).MakeGenericType(typeof(T), prop.PropertyType);
             var lambda = Expression.Lambda(funcType, propAccess, entityParam);
@@ -324,9 +316,9 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             if (!entityPropMap.TryGetValue(dtoProp.Name, out var entityProp)) continue;
 
             // Skip system/infrastructure fields (managed by DbContext)
-            if (entityProp.Name is nameof(IEntity.Id)
-                or nameof(IEntity.CreatedAt)
-                or nameof(IEntity.UpdatedAt)) continue;
+            if (entityProp.Name is nameof(IAuditableEntity.Id)
+                or nameof(IAuditableEntity.CreatedAt)
+                or nameof(IAuditableEntity.UpdatedAt)) continue;
 
             if (!isCreate)
             {

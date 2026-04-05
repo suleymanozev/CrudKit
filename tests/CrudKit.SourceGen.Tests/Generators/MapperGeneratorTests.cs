@@ -13,9 +13,9 @@ public class MapperGeneratorTests
         namespace Billing.Entities
         {
             [CrudEntity(Table = "Invoices", SoftDelete = true)]
-            public class Invoice : IEntity, ISoftDeletable
+            public class Invoice : IAuditableEntity, ISoftDeletable
             {
-                public string Id { get; set; } = string.Empty;
+                public Guid Id { get; set; }
                 public DateTime CreatedAt { get; set; }
                 public DateTime UpdatedAt { get; set; }
                 public DateTime? DeletedAt { get; set; }
@@ -50,9 +50,9 @@ public class MapperGeneratorTests
             namespace Billing.Entities
             {
                 [CrudEntity(Table = "Summaries", ReadOnly = true)]
-                public class Summary : IEntity
+                public class Summary : IAuditableEntity
                 {
-                    public string Id { get; set; } = string.Empty;
+                    public Guid Id { get; set; }
                     public DateTime CreatedAt { get; set; }
                     public DateTime UpdatedAt { get; set; }
                     public decimal Total { get; set; }
@@ -163,9 +163,9 @@ public class MapperGeneratorTests
             namespace Billing.Entities
             {
                 [CrudEntity(Table = "Logs", EnableCreate = false)]
-                public class Log : IEntity
+                public class Log : IAuditableEntity
                 {
-                    public string Id { get; set; } = string.Empty;
+                    public Guid Id { get; set; }
                     public DateTime CreatedAt { get; set; }
                     public DateTime UpdatedAt { get; set; }
                     public string Message { get; set; } = string.Empty;
@@ -194,9 +194,9 @@ public class MapperGeneratorTests
             namespace Billing.Entities
             {
                 [CrudEntity(Table = "Immutable", EnableUpdate = false)]
-                public class ImmutableLog : IEntity
+                public class ImmutableLog : IAuditableEntity
                 {
-                    public string Id { get; set; } = string.Empty;
+                    public Guid Id { get; set; }
                     public DateTime CreatedAt { get; set; }
                     public DateTime UpdatedAt { get; set; }
                     public string Data { get; set; } = string.Empty;

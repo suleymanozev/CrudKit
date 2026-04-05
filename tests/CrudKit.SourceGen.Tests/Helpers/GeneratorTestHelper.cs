@@ -100,12 +100,20 @@ public static class GeneratorTestHelper
 
         namespace CrudKit.Core.Interfaces
         {
-            public interface IEntity
+            public interface IEntity<TKey> where TKey : notnull
             {
-                string Id { get; set; }
+                TKey Id { get; set; }
+            }
+
+            public interface IEntity : IEntity<Guid> { }
+
+            public interface IAuditableEntity<TKey> : IEntity<TKey> where TKey : notnull
+            {
                 DateTime CreatedAt { get; set; }
                 DateTime UpdatedAt { get; set; }
             }
+
+            public interface IAuditableEntity : IAuditableEntity<Guid>, IEntity { }
 
             public interface ISoftDeletable
             {
@@ -118,7 +126,7 @@ public static class GeneratorTestHelper
             }
 
             public interface IResponseMapper<TEntity, TResponse>
-                where TEntity : class, IEntity
+                where TEntity : class, IAuditableEntity
                 where TResponse : class
             {
                 TResponse Map(TEntity entity);
@@ -126,14 +134,14 @@ public static class GeneratorTestHelper
             }
 
             public interface ICreateMapper<TEntity, TCreate>
-                where TEntity : class, IEntity
+                where TEntity : class, IAuditableEntity
                 where TCreate : class
             {
                 TEntity FromCreateDto(TCreate dto);
             }
 
             public interface IUpdateMapper<TEntity, TUpdate>
-                where TEntity : class, IEntity
+                where TEntity : class, IAuditableEntity
                 where TUpdate : class
             {
                 void ApplyUpdate(TEntity entity, TUpdate dto);
@@ -143,14 +151,14 @@ public static class GeneratorTestHelper
                 : IResponseMapper<TEntity, TResponse>,
                   ICreateMapper<TEntity, TCreate>,
                   IUpdateMapper<TEntity, TUpdate>
-                where TEntity : class, IEntity
+                where TEntity : class, IAuditableEntity
                 where TCreate : class
                 where TUpdate : class
                 where TResponse : class
             {
             }
 
-            public interface ICrudHooks<T> where T : class, IEntity { }
+            public interface ICrudHooks<T> where T : class, IAuditableEntity { }
         }
 
         namespace CrudKit.Core.Models

@@ -439,3 +439,5 @@ public class TestProductMapper : IResponseMapper<ProductEntity, ProductResponse>
     public IQueryable<ProductResponse> Project(IQueryable<ProductEntity> query)
         => query.Select(e => new ProductResponse(e.Id, e.Name, e.Price, e.Name + " (mapped)"));
 }
+
+// Note: IAuditableEntity constraint is used throughout.

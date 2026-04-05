@@ -13,27 +13,27 @@ public class DiRegistrationGeneratorTests
         namespace App.Entities
         {
             [CrudEntity(Table = "Products")]
-            public class Product : IEntity
+            public class Product : IAuditableEntity
             {
-                public string Id { get; set; } = string.Empty;
+                public Guid Id { get; set; }
                 public DateTime CreatedAt { get; set; }
                 public DateTime UpdatedAt { get; set; }
                 public string Name { get; set; } = string.Empty;
             }
 
             [CrudEntity(Table = "Categories")]
-            public class Category : IEntity
+            public class Category : IAuditableEntity
             {
-                public string Id { get; set; } = string.Empty;
+                public Guid Id { get; set; }
                 public DateTime CreatedAt { get; set; }
                 public DateTime UpdatedAt { get; set; }
                 public string Label { get; set; } = string.Empty;
             }
 
             [CrudEntity(Table = "Brands")]
-            public class Brand : IEntity
+            public class Brand : IAuditableEntity
             {
-                public string Id { get; set; } = string.Empty;
+                public Guid Id { get; set; }
                 public DateTime CreatedAt { get; set; }
                 public DateTime UpdatedAt { get; set; }
                 public string Name { get; set; } = string.Empty;
@@ -86,9 +86,9 @@ public class DiRegistrationGeneratorTests
             namespace App.Entities
             {
                 [CrudEntity(Table = "Reports", ReadOnly = true)]
-                public class Report : IEntity
+                public class Report : IAuditableEntity
                 {
-                    public string Id { get; set; } = string.Empty;
+                    public Guid Id { get; set; }
                     public DateTime CreatedAt { get; set; }
                     public DateTime UpdatedAt { get; set; }
                     public string Title { get; set; } = string.Empty;

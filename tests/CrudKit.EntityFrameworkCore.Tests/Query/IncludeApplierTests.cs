@@ -154,7 +154,7 @@ public class IncludeApplierTests
     /// Seeds a <see cref="ParentEntity"/> with one child and one note, then returns
     /// the seeded parent's Id.
     /// </summary>
-    private static string SeedParentWithChildAndNote(TestDbContext db)
+    private static Guid SeedParentWithChildAndNote(TestDbContext db)
     {
         var parent = new ParentEntity { Title = "Integration parent" };
         db.Parents.Add(parent);

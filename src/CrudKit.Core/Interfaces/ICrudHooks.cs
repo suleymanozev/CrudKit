@@ -7,7 +7,7 @@ namespace CrudKit.Core.Interfaces;
 /// Override only the hooks you need.
 /// Execution order: Validate → Before* → DB op → After*
 /// </summary>
-public interface ICrudHooks<T> where T : class, IEntity
+public interface ICrudHooks<T> where T : class, IAuditableEntity
 {
     Task BeforeCreate(T entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
     Task AfterCreate(T entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;

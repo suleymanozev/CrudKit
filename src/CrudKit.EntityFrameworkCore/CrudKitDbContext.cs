@@ -15,13 +15,14 @@ namespace CrudKit.EntityFrameworkCore;
 /// <summary>
 /// Abstract base DbContext. Inherit from this, define your DbSets, done.
 /// Cross-cutting concerns handled automatically:
-/// - IEntity          → Id generation (Guid), CreatedAt/UpdatedAt (UTC)
-/// - ISoftDeletable   → DELETE intercepted → soft delete, global query filter
-/// - IMultiTenant     → global tenant filter, TenantId auto-set on Create
-/// - IConcurrent      → EF concurrency token
-/// - IAuditable       → audit log written on Create/Update/Delete
-/// - Enum properties  → stored as strings
-/// - [Unique]         → unique index (partial if ISoftDeletable)
+/// - IEntity           → Guid Id generation
+/// - IAuditableEntity  → CreatedAt/UpdatedAt (UTC)
+/// - ISoftDeletable    → DELETE intercepted → soft delete, global query filter
+/// - IMultiTenant      → global tenant filter, TenantId auto-set on Create
+/// - IConcurrent       → EF concurrency token
+/// - IAuditable        → audit log written on Create/Update/Delete
+/// - Enum properties   → stored as strings
+/// - [Unique]          → unique index (partial if ISoftDeletable)
 /// </summary>
 public abstract class CrudKitDbContext : DbContext
 {
@@ -51,18 +52,14 @@ public abstract class CrudKitDbContext : DbContext
             var isConcurrent = typeof(IConcurrent).IsAssignableFrom(clrType);
             var isEntity = typeof(IEntity).IsAssignableFrom(clrType);
 
-            // ---- IEntity: generate GUID-based string Id before tracking ----
-            // HasSentinelValue("") tells EF Core that empty string means "not yet set",
-            // so it invokes the value generator (StringGuidValueGenerator) at track time.
-            // This prevents duplicate-key conflicts when multiple new entities with
-            // Id = "" are added together via AddRange.
+            // ---- IEntity: generate Guid Id before tracking ----
             if (isEntity)
             {
                 modelBuilder.Entity(clrType)
-                    .Property<string>(nameof(IEntity.Id))
+                    .Property<Guid>(nameof(IEntity.Id))
                     .ValueGeneratedOnAdd()
-                    .HasSentinel(string.Empty)
-                    .HasValueGenerator<StringGuidValueGenerator>();
+                    .HasSentinel(Guid.Empty)
+                    .HasValueGenerator<GuidValueGenerator>();
             }
 
             // ---- Soft delete global filter ----
@@ -82,9 +79,6 @@ public abstract class CrudKitDbContext : DbContext
             }
 
             // ---- Optimistic concurrency ----
-            // IsConcurrencyToken works on all providers (including SQLite).
-            // For SQL Server users who want true DB-generated rowversion,
-            // reconfigure in OnModelCreatingCustom.
             if (isConcurrent)
             {
                 modelBuilder.Entity(clrType)
@@ -165,15 +159,14 @@ public abstract class CrudKitDbContext : DbContext
     private List<(string Sql, object[] Params)> BeforeSaveChanges()
     {
         // Capture current UTC time once to ensure consistency across all timestamps
-        // for this SaveChanges operation, preventing time skew between CreatedAt/UpdatedAt
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         // Step 1: Generate IDs for new entities first (needed by audit log)
         foreach (var entry in ChangeTracker.Entries<IEntity>()
             .Where(e => e.State == EntityState.Added).ToList())
         {
-            if (string.IsNullOrEmpty(entry.Entity.Id))
-                entry.Entity.Id = Guid.NewGuid().ToString();
+            if (entry.Entity.Id == Guid.Empty)
+                entry.Entity.Id = Guid.NewGuid();
         }
 
         // Step 2: Write audit logs (now IDs are available for new entities,
@@ -181,7 +174,7 @@ public abstract class CrudKitDbContext : DbContext
         WriteAuditLogs(now);
 
         // Step 3: Set remaining fields and handle soft-delete conversion
-        foreach (var entry in ChangeTracker.Entries<IEntity>().ToList())
+        foreach (var entry in ChangeTracker.Entries<IAuditableEntity>().ToList())
         {
             switch (entry.State)
             {
@@ -195,7 +188,7 @@ public abstract class CrudKitDbContext : DbContext
 
                 case EntityState.Modified:
                     entry.Entity.UpdatedAt = now;
-                    entry.Property(nameof(IEntity.CreatedAt)).IsModified = false;
+                    entry.Property(nameof(IAuditableEntity.CreatedAt)).IsModified = false;
                     break;
 
                 case EntityState.Deleted:
@@ -222,7 +215,7 @@ public abstract class CrudKitDbContext : DbContext
     {
         var ops = new List<(string Sql, object[] Params)>();
 
-        var softDeletedEntries = ChangeTracker.Entries<IEntity>()
+        var softDeletedEntries = ChangeTracker.Entries<IAuditableEntity>()
             .Where(e => e.State == EntityState.Modified
                 && e.Entity is ISoftDeletable
                 && ((ISoftDeletable)e.Entity).DeletedAt != null
@@ -247,7 +240,7 @@ public abstract class CrudKitDbContext : DbContext
 
                 var fkColumn = childEntityType.FindProperty(attr.ForeignKeyProperty)?.GetColumnName(storeObject);
                 var deletedAtColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeletedAt))?.GetColumnName(storeObject);
-                var updatedAtColumn = childEntityType.FindProperty(nameof(IEntity.UpdatedAt))?.GetColumnName(storeObject);
+                var updatedAtColumn = childEntityType.FindProperty(nameof(IAuditableEntity.UpdatedAt))?.GetColumnName(storeObject);
 
                 if (fkColumn == null || deletedAtColumn == null || updatedAtColumn == null)
                     continue;
@@ -288,7 +281,7 @@ public abstract class CrudKitDbContext : DbContext
             var log = new AuditLogEntry
             {
                 EntityType = entry.Entity.GetType().Name,
-                EntityId = (entry.Entity as IEntity)?.Id ?? string.Empty,
+                EntityId = (entry.Entity as IEntity)?.Id.ToString() ?? string.Empty,
                 UserId = _currentUser.Id,
                 Timestamp = now,
             };
@@ -322,8 +315,6 @@ public abstract class CrudKitDbContext : DbContext
     }
 
     // ---- Runtime tenant value used by EF Core global filter ----
-    // EF Core captures a reference to the DbContext instance, so this property
-    // is evaluated fresh on every query.
     internal string? CurrentTenantId => _currentUser.TenantId;
 
     // Exposed for EfRepo so it can build AppContext without taking ICurrentUser as a separate dependency.
@@ -373,20 +364,20 @@ public abstract class CrudKitDbContext : DbContext
 }
 
 /// <summary>
-/// Generates a new GUID string for string primary keys when the value is null or empty.
+/// Generates a new Guid for primary keys when the value is empty.
 /// Assigned to IEntity.Id via ValueGeneratedOnAdd so that EF Core assigns the key
 /// before tracking, preventing duplicate-key conflicts on bulk Add operations.
 /// </summary>
-internal sealed class StringGuidValueGenerator : ValueGenerator<string>
+internal sealed class GuidValueGenerator : ValueGenerator<Guid>
 {
     public override bool GeneratesTemporaryValues => false;
 
-    public override string Next(EntityEntry entry)
+    public override Guid Next(EntityEntry entry)
     {
         // Preserve an Id that was already set by the caller.
-        if (entry.Entity is IEntity entity && !string.IsNullOrEmpty(entity.Id))
+        if (entry.Entity is IEntity entity && entity.Id != Guid.Empty)
             return entity.Id;
 
-        return Guid.NewGuid().ToString();
+        return Guid.NewGuid();
     }
 }

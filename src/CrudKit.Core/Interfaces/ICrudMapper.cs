@@ -9,7 +9,7 @@ public interface ICrudMapper<TEntity, TCreate, TUpdate, TResponse>
     : ICreateMapper<TEntity, TCreate>,
       IUpdateMapper<TEntity, TUpdate>,
       IResponseMapper<TEntity, TResponse>
-    where TEntity : class, IEntity
+    where TEntity : class, IAuditableEntity
     where TCreate : class
     where TUpdate : class
     where TResponse : class

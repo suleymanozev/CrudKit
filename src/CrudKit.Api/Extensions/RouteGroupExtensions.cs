@@ -1,6 +1,7 @@
 using CrudKit.Api.Endpoints;
 using CrudKit.Api.Filters;
 using CrudKit.Core.Interfaces;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -47,7 +48,7 @@ public static class RouteGroupExtensions
     /// Returns 401 if the user is not authenticated.
     /// </summary>
     public static CrudEndpointGroup<TMaster> RequireAuth<TMaster>(this CrudEndpointGroup<TMaster> crudGroup)
-        where TMaster : class, IEntity
+        where TMaster : class, IAuditableEntity
     {
         crudGroup.Group.AddEndpointFilter<RequireAuthFilter>();
         return crudGroup;
@@ -58,7 +59,7 @@ public static class RouteGroupExtensions
     /// Returns 403 if the user does not have the specified role.
     /// </summary>
     public static CrudEndpointGroup<TMaster> RequireRole<TMaster>(this CrudEndpointGroup<TMaster> crudGroup, string role)
-        where TMaster : class, IEntity
+        where TMaster : class, IAuditableEntity
     {
         crudGroup.Group.AddEndpointFilter(new RequireRoleFilter(role));
         return crudGroup;
@@ -69,7 +70,7 @@ public static class RouteGroupExtensions
     /// Returns 403 if the user does not have the specified permission.
     /// </summary>
     public static CrudEndpointGroup<TMaster> RequirePermission<TMaster>(this CrudEndpointGroup<TMaster> crudGroup, string entity, string action)
-        where TMaster : class, IEntity
+        where TMaster : class, IAuditableEntity
     {
         crudGroup.Group.AddEndpointFilter(new RequirePermissionFilter(entity, action));
         return crudGroup;

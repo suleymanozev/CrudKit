@@ -7,9 +7,9 @@ namespace CrudKit.Sample.Api.Entities;
 public enum OrderStatus { Pending, Processing, Completed, Cancelled }
 
 [CrudEntity(Table = "orders", SoftDelete = true)]
-public class Order : IEntity, ISoftDeletable, IStateMachine<OrderStatus>
+public class Order : IAuditableEntity, ISoftDeletable, IStateMachine<OrderStatus>
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
 
     [Required]
     public string CustomerName { get; set; } = string.Empty;

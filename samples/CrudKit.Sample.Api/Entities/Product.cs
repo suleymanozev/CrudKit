@@ -5,9 +5,9 @@ using CrudKit.Core.Interfaces;
 namespace CrudKit.Sample.Api.Entities;
 
 [CrudEntity(Table = "products")]
-public class Product : IEntity
+public class Product : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
 
     [Required, MaxLength(200), Searchable]
     public string Name { get; set; } = string.Empty;

@@ -5,7 +5,7 @@ namespace CrudKit.Core.Interfaces;
 /// The parent entity must be decorated with [CascadeSoftDelete] attributes.
 /// </summary>
 public interface ICascadeSoftDelete<TParent> : ISoftDeletable
-    where TParent : class, IEntity, ISoftDeletable
+    where TParent : class, IAuditableEntity, ISoftDeletable
 {
     static abstract string ParentForeignKey { get; }
 }

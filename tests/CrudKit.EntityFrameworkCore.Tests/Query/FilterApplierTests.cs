@@ -10,10 +10,10 @@ public class FilterApplierTests
 {
     private static IQueryable<PersonEntity> Source() => new[]
     {
-        new PersonEntity { Id = "1", Name = "Alice", Age = 30 },
-        new PersonEntity { Id = "2", Name = "Bob",   Age = 25 },
-        new PersonEntity { Id = "3", Name = "Carol", Age = 30 },
-        new PersonEntity { Id = "4", Name = "alice", Age = 20 },
+        new PersonEntity { Id = Guid.NewGuid(), Name = "Alice", Age = 30 },
+        new PersonEntity { Id = Guid.NewGuid(), Name = "Bob",   Age = 25 },
+        new PersonEntity { Id = Guid.NewGuid(), Name = "Carol", Age = 30 },
+        new PersonEntity { Id = Guid.NewGuid(), Name = "alice", Age = 20 },
     }.AsQueryable();
 
     private static FilterApplier Applier() => new(new GenericDialect());
@@ -92,8 +92,8 @@ public class FilterApplierTests
     {
         var source = new[]
         {
-            new PersonEntity { Id = "1", Name = "Alice", Age = 30 },
-            new PersonEntity { Id = "2", Name = null!, Age = 25 },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Alice", Age = 30 },
+            new PersonEntity { Id = Guid.NewGuid(), Name = null!, Age = 25 },
         }.AsQueryable();
         var result = Applier().Apply(source, "Name", FilterOp.Parse("null:"));
         Assert.Single(result);
@@ -104,8 +104,8 @@ public class FilterApplierTests
     {
         var source = new[]
         {
-            new PersonEntity { Id = "1", Name = "Alice", Age = 30 },
-            new PersonEntity { Id = "2", Name = null!, Age = 25 },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Alice", Age = 30 },
+            new PersonEntity { Id = Guid.NewGuid(), Name = null!, Age = 25 },
         }.AsQueryable();
         var result = Applier().Apply(source, "Name", FilterOp.Parse("notnull:"));
         Assert.Single(result);
@@ -124,8 +124,8 @@ public class FilterApplierTests
     {
         var source = new[]
         {
-            new PersonEntity { Id = "1", Name = "Alice", Age = 30, CreatedAt = new DateTime(2026, 1, 1) },
-            new PersonEntity { Id = "2", Name = "Bob",   Age = 25, CreatedAt = new DateTime(2025, 1, 1) },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Alice", Age = 30, CreatedAt = new DateTime(2026, 1, 1) },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Bob",   Age = 25, CreatedAt = new DateTime(2025, 1, 1) },
         }.AsQueryable();
         var result = Applier().Apply(source, "created_at", FilterOp.Parse("gt:2025-06-01"));
         Assert.Single(result);

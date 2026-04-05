@@ -1,9 +1,15 @@
 namespace CrudKit.Core.Interfaces;
 
-/// <summary>Base interface that all CrudKit entities must implement.</summary>
-public interface IEntity
+/// <summary>
+/// Base interface for entities with a typed primary key.
+/// Contains only the identifier; timestamps live in <see cref="IAuditableEntity{TKey}"/>.
+/// </summary>
+public interface IEntity<TKey> where TKey : notnull
 {
-    string Id { get; set; }
-    DateTime CreatedAt { get; set; }
-    DateTime UpdatedAt { get; set; }
+    TKey Id { get; set; }
 }
+
+/// <summary>
+/// Base interface for entities using the default <see cref="Guid"/> primary key.
+/// </summary>
+public interface IEntity : IEntity<Guid> { }

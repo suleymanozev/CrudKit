@@ -19,7 +19,7 @@ public class DbContextTests
 
         Assert.NotEqual(default, person.CreatedAt);
         Assert.NotEqual(default, person.UpdatedAt);
-        Assert.NotEmpty(person.Id);
+        Assert.NotEqual(Guid.Empty, person.Id);
     }
 
     [Fact]

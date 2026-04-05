@@ -5,7 +5,7 @@ namespace CrudKit.Core.Interfaces;
 /// Source Generator produces implementations automatically.
 /// </summary>
 public interface ICreateMapper<TEntity, TCreate>
-    where TEntity : class, IEntity
+    where TEntity : class, IAuditableEntity
     where TCreate : class
 {
     TEntity FromCreateDto(TCreate dto);

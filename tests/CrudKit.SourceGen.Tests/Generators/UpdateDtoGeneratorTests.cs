@@ -14,9 +14,9 @@ public class UpdateDtoGeneratorTests
         namespace Store.Entities
         {
             [CrudEntity(Table = "Orders")]
-            public class Order : IEntity
+            public class Order : IAuditableEntity
             {
-                public string Id { get; set; } = string.Empty;
+                public Guid Id { get; set; }
                 public DateTime CreatedAt { get; set; }
                 public DateTime UpdatedAt { get; set; }
 
@@ -96,9 +96,9 @@ public class UpdateDtoGeneratorTests
             namespace Store.Entities
             {
                 [CrudEntity(Table = "Immutable", EnableUpdate = false)]
-                public class ImmutableRecord : IEntity
+                public class ImmutableRecord : IAuditableEntity
                 {
-                    public string Id { get; set; } = string.Empty;
+                    public Guid Id { get; set; }
                     public DateTime CreatedAt { get; set; }
                     public DateTime UpdatedAt { get; set; }
                     public string Data { get; set; } = string.Empty;

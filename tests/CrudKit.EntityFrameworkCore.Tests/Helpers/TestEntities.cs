@@ -5,10 +5,10 @@ using CrudKit.EntityFrameworkCore.Concurrency;
 
 namespace CrudKit.EntityFrameworkCore.Tests.Helpers;
 
-/// <summary>Basic entity — only IEntity, no extra interfaces.</summary>
-public class PersonEntity : IEntity
+/// <summary>Basic entity — only IAuditableEntity, no extra interfaces.</summary>
+public class PersonEntity : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public int Age { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -16,9 +16,9 @@ public class PersonEntity : IEntity
 }
 
 /// <summary>ISoftDeletable entity.</summary>
-public class SoftPersonEntity : IEntity, ISoftDeletable
+public class SoftPersonEntity : IAuditableEntity, ISoftDeletable
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
@@ -26,9 +26,9 @@ public class SoftPersonEntity : IEntity, ISoftDeletable
 }
 
 /// <summary>IMultiTenant entity.</summary>
-public class TenantPersonEntity : IEntity, IMultiTenant
+public class TenantPersonEntity : IAuditableEntity, IMultiTenant
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string TenantId { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
@@ -36,18 +36,18 @@ public class TenantPersonEntity : IEntity, IMultiTenant
 }
 
 /// <summary>IAuditable entity.</summary>
-public class AuditPersonEntity : IEntity, IAuditable
+public class AuditPersonEntity : IAuditableEntity, IAuditable
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
 
 /// <summary>IConcurrent entity — optimistic concurrency.</summary>
-public class ConcurrentEntity : IEntity, IConcurrent
+public class ConcurrentEntity : IAuditableEntity, IConcurrent
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public uint RowVersion { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -55,9 +55,9 @@ public class ConcurrentEntity : IEntity, IConcurrent
 }
 
 /// <summary>IDocumentNumbering entity — auto document number generation.</summary>
-public class InvoiceEntity : IEntity, IDocumentNumbering
+public class InvoiceEntity : IAuditableEntity, IDocumentNumbering
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string DocumentNumber { get; set; } = string.Empty;
     public string CustomerName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
@@ -68,9 +68,9 @@ public class InvoiceEntity : IEntity, IDocumentNumbering
 }
 
 /// <summary>Entity with [Hashed] + [SkipResponse] attributes for EfRepo tests.</summary>
-public class UserEntity : IEntity
+public class UserEntity : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Username { get; set; } = string.Empty;
 
     [Hashed]
@@ -92,9 +92,9 @@ public class UserEntity : IEntity
 /// </summary>
 [DefaultInclude("Children")]
 [DefaultInclude("Notes", Scope = IncludeScope.DetailOnly)]
-public class ParentEntity : IEntity
+public class ParentEntity : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
@@ -107,11 +107,11 @@ public class ParentEntity : IEntity
 }
 
 /// <summary>Child entity — belongs to <see cref="ParentEntity"/>.</summary>
-public class ChildEntity : IEntity
+public class ChildEntity : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string ParentId { get; set; } = string.Empty;
+    public Guid ParentId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
@@ -119,11 +119,11 @@ public class ChildEntity : IEntity
 }
 
 /// <summary>Note entity — belongs to <see cref="ParentEntity"/>.</summary>
-public class NoteEntity : IEntity
+public class NoteEntity : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Content { get; set; } = string.Empty;
-    public string ParentId { get; set; } = string.Empty;
+    public Guid ParentId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
@@ -135,9 +135,9 @@ public class NoteEntity : IEntity
 // ---------------------------------------------------------------------------
 
 /// <summary>ISoftDeletable entity with a [Unique] property for restore-conflict tests.</summary>
-public class UniqueCodeEntity : IEntity, ISoftDeletable
+public class UniqueCodeEntity : IAuditableEntity, ISoftDeletable
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
 
     [Unique]
     public string Code { get; set; } = string.Empty;
@@ -154,9 +154,9 @@ public class UniqueCodeEntity : IEntity, ISoftDeletable
 
 /// <summary>Parent entity that cascade soft-deletes its children.</summary>
 [CascadeSoftDelete(typeof(ChildItemEntity), nameof(ChildItemEntity.ParentItemId))]
-public class ParentItemEntity : IEntity, ISoftDeletable
+public class ParentItemEntity : IAuditableEntity, ISoftDeletable
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
@@ -165,10 +165,10 @@ public class ParentItemEntity : IEntity, ISoftDeletable
 }
 
 /// <summary>Child entity that participates in cascade soft-delete with <see cref="ParentItemEntity"/>.</summary>
-public class ChildItemEntity : IEntity, ISoftDeletable, ICascadeSoftDelete<ParentItemEntity>
+public class ChildItemEntity : IAuditableEntity, ISoftDeletable, ICascadeSoftDelete<ParentItemEntity>
 {
-    public string Id { get; set; } = string.Empty;
-    public string ParentItemId { get; set; } = string.Empty;
+    public Guid Id { get; set; }
+    public Guid ParentItemId { get; set; }
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

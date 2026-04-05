@@ -22,9 +22,9 @@ public class IntegrationTests
                 Audit = true,
                 MultiTenant = true,
                 EnableBulkUpdate = true)]
-            public class Product : IEntity, ISoftDeletable, IMultiTenant
+            public class Product : IAuditableEntity, ISoftDeletable, IMultiTenant
             {
-                public string Id { get; set; } = string.Empty;
+                public Guid Id { get; set; }
                 public DateTime CreatedAt { get; set; }
                 public DateTime UpdatedAt { get; set; }
                 public DateTime? DeletedAt { get; set; }

@@ -9,9 +9,9 @@ namespace CrudKit.Core.Tests.Attributes;
 public class AttributeMetadataTests
 {
     [CrudEntity(Table = "test_users", SoftDelete = true, Audit = true)]
-    private class TestUser : IEntity, ISoftDeletable
+    private class TestUser : IAuditableEntity, ISoftDeletable
     {
-        public string Id { get; set; } = "";
+        public Guid Id { get; set; }
         [Required, MaxLength(50), Searchable, Unique]
         public string Username { get; set; } = "";
         [SkipResponse, Hashed]

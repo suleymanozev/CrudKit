@@ -17,7 +17,7 @@ internal static class ResponseDtoGenerator
         // Start with system fields that belong in the response
         var responseProps = new List<(string Type, string Name)>
         {
-            ("string", "Id"),
+            ("Guid", "Id"),
             ("DateTime", "CreatedAt"),
             ("DateTime", "UpdatedAt"),
         };

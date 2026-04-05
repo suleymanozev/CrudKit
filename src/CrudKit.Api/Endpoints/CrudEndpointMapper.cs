@@ -17,7 +17,7 @@ namespace CrudKit.Api.Endpoints;
 /// Wrapper returned by <see cref="CrudEndpointMapper.MapCrudEndpoints{TEntity}(WebApplication, string)"/>
 /// and its overloads. Carries enough context for fluent <c>.WithDetail</c> chaining.
 /// </summary>
-public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
+public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
 {
     /// <summary>The route group created for the master entity.</summary>
     public RouteGroupBuilder Group { get; }
@@ -42,7 +42,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
     public CrudEndpointGroup<TMaster> WithDetail<TDetail, TCreateDetail>(
         string detailRoute,
         string foreignKeyProperty)
-        where TDetail : class, IEntity
+        where TDetail : class, IAuditableEntity
         where TCreateDetail : class
     {
         var masterTag = typeof(TMaster).Name.Replace("Entity", "");
@@ -62,7 +62,8 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
         // GET /api/{masterRoute}/{masterId}/{detailRoute} — List details by master
         group.MapGet("/", async (string masterId, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
         {
-            if (!await masterRepo.Exists(masterId, ct))
+            var masterGuid = CrudEndpointMapper.ParseGuid(masterId, typeof(TMaster).Name);
+            if (!await masterRepo.Exists(masterGuid, ct))
                 throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
 
             var details = await detailRepo.FindByField(foreignKeyProperty, masterId, ct);
@@ -76,10 +77,12 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
         // GET /api/{masterRoute}/{masterId}/{detailRoute}/{id} — Get single detail
         group.MapGet("/{id}", async (string masterId, string id, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
         {
-            if (!await masterRepo.Exists(masterId, ct))
+            var masterGuid = CrudEndpointMapper.ParseGuid(masterId, typeof(TMaster).Name);
+            var detailGuid = CrudEndpointMapper.ParseGuid(id, typeof(TDetail).Name);
+            if (!await masterRepo.Exists(masterGuid, ct))
                 throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
 
-            var entity = await detailRepo.FindByIdOrDefault(id, ct);
+            var entity = await detailRepo.FindByIdOrDefault(detailGuid, ct);
             if (entity is null)
                 return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TDetail).Name} with id '{id}' was not found." }, statusCode: 404);
 
@@ -97,7 +100,8 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
         // POST /api/{masterRoute}/{masterId}/{detailRoute} — Create detail
         group.MapPost("/", async (string masterId, TCreateDetail dto, HttpContext httpCtx, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
         {
-            if (!await masterRepo.Exists(masterId, ct))
+            var masterGuid = CrudEndpointMapper.ParseGuid(masterId, typeof(TMaster).Name);
+            if (!await masterRepo.Exists(masterGuid, ct))
                 throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
 
             var dtoFkProp = typeof(TCreateDetail).GetProperty(foreignKeyProperty,
@@ -136,10 +140,12 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
         // DELETE /api/{masterRoute}/{masterId}/{detailRoute}/{id} — Delete detail
         group.MapDelete("/{id}", async (string masterId, string id, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
         {
-            if (!await masterRepo.Exists(masterId, ct))
+            var masterGuid = CrudEndpointMapper.ParseGuid(masterId, typeof(TMaster).Name);
+            var detailGuid = CrudEndpointMapper.ParseGuid(id, typeof(TDetail).Name);
+            if (!await masterRepo.Exists(masterGuid, ct))
                 throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
 
-            var entity = await detailRepo.FindByIdOrDefault(id, ct);
+            var entity = await detailRepo.FindByIdOrDefault(detailGuid, ct);
             if (entity is null)
                 throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
 
@@ -147,7 +153,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
             if (fkValue != masterId)
                 throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
 
-            await detailRepo.Delete(id, ct);
+            await detailRepo.Delete(detailGuid, ct);
             return Results.NoContent();
         })
         .WithName($"Delete{tag}")
@@ -158,7 +164,8 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
         // PUT /api/{masterRoute}/{masterId}/{detailRoute}/batch — Batch upsert (replace all)
         group.MapPut("/batch", async (string masterId, List<TCreateDetail> dtos, HttpContext httpCtx, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
         {
-            if (!await masterRepo.Exists(masterId, ct))
+            var masterGuid = CrudEndpointMapper.ParseGuid(masterId, typeof(TMaster).Name);
+            if (!await masterRepo.Exists(masterGuid, ct))
                 throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
 
             var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
@@ -221,7 +228,7 @@ public static class CrudEndpointMapper
     public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity>(
         this WebApplication app,
         string route)
-        where TEntity : class, IEntity
+        where TEntity : class, IAuditableEntity
     {
         var tag = typeof(TEntity).Name.Replace("Entity", "");
         var group = app.MapGroup($"/api/{route}").WithTags(tag);
@@ -242,7 +249,8 @@ public static class CrudEndpointMapper
         // GET /api/{route}/{id} — Get by ID
         group.MapGet("/{id}", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
-            var entity = await repo.FindByIdOrDefault(id, ct);
+            var guid = ParseGuid(id, typeof(TEntity).Name);
+            var entity = await repo.FindByIdOrDefault(guid, ct);
             if (entity is null)
                 return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TEntity).Name} with id '{id}' was not found." }, statusCode: 404);
 
@@ -264,7 +272,7 @@ public static class CrudEndpointMapper
     public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity, TCreate, TUpdate>(
         this WebApplication app,
         string route)
-        where TEntity : class, IEntity
+        where TEntity : class, IAuditableEntity
         where TCreate : class
         where TUpdate : class
     {
@@ -287,7 +295,8 @@ public static class CrudEndpointMapper
         // GET /api/{route}/{id} — Get by ID
         group.MapGet("/{id}", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
-            var entity = await repo.FindByIdOrDefault(id, ct);
+            var guid = ParseGuid(id, typeof(TEntity).Name);
+            var entity = await repo.FindByIdOrDefault(guid, ct);
             if (entity is null)
                 return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TEntity).Name} with id '{id}' was not found." }, statusCode: 404);
 
@@ -339,12 +348,13 @@ public static class CrudEndpointMapper
         // PUT /api/{route}/{id} — Update
         group.MapPut("/{id}", async (string id, TUpdate dto, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
+            var guid = ParseGuid(id, typeof(TEntity).Name);
             var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             try
             {
                 var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
-                var entity = await repo.Update(id, dto, ct);
+                var entity = await repo.Update(guid, dto, ct);
 
                 var appCtx = BuildAppContext(httpCtx);
                 if (hooks != null)
@@ -377,6 +387,7 @@ public static class CrudEndpointMapper
         // DELETE /api/{route}/{id} — Delete
         group.MapDelete("/{id}", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
+            var guid = ParseGuid(id, typeof(TEntity).Name);
             var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             try
@@ -386,20 +397,20 @@ public static class CrudEndpointMapper
 
                 if (hooks != null)
                 {
-                    var entity = await repo.FindByIdOrDefault(id, ct);
+                    var entity = await repo.FindByIdOrDefault(guid, ct);
                     if (entity is null)
                         throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
                     await hooks.BeforeDelete(entity, appCtx);
                 }
 
-                await repo.Delete(id, ct);
+                await repo.Delete(guid, ct);
                 await tx.CommitAsync(ct);
 
                 if (hooks != null)
                 {
                     // AfterDelete receives a minimal entity with just the Id
                     var stub = Activator.CreateInstance<TEntity>();
-                    stub.Id = id;
+                    stub.Id = guid;
                     await hooks.AfterDelete(stub, appCtx);
                 }
 
@@ -421,6 +432,7 @@ public static class CrudEndpointMapper
         {
             group.MapPost("/{id}/restore", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
             {
+                var guid = ParseGuid(id, typeof(TEntity).Name);
                 var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
                 await using var tx = await db.Database.BeginTransactionAsync(ct);
                 try
@@ -428,11 +440,11 @@ public static class CrudEndpointMapper
                     var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
                     var appCtx = BuildAppContext(httpCtx);
 
-                    await repo.Restore(id, ct);
+                    await repo.Restore(guid, ct);
 
                     if (hooks != null)
                     {
-                        var entity = await repo.FindById(id, ct);
+                        var entity = await repo.FindById(guid, ct);
                         await hooks.BeforeRestore(entity, appCtx);
                         await db.SaveChangesAsync(ct);
                     }
@@ -510,7 +522,7 @@ public static class CrudEndpointMapper
     /// Uses reflection to check if TEntity implements IStateMachine and maps the transition endpoint.
     /// </summary>
     private static void MapTransitionEndpoint<TEntity>(RouteGroupBuilder group, string route, string tag)
-        where TEntity : class, IEntity
+        where TEntity : class, IAuditableEntity
     {
         // Find IStateMachine<TState> on TEntity
         var smInterface = typeof(TEntity).GetInterfaces()
@@ -531,13 +543,14 @@ public static class CrudEndpointMapper
 
         group.MapPost("/{id}/transition/{action}", async (string id, string action, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
+            var guid = ParseGuid(id, typeof(TEntity).Name);
             var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             try
             {
                 // Load entity for update (tracked)
                 var dbSet = db.Set<TEntity>();
-                var entity = await dbSet.FirstOrDefaultAsync(e => e.Id == id, ct)
+                var entity = await dbSet.FirstOrDefaultAsync(e => e.Id == guid, ct)
                     ?? throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
 
                 var currentStatus = statusProp.GetValue(entity)!;
@@ -590,7 +603,7 @@ public static class CrudEndpointMapper
     /// Returns the mapped response if a mapper is found, otherwise the raw entity.
     /// </summary>
     private static object TryMapSingle<TEntity>(IServiceProvider services, TEntity entity)
-        where TEntity : class, IEntity
+        where TEntity : class, IAuditableEntity
     {
         var mapper = ResolveEntityMapper<TEntity>(services);
         if (mapper is null) return entity;
@@ -605,7 +618,7 @@ public static class CrudEndpointMapper
     /// Returns the mapped paginated response if a mapper is found, otherwise the raw result.
     /// </summary>
     private static object TryMapPaginated<TEntity>(IServiceProvider services, Paginated<TEntity> result)
-        where TEntity : class, IEntity
+        where TEntity : class, IAuditableEntity
     {
         var mapper = ResolveEntityMapper<TEntity>(services);
         if (mapper is null) return result;
@@ -628,32 +641,18 @@ public static class CrudEndpointMapper
     /// Scans DI service descriptors for any registered IResponseMapper&lt;TEntity, ?&gt; implementation.
     /// </summary>
     private static object? ResolveEntityMapper<TEntity>(IServiceProvider services)
-        where TEntity : class, IEntity
+        where TEntity : class, IAuditableEntity
     {
-        // Try to find any service registration that implements IResponseMapper<TEntity, ?>
-        // by scanning the service collection stored in the root provider.
         var mapperInterfaceBase = typeof(IResponseMapper<,>);
 
-        // Approach: get all service descriptors from the IServiceCollection snapshot
-        // available via IServiceProvider. We look for registrations matching IResponseMapper<TEntity, *>.
-        // The concrete registered service type tells us the TResponse.
         using var scope = services.CreateScope();
         var serviceCollection = services.GetService<IServiceProviderIsService>();
         if (serviceCollection is null) return null;
 
-        // Check known registered types by scanning all interfaces of registered services
-        // A simpler approach: try common patterns by looking at the service provider itself
         var entityType = typeof(TEntity);
 
-        // Enumerate service descriptors if accessible
         var descriptors = services.GetService<IServiceCollection>();
 
-        // Since IServiceCollection isn't registered by default, use reflection to check
-        // the IServiceProviderIsService for IResponseMapper<TEntity, ?> with all types
-        // that have been registered.
-
-        // Practical approach: enumerate all types implementing IResponseMapper<TEntity, *>
-        // from loaded assemblies where the type has been registered
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
             Type[] types;
@@ -676,6 +675,16 @@ public static class CrudEndpointMapper
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Parses a string route parameter to a Guid. Throws NotFound on invalid format.
+    /// </summary>
+    internal static Guid ParseGuid(string value, string entityName)
+    {
+        if (Guid.TryParse(value, out var guid))
+            return guid;
+        throw AppError.NotFound($"{entityName} with id '{value}' was not found.");
     }
 
     private static Dictionary<string, FilterOp> ParseFilters(Dictionary<string, string>? raw)

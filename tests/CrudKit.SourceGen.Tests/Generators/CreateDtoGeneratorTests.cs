@@ -14,9 +14,9 @@ public class CreateDtoGeneratorTests
         namespace Store.Entities
         {
             [CrudEntity(Table = "Products")]
-            public class Product : IEntity
+            public class Product : IAuditableEntity
             {
-                public string Id { get; set; } = string.Empty;
+                public Guid Id { get; set; }
                 public DateTime CreatedAt { get; set; }
                 public DateTime UpdatedAt { get; set; }
 
@@ -79,9 +79,9 @@ public class CreateDtoGeneratorTests
             namespace Store.Entities
             {
                 [CrudEntity(Table = "Logs", EnableCreate = false)]
-                public class Log : IEntity
+                public class Log : IAuditableEntity
                 {
-                    public string Id { get; set; } = string.Empty;
+                    public Guid Id { get; set; }
                     public DateTime CreatedAt { get; set; }
                     public DateTime UpdatedAt { get; set; }
                     public string Message { get; set; } = string.Empty;
@@ -105,9 +105,9 @@ public class CreateDtoGeneratorTests
             namespace Store.Entities
             {
                 [CrudEntity(Table = "Views", ReadOnly = true)]
-                public class View : IEntity
+                public class View : IAuditableEntity
                 {
-                    public string Id { get; set; } = string.Empty;
+                    public Guid Id { get; set; }
                     public DateTime CreatedAt { get; set; }
                     public DateTime UpdatedAt { get; set; }
                     public string Label { get; set; } = string.Empty;

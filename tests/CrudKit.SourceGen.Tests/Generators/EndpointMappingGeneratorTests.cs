@@ -13,18 +13,18 @@ public class EndpointMappingGeneratorTests
         namespace App.Entities
         {
             [CrudEntity(Table = "Products")]
-            public class Product : IEntity
+            public class Product : IAuditableEntity
             {
-                public string Id { get; set; } = string.Empty;
+                public Guid Id { get; set; }
                 public DateTime CreatedAt { get; set; }
                 public DateTime UpdatedAt { get; set; }
                 public string Name { get; set; } = string.Empty;
             }
 
             [CrudEntity(Table = "Catalogs", ReadOnly = true)]
-            public class Catalog : IEntity
+            public class Catalog : IAuditableEntity
             {
-                public string Id { get; set; } = string.Empty;
+                public Guid Id { get; set; }
                 public DateTime CreatedAt { get; set; }
                 public DateTime UpdatedAt { get; set; }
                 public string Title { get; set; } = string.Empty;

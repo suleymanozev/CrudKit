@@ -6,9 +6,9 @@ using CrudKit.EntityFrameworkCore.Concurrency;
 namespace CrudKit.Api.Tests.Helpers;
 
 // ---- Basic entity ----
-public class ProductEntity : IEntity
+public class ProductEntity : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -27,12 +27,12 @@ public class UpdateProductDto
     public decimal? Price { get; set; }
 }
 
-public record ProductResponse(string Id, string Name, decimal Price, string DisplayName);
+public record ProductResponse(Guid Id, string Name, decimal Price, string DisplayName);
 
 // ---- Soft-deletable ----
-public class SoftProductEntity : IEntity, ISoftDeletable
+public class SoftProductEntity : IAuditableEntity, ISoftDeletable
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
@@ -47,9 +47,9 @@ public class CreateSoftProductDto
 // ---- State machine ----
 public enum OrderStatus { Pending, Processing, Completed, Cancelled }
 
-public class OrderEntity : IEntity, IStateMachine<OrderStatus>
+public class OrderEntity : IAuditableEntity, IStateMachine<OrderStatus>
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Customer { get; set; } = string.Empty;
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
     public DateTime CreatedAt { get; set; }
@@ -75,9 +75,9 @@ public class UpdateOrderDto
 }
 
 // ---- Concurrent ----
-public class ConcurrentEntity : IEntity, IConcurrent
+public class ConcurrentEntity : IAuditableEntity, IConcurrent
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public uint RowVersion { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -96,17 +96,17 @@ public class UpdateConcurrentDto
 }
 
 // ---- Master-detail ----
-public class InvoiceEntity : IEntity
+public class InvoiceEntity : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
 
-public class InvoiceLineEntity : IEntity
+public class InvoiceLineEntity : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string InvoiceId { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public decimal Amount { get; set; }

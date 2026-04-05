@@ -17,9 +17,9 @@ public class DialectTests
         var dialect = new GenericDialect();
         var source = new[]
         {
-            new PersonEntity { Id = "1", Name = "Alice" },
-            new PersonEntity { Id = "2", Name = "Bob" },
-            new PersonEntity { Id = "3", Name = "ALICE" },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Alice" },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Bob" },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "ALICE" },
         }.AsQueryable();
 
         var result = dialect.ApplyLike(source, NameExpr(), "alice");
@@ -36,9 +36,9 @@ public class DialectTests
         var dialect = new GenericDialect();
         var source = new[]
         {
-            new PersonEntity { Id = "1", Name = "Alice" },
-            new PersonEntity { Id = "2", Name = "Bob" },
-            new PersonEntity { Id = "3", Name = "alan" },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Alice" },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Bob" },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "alan" },
         }.AsQueryable();
 
         var result = dialect.ApplyStartsWith(source, NameExpr(), "al");
@@ -55,8 +55,8 @@ public class DialectTests
         var dialect = new SqliteDialect();
         var source = new[]
         {
-            new PersonEntity { Id = "1", Name = "Istanbul" },
-            new PersonEntity { Id = "2", Name = "Ankara" },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Istanbul" },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Ankara" },
         }.AsQueryable();
 
         var result = dialect.ApplyLike(source, NameExpr(), "stan");
@@ -71,8 +71,8 @@ public class DialectTests
         var dialect = new SqliteDialect();
         var source = new[]
         {
-            new PersonEntity { Id = "1", Name = "Istanbul" },
-            new PersonEntity { Id = "2", Name = "Ankara" },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Istanbul" },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Ankara" },
         }.AsQueryable();
 
         var result = dialect.ApplyStartsWith(source, NameExpr(), "ist");

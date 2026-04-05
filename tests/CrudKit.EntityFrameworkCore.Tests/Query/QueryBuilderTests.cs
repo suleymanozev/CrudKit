@@ -47,7 +47,7 @@ public class QueryBuilderTests : IAsyncLifetime
         var persons = Enumerable.Range(1, 10)
             .Select(i => new PersonEntity
             {
-                Id = i.ToString(),
+                Id = Guid.NewGuid(),
                 Name = $"Person{i:D2}",
                 Age = 20 + i,
                 CreatedAt = new DateTime(2026, 1, i),

@@ -8,9 +8,9 @@ namespace CrudKit.Sample.Api.Entities;
 /// No create/update/delete endpoints — managed via seed data or migration.
 /// </summary>
 [CrudEntity(Table = "units", ReadOnly = true)]
-public class Unit : IEntity
+public class Unit : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
 
     [Unique]
     public string Code { get; set; } = string.Empty;

@@ -5,7 +5,7 @@ namespace CrudKit.Core.Interfaces;
 /// Source Generator produces implementations automatically.
 /// </summary>
 public interface IUpdateMapper<TEntity, TUpdate>
-    where TEntity : class, IEntity
+    where TEntity : class, IAuditableEntity
     where TUpdate : class
 {
     void ApplyUpdate(TEntity entity, TUpdate dto);

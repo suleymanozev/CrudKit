@@ -65,9 +65,9 @@ public class CrudKitStartupValidatorTests
 // --- Test DbContexts and Entities ---
 
 [CrudEntity(OwnerField = "NonExistentProperty")]
-public class BadOwnerEntity : IEntity
+public class BadOwnerEntity : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
@@ -82,9 +82,9 @@ public class InvalidOwnerFieldDbContext : CrudKitDbContext
 }
 
 [CrudEntity(EnableBulkUpdate = true)]
-public class ConcurrentBulkEntity : IEntity, IConcurrent
+public class ConcurrentBulkEntity : IAuditableEntity, IConcurrent
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public uint RowVersion { get; set; }
     public DateTime CreatedAt { get; set; }

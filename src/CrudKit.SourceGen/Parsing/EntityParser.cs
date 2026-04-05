@@ -19,6 +19,7 @@ internal static class EntityParser
 
     private const string CrudEntityAttributeFqn = "CrudKit.Core.Attributes.CrudEntityAttribute";
     private const string IEntityFqn              = "CrudKit.Core.Interfaces.IEntity";
+    private const string IAuditableEntityFqn     = "CrudKit.Core.Interfaces.IAuditableEntity";
     private const string ISoftDeletableFqn       = "CrudKit.Core.Interfaces.ISoftDeletable";
     private const string IMultiTenantFqn         = "CrudKit.Core.Interfaces.IMultiTenant";
 
@@ -51,7 +52,8 @@ internal static class EntityParser
         bool bulkDelete  = GetBool(attrArgs, "EnableBulkDelete");
         string? workflow = GetNullableString(attrArgs, "Workflow");
 
-        bool implementsIEntity        = ImplementsInterface(classSymbol, IEntityFqn);
+        bool implementsIEntity        = ImplementsInterface(classSymbol, IEntityFqn)
+                                       || ImplementsInterface(classSymbol, IAuditableEntityFqn);
         bool implementsISoftDeletable = ImplementsInterface(classSymbol, ISoftDeletableFqn);
         bool implementsIMultiTenant   = ImplementsInterface(classSymbol, IMultiTenantFqn);
 

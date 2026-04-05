@@ -3,9 +3,9 @@ using CrudKit.Core.Interfaces;
 
 namespace CrudKit.Sample.Api.Entities;
 
-public class OrderLine : IEntity
+public class OrderLine : IAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string OrderId { get; set; } = string.Empty;
 
     [Required]

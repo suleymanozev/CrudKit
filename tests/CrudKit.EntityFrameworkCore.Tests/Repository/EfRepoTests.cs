@@ -54,7 +54,7 @@ public class EfRepoTests
 
         var result = await repo.Create(dto);
 
-        Assert.NotEmpty(result.Id);
+        Assert.NotEqual(Guid.Empty, result.Id);
         Assert.Equal("Alice", result.Name);
         Assert.Equal(30, result.Age);
         Assert.True(await db.Persons.AnyAsync(e => e.Id == result.Id));
@@ -88,7 +88,7 @@ public class EfRepoTests
     public async Task FindById_ThrowsNotFound_WhenMissing()
     {
         var (_, repo) = CreatePersonRepo();
-        var ex = await Assert.ThrowsAsync<AppError>(() => repo.FindById("non-existent"));
+        var ex = await Assert.ThrowsAsync<AppError>(() => repo.FindById(Guid.NewGuid()));
         Assert.Equal(404, ex.StatusCode);
     }
 
@@ -98,7 +98,7 @@ public class EfRepoTests
     public async Task FindByIdOrDefault_ReturnsNull_WhenMissing()
     {
         var (_, repo) = CreatePersonRepo();
-        var result = await repo.FindByIdOrDefault("non-existent");
+        var result = await repo.FindByIdOrDefault(Guid.NewGuid());
         Assert.Null(result);
     }
 
@@ -202,7 +202,7 @@ public class EfRepoTests
         var (_, repo) = CreatePersonRepo();
         var created = await repo.Create(new { Name = "Frank", Age = 40 });
         Assert.True(await repo.Exists(created.Id));
-        Assert.False(await repo.Exists("non-existent"));
+        Assert.False(await repo.Exists(Guid.NewGuid()));
     }
 
     [Fact]

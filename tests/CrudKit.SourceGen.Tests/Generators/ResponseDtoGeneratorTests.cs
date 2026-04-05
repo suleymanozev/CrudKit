@@ -13,9 +13,9 @@ public class ResponseDtoGeneratorTests
         namespace Store.Entities
         {
             [CrudEntity(Table = "Categories", SoftDelete = true)]
-            public class Category : IEntity, ISoftDeletable
+            public class Category : IAuditableEntity, ISoftDeletable
             {
-                public string Id { get; set; } = string.Empty;
+                public Guid Id { get; set; }
                 public DateTime CreatedAt { get; set; }
                 public DateTime UpdatedAt { get; set; }
                 public DateTime? DeletedAt { get; set; }
@@ -36,7 +36,7 @@ public class ResponseDtoGeneratorTests
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(CategoryEntity);
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CategoryResponseDto.g.cs");
 
-        Assert.Contains("string Id", source);
+        Assert.Contains("Guid Id", source);
         Assert.Contains("DateTime CreatedAt", source);
         Assert.Contains("DateTime UpdatedAt", source);
     }
@@ -80,9 +80,9 @@ public class ResponseDtoGeneratorTests
             namespace Store.Entities
             {
                 [CrudEntity(Table = "ReadViews", ReadOnly = true)]
-                public class ReadView : IEntity
+                public class ReadView : IAuditableEntity
                 {
-                    public string Id { get; set; } = string.Empty;
+                    public Guid Id { get; set; }
                     public DateTime CreatedAt { get; set; }
                     public DateTime UpdatedAt { get; set; }
                     public string Label { get; set; } = string.Empty;
@@ -109,9 +109,9 @@ public class ResponseDtoGeneratorTests
             namespace Store.Entities
             {
                 [CrudEntity(Table = "Tenanted", MultiTenant = true)]
-                public class Tenanted : IEntity, IMultiTenant
+                public class Tenanted : IAuditableEntity, IMultiTenant
                 {
-                    public string Id { get; set; } = string.Empty;
+                    public Guid Id { get; set; }
                     public DateTime CreatedAt { get; set; }
                     public DateTime UpdatedAt { get; set; }
                     public string TenantId { get; set; } = string.Empty;
