@@ -331,6 +331,7 @@ public static class CrudEndpointMapper
         })
         .WithName($"Create{tag}")
         .AddEndpointFilter<ValidationFilter<TCreate>>()
+        .Accepts<TCreate>("application/json")
         .Produces<TEntity>(201)
         .ProducesProblem(400)
         .ProducesProblem(500);
@@ -367,6 +368,7 @@ public static class CrudEndpointMapper
         })
         .WithName($"Update{tag}")
         .AddEndpointFilter<ValidationFilter<TUpdate>>()
+        .Accepts<TUpdate>("application/json")
         .Produces<TEntity>(200)
         .ProducesProblem(400)
         .ProducesProblem(404)
