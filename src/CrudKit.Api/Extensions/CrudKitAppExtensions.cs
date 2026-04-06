@@ -6,6 +6,7 @@ using CrudKit.Core.Auth;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Tenancy;
 using CrudKit.EntityFrameworkCore;
+using CrudKit.EntityFrameworkCore.Auditing;
 using CrudKit.EntityFrameworkCore.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Json;
@@ -33,6 +34,15 @@ public static class CrudKitAppExtensions
             AuditTrailEnabled = opts.AuditTrailEnabled,
             EnumAsStringEnabled = opts.EnumAsStringEnabled,
         });
+
+        // Register audit writer when audit trail is enabled
+        if (opts.AuditTrailEnabled)
+        {
+            if (opts.CustomAuditWriterType != null)
+                services.TryAddScoped(typeof(IAuditWriter), opts.CustomAuditWriterType);
+            else
+                services.TryAddScoped<IAuditWriter, DbAuditWriter>();
+        }
 
         services.TryAddScoped<ICurrentUser, AnonymousCurrentUser>();
 

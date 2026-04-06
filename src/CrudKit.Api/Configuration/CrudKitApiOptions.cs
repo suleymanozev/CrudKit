@@ -20,6 +20,12 @@ public class CrudKitApiOptions
     public bool AuditTrailEnabled { get; set; }
 
     /// <summary>
+    /// Custom <see cref="CrudKit.Core.Interfaces.IAuditWriter"/> implementation type.
+    /// When null the default DbAuditWriter is used.
+    /// </summary>
+    internal Type? CustomAuditWriterType { get; set; }
+
+    /// <summary>
     /// When true, export endpoints are generated for all entities by default.
     /// Individual entities can opt out with [NotExportable] or force opt in with [Exportable].
     /// </summary>
@@ -39,11 +45,25 @@ public class CrudKitApiOptions
 
     /// <summary>
     /// Enables audit trail logging for entities decorated with [Audited].
-    /// Changes are written to the __crud_audit_logs table on Create, Update, and Delete.
+    /// Changes are written to the __crud_audit_logs table on Create, Update, and Delete
+    /// using the default <c>DbAuditWriter</c>.
     /// </summary>
     public CrudKitApiOptions UseAuditTrail()
     {
         AuditTrailEnabled = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Enables audit trail logging with a custom <see cref="CrudKit.Core.Interfaces.IAuditWriter"/>
+    /// implementation. Use this overload to write audit entries to Elasticsearch,
+    /// a separate database, file storage, etc.
+    /// </summary>
+    public CrudKitApiOptions UseAuditTrail<TAuditWriter>()
+        where TAuditWriter : class, CrudKit.Core.Interfaces.IAuditWriter
+    {
+        AuditTrailEnabled = true;
+        CustomAuditWriterType = typeof(TAuditWriter);
         return this;
     }
 

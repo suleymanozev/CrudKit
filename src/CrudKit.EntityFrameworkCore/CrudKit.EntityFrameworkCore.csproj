@@ -8,6 +8,9 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="CrudKit.EntityFrameworkCore.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\CrudKit.Core\CrudKit.Core.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.*" />

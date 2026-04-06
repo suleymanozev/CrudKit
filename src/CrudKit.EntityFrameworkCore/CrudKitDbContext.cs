@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
+using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Concurrency;
 using CrudKit.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore;
@@ -30,19 +31,27 @@ public abstract class CrudKitDbContext : DbContext
     private readonly TimeProvider _timeProvider;
     private readonly CrudKitEfOptions? _efOptions;
     private readonly ITenantContext? _tenantContext;
+    private readonly IAuditWriter? _auditWriter;
+
+    /// <summary>
+    /// When true, SaveChanges skips audit entry collection. Used internally by
+    /// <see cref="Auditing.DbAuditWriter"/> to prevent recursive auditing.
+    /// </summary>
+    internal bool IsAuditSave { get; set; }
 
     public DbSet<AuditLogEntry> AuditLogs => Set<AuditLogEntry>();
     public DbSet<SequenceEntry> Sequences => Set<SequenceEntry>();
 
     protected CrudKitDbContext(DbContextOptions options, ICurrentUser currentUser,
         TimeProvider? timeProvider = null, CrudKitEfOptions? efOptions = null,
-        ITenantContext? tenantContext = null)
+        ITenantContext? tenantContext = null, IAuditWriter? auditWriter = null)
         : base(options)
     {
         _currentUser = currentUser;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _efOptions = efOptions;
         _tenantContext = tenantContext;
+        _auditWriter = auditWriter;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -155,9 +164,17 @@ public abstract class CrudKitDbContext : DbContext
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
+        if (IsAuditSave)
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+
+        var auditEntries = CollectAuditEntries();
         var cascadeOps = BeforeSaveChanges();
         var result = base.SaveChanges(acceptAllChangesOnSuccess);
         ExecuteCascadeOps(cascadeOps);
+
+        if (auditEntries.Count > 0 && _auditWriter != null)
+            _auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
+
         return result;
     }
 
@@ -165,9 +182,17 @@ public abstract class CrudKitDbContext : DbContext
         bool acceptAllChangesOnSuccess,
         CancellationToken ct = default)
     {
+        if (IsAuditSave)
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
+
+        var auditEntries = CollectAuditEntries();
         var cascadeOps = BeforeSaveChanges();
         var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
         ExecuteCascadeOps(cascadeOps);
+
+        if (auditEntries.Count > 0 && _auditWriter != null)
+            await _auditWriter.WriteAsync(auditEntries, ct);
+
         return result;
     }
 
@@ -184,11 +209,7 @@ public abstract class CrudKitDbContext : DbContext
                 entry.Entity.Id = Guid.NewGuid();
         }
 
-        // Step 2: Write audit logs (now IDs are available for new entities,
-        // and Deleted state is still intact for soft-delete detection)
-        WriteAuditLogs(now);
-
-        // Step 3: Set remaining fields and handle soft-delete conversion
+        // Step 2: Set remaining fields and handle soft-delete conversion
         foreach (var entry in ChangeTracker.Entries<IAuditableEntity>().ToList())
         {
             switch (entry.State)
@@ -290,8 +311,16 @@ public abstract class CrudKitDbContext : DbContext
         }
     }
 
-    private void WriteAuditLogs(DateTime now)
+    /// <summary>
+    /// Scans the ChangeTracker and builds a list of <see cref="AuditEntry"/> records
+    /// for entities that should be audited. Must be called BEFORE base.SaveChanges
+    /// so that Added/Modified/Deleted states are still available.
+    /// </summary>
+    private List<AuditEntry> CollectAuditEntries()
     {
+        if (_auditWriter == null) return [];
+
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var globalAuditEnabled = _efOptions?.AuditTrailEnabled == true;
 
         var entries = ChangeTracker.Entries()
@@ -308,12 +337,12 @@ public abstract class CrudKitDbContext : DbContext
             .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
             .ToList();
 
-        if (entries.Count == 0) return;
+        if (entries.Count == 0) return [];
 
-        var auditEntries = new List<AuditLogEntry>();
+        var auditEntries = new List<AuditEntry>();
         foreach (var entry in entries)
         {
-            var log = new AuditLogEntry
+            var audit = new AuditEntry
             {
                 EntityType = entry.Entity.GetType().Name,
                 EntityId = (entry.Entity as IEntity)?.Id.ToString() ?? string.Empty,
@@ -329,29 +358,29 @@ public abstract class CrudKitDbContext : DbContext
             switch (entry.State)
             {
                 case EntityState.Added:
-                    log.Action = "Create";
-                    log.NewValues = SerializeCurrentValues(auditableProps);
+                    audit.Action = "Create";
+                    audit.NewValues = SerializeCurrentValues(auditableProps);
                     break;
 
                 case EntityState.Modified:
                     var modified = auditableProps.Where(p => p.IsModified).ToList();
-                    log.Action = "Update";
-                    log.OldValues = SerializeOriginalValues(modified);
-                    log.NewValues = SerializeCurrentValues(modified);
-                    log.ChangedFields = JsonSerializer.Serialize(
+                    audit.Action = "Update";
+                    audit.OldValues = SerializeOriginalValues(modified);
+                    audit.NewValues = SerializeCurrentValues(modified);
+                    audit.ChangedFields = JsonSerializer.Serialize(
                         modified.Select(p => p.Metadata.Name));
                     break;
 
                 case EntityState.Deleted:
-                    log.Action = "Delete";
-                    log.OldValues = SerializeCurrentValues(auditableProps);
+                    audit.Action = "Delete";
+                    audit.OldValues = SerializeCurrentValues(auditableProps);
                     break;
             }
 
-            auditEntries.Add(log);
+            auditEntries.Add(audit);
         }
 
-        AuditLogs.AddRange(auditEntries);
+        return auditEntries;
     }
 
     // ---- Runtime tenant value used by EF Core global filter ----
