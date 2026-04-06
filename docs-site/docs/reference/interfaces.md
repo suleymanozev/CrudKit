@@ -1,0 +1,171 @@
+---
+sidebar_position: 2
+title: Interfaces
+---
+
+# Interfaces
+
+## ISoftDeletable
+
+Marks an entity as soft-deletable. `CrudKitDbContext` applies a global query filter excluding records where `DeletedAt != null`. Implemented by `FullAuditableEntity` and its variants.
+
+```csharp
+public interface ISoftDeletable
+{
+    DateTime? DeletedAt { get; set; }
+}
+```
+
+## IMultiTenant / IMultiTenant\<TTenant\> / IMultiTenant\<TTenant, TTenantKey\>
+
+Marks an entity as tenant-scoped. `CrudKitDbContext` automatically applies `WHERE TenantId = X` and sets `TenantId` on create.
+
+```csharp
+// Basic — string TenantId
+public class Order : FullAuditableEntity, IMultiTenant
+{
+    public string TenantId { get; set; } = string.Empty;
+}
+
+// With navigation property
+public class Order : FullAuditableEntity, IMultiTenant<Tenant>
+{
+    public string TenantId { get; set; } = string.Empty;
+    public Tenant? Tenant { get; set; }
+}
+
+// With typed tenant key
+public class Order : FullAuditableEntity, IMultiTenant<Tenant, Guid>
+{
+    public Guid TenantId { get; set; }
+    public Tenant? Tenant { get; set; }
+}
+```
+
+## IConcurrent
+
+Enables optimistic concurrency detection via `RowVersion`. `CrudKitDbContext` configures `RowVersion` as a concurrency token. Conflicts return `409`.
+
+```csharp
+public interface IConcurrent
+{
+    uint RowVersion { get; set; }
+}
+```
+
+## IStateMachine\<TState\>
+
+Adds state machine behavior to an entity. Defines valid `(From, To, Action)` transitions. CrudKit maps `POST /{id}/transition/{action}` automatically.
+
+```csharp
+public interface IStateMachine<TState> where TState : struct, Enum
+{
+    TState Status { get; set; }
+    static abstract IReadOnlyList<(TState From, TState To, string Action)> Transitions { get; }
+}
+```
+
+## IDocumentNumbering
+
+Auto-assigns sequential document numbers on Create. Sequences are scoped per entity type, tenant, and optionally year.
+
+```csharp
+public interface IDocumentNumbering
+{
+    string DocumentNumber { get; set; }
+    static abstract string Prefix { get; }
+    static abstract bool YearlyReset { get; }
+}
+```
+
+## ICrudHooks\<T\>
+
+Per-entity lifecycle hooks. All methods have empty default implementations — override only what you need.
+
+```csharp
+public interface ICrudHooks<T> where T : class, IAuditableEntity
+{
+    Task BeforeCreate(T entity, AppContext ctx);
+    Task AfterCreate(T entity, AppContext ctx);
+    Task BeforeUpdate(T entity, AppContext ctx);
+    Task AfterUpdate(T entity, AppContext ctx);
+    Task BeforeDelete(T entity, AppContext ctx);
+    Task AfterDelete(T entity, AppContext ctx);
+    Task BeforeRestore(T entity, AppContext ctx);
+    Task AfterRestore(T entity, AppContext ctx);
+    IQueryable<T> ApplyScope(IQueryable<T> query, AppContext ctx);
+    IQueryable<T> ApplyIncludes(IQueryable<T> query);
+}
+```
+
+## IGlobalCrudHook
+
+Runs for all entities on every CRUD operation. Register via `opts.UseGlobalHook<T>()`. Multiple global hooks run in registration order.
+
+```csharp
+public interface IGlobalCrudHook
+{
+    Task BeforeCreate(object entity, AppContext ctx);
+    Task AfterCreate(object entity, AppContext ctx);
+    Task BeforeUpdate(object entity, AppContext ctx);
+    Task AfterUpdate(object entity, AppContext ctx);
+    Task BeforeDelete(object entity, AppContext ctx);
+    Task AfterDelete(object entity, AppContext ctx);
+}
+```
+
+## IAuditWriter
+
+Custom audit log destination. Implement this to write audit entries to any storage backend.
+
+```csharp
+public interface IAuditWriter
+{
+    Task WriteAsync(IReadOnlyList<AuditEntry> entries, CancellationToken ct);
+}
+```
+
+## ITenantContext
+
+Provides the resolved tenant ID for the current request. Populated by the configured tenant resolver. Separate from `ICurrentUser` — a request can be tenant-scoped without authentication.
+
+## ICurrentUser
+
+Represents the authenticated user for the current request. Must be implemented by the application layer.
+
+```csharp
+public interface ICurrentUser
+{
+    string? Id { get; }
+    string? Username { get; }
+    IReadOnlyList<string> Roles { get; }
+    IReadOnlyList<Permission> Permissions { get; }
+    bool IsAuthenticated { get; }
+    bool HasRole(string role);
+    bool HasPermission(string entity, string action);
+    bool HasPermission(string entity, string action, PermScope scope);
+    IReadOnlyList<string>? AccessibleTenants { get; }  // null = all tenants
+}
+```
+
+## IResponseMapper, ICreateMapper, IUpdateMapper, ICrudMapper
+
+Mapper interfaces for converting between entities and DTOs. Implement manually or let SourceGen generate them.
+
+- `IResponseMapper<T, TResponse>` — entity → response DTO
+- `ICreateMapper<T, TCreate>` — create DTO → entity
+- `IUpdateMapper<T, TUpdate>` — apply update DTO to existing entity
+- `ICrudMapper<T, TCreate, TUpdate, TResponse>` — combines all three
+
+## IModule
+
+Self-registers services and endpoints for one bounded context. Discovered via assembly scan or manual registration.
+
+```csharp
+public interface IModule
+{
+    string Name { get; }
+    void RegisterServices(IServiceCollection services, IConfiguration config);
+    void MapEndpoints(WebApplication app);
+}
+```
