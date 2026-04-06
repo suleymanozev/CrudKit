@@ -572,6 +572,39 @@ public static class CrudEndpointMapper
             .Produces(200)
             .ProducesProblem(404)
             .ProducesProblem(500);
+
+            // DELETE /api/{route}/purge?olderThan=N — Permanently delete old soft-deleted records
+            group.MapDelete("/purge", async (HttpContext httpCtx, int olderThan, CancellationToken ct) =>
+            {
+                if (olderThan < 1)
+                    throw AppError.BadRequest("olderThan must be at least 1 day.");
+
+                var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
+                var cutoff = DateTime.UtcNow.AddDays(-olderThan);
+
+                // IgnoreQueryFilters to access soft-deleted records, then hard delete via ExecuteDeleteAsync
+                // which bypasses the ChangeTracker entirely — no soft-delete interception, no hooks.
+                var query = db.Set<TEntity>()
+                    .IgnoreQueryFilters()
+                    .Where(e => ((ISoftDeletable)e).DeletedAt != null && ((ISoftDeletable)e).DeletedAt < cutoff);
+
+                // Re-apply tenant filter manually since IgnoreQueryFilters removes all filters
+                if (typeof(IMultiTenant).IsAssignableFrom(typeof(TEntity)))
+                {
+                    var tenantContext = httpCtx.RequestServices.GetService<ITenantContext>();
+                    if (tenantContext?.TenantId != null)
+                    {
+                        query = query.Where(e => ((IMultiTenant)e).TenantId == tenantContext.TenantId);
+                    }
+                }
+
+                var purged = await query.ExecuteDeleteAsync(ct);
+                return Results.Ok(new { purged });
+            })
+            .WithName($"Purge{tag}")
+            .WithTags(tag)
+            .Produces(200)
+            .ProducesProblem(400);
         }
 
         // POST /api/{route}/{id}/transition/{action} — State transition (IStateMachine only)
