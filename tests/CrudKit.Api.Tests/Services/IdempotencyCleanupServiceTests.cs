@@ -91,6 +91,53 @@ public class IdempotencyCleanupServiceTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task ExecuteAsync_StopsOnCancellation()
+    {
+        var scopeFactory = BuildScopeFactory();
+        var service = new IdempotencyCleanupService(scopeFactory, NullLogger<IdempotencyCleanupService>.Instance);
+
+        // Pre-cancel the token so the initial Task.Delay throws immediately
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var executeMethod = typeof(IdempotencyCleanupService)
+            .GetMethod("ExecuteAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var task = (Task)executeMethod.Invoke(service, [cts.Token])!;
+
+        // The initial Task.Delay throws TaskCanceledException — that's expected behavior
+        // for BackgroundService when cancellation is requested during startup delay
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+    }
+
+    [Fact]
+    public async Task CleanupAsync_WhenDbError_LogsAndDoesNotThrow()
+    {
+        // Build a scope factory that provides a disposed context to trigger an error
+        var services = new ServiceCollection();
+        var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        var options = new DbContextOptionsBuilder<ApiTestDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        var disposedDb = new ApiTestDbContext(options, new FakeCurrentUser());
+        disposedDb.Database.EnsureCreated();
+        await disposedDb.DisposeAsync(); // dispose so CleanupAsync encounters an error
+        connection.Dispose();
+
+        services.AddSingleton<CrudKit.EntityFrameworkCore.CrudKitDbContext>(disposedDb);
+        services.AddSingleton<CrudKit.EntityFrameworkCore.ICrudKitDbContext>(disposedDb);
+        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+
+        var service = new IdempotencyCleanupService(scopeFactory, NullLogger<IdempotencyCleanupService>.Instance);
+
+        var method = typeof(IdempotencyCleanupService)
+            .GetMethod("CleanupAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+
+        // Should not throw — error is caught and logged
+        await (Task)method.Invoke(service, [CancellationToken.None])!;
+    }
+
+    [Fact]
     public async Task CleanupAsync_WhenNoExpiredRecords_DoesNotThrow()
     {
         var now = DateTime.UtcNow;

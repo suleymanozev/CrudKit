@@ -228,6 +228,38 @@ public class EfRepoTests
         Assert.Equal(2, result.Count);
     }
 
+    [Fact]
+    public async Task FindByField_UnknownProperty_ReturnsEmptyList()
+    {
+        var (_, repo) = CreatePersonRepo();
+        await repo.Create(new { Name = "Alice", Age = 30 });
+
+        var result = await repo.FindByField("NonExistent", "value");
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task FindByField_InvalidConversion_ReturnsEmptyList()
+    {
+        var (_, repo) = CreatePersonRepo();
+        await repo.Create(new { Name = "Alice", Age = 30 });
+
+        // "not-a-number" cannot be converted to int — should return empty
+        var result = await repo.FindByField("Age", "not-a-number");
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task FindByField_GuidAsString_ConvertsAndMatches()
+    {
+        var (db, repo) = CreatePersonRepo();
+        var created = await repo.Create(new { Name = "Alice", Age = 30 });
+
+        var result = await repo.FindByField("Id", created.Id.ToString());
+        Assert.Single(result);
+        Assert.Equal(created.Id, result[0].Id);
+    }
+
     private static (TestDbContext db, EfRepo<UniqueCodeEntity> repo) CreateUniqueCodeRepo()
     {
         var db = DbHelper.CreateDb();

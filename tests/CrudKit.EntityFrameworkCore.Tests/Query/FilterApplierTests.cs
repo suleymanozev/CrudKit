@@ -131,4 +131,59 @@ public class FilterApplierTests
         Assert.Single(result);
         Assert.Equal("Alice", result.First().Name);
     }
+
+    [Fact]
+    public void Apply_Null_OnValueType_SkipsSilently()
+    {
+        // Age is an int (non-nullable value type) — null filter should not apply
+        var result = Applier().Apply(Source(), "Age", FilterOp.Parse("null:"));
+        Assert.Equal(4, result.Count()); // no filter applied
+    }
+
+    [Fact]
+    public void Apply_Notnull_OnValueType_SkipsSilently()
+    {
+        // Age is an int (non-nullable value type) — notnull filter should not apply
+        var result = Applier().Apply(Source(), "Age", FilterOp.Parse("notnull:"));
+        Assert.Equal(4, result.Count()); // no filter applied
+    }
+
+    [Fact]
+    public void Apply_In_WithNumericValues()
+    {
+        var result = Applier().Apply(Source(), "Age", FilterOp.Parse("in:25,30"));
+        Assert.Equal(3, result.Count()); // Bob(25), Alice(30), Carol(30)
+    }
+
+    [Fact]
+    public void Apply_In_WithEmptyList_ReturnsAll()
+    {
+        var op = new FilterOp { Operator = "in", Values = [] };
+        var result = Applier().Apply(Source(), "Age", op);
+        Assert.Equal(4, result.Count()); // no filter applied when list is empty
+    }
+
+    [Fact]
+    public void Apply_UnknownOperator_ReturnsAll()
+    {
+        var op = new FilterOp { Operator = "banana", Value = "25" };
+        var result = Applier().Apply(Source(), "Age", op);
+        Assert.Equal(4, result.Count());
+    }
+
+    [Fact]
+    public void Apply_InvalidValueForType_SkipsFilter()
+    {
+        // "abc" cannot be parsed to int — comparison should return all rows
+        var result = Applier().Apply(Source(), "Age", FilterOp.Parse("eq:abc"));
+        Assert.Equal(4, result.Count());
+    }
+
+    [Fact]
+    public void Apply_CaseInsensitivePropertyName_IsMatched()
+    {
+        var result = Applier().Apply(Source(), "name", FilterOp.Parse("Bob"));
+        Assert.Single(result);
+        Assert.Equal("Bob", result.First().Name);
+    }
 }

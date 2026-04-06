@@ -97,4 +97,39 @@ public class DialectTests
         var dialect = DialectDetector.Detect(db);
         Assert.IsType<SqliteDialect>(dialect);
     }
+
+    [Fact]
+    public void SqliteDialect_GetUpsertSql_ReturnsValidSql()
+    {
+        var dialect = new SqliteDialect();
+        var sql = dialect.GetUpsertSql("products", ["name", "price", "qty"], ["name"]);
+
+        Assert.Contains("INSERT INTO products", sql);
+        Assert.Contains("VALUES (@p0, @p1, @p2)", sql);
+        Assert.Contains("ON CONFLICT (name)", sql);
+        Assert.Contains("DO UPDATE SET", sql);
+        Assert.Contains("name = EXCLUDED.name", sql);
+        Assert.Contains("price = EXCLUDED.price", sql);
+    }
+
+    [Fact]
+    public void SqliteDialect_GetSequenceNextValueSql_ThrowsNotSupported()
+    {
+        var dialect = new SqliteDialect();
+        Assert.Throws<NotSupportedException>(() =>
+            dialect.GetSequenceNextValueSql("my_sequence"));
+    }
+
+    [Fact]
+    public void SqliteDialect_ConfigureConcurrencyToken_ConfiguresToken()
+    {
+        // Verify via an integration test using the DbHelper which uses SQLite
+        using var db = DbHelper.CreateDb();
+        var entityType = db.Model.FindEntityType(typeof(ConcurrentEntity));
+        Assert.NotNull(entityType);
+
+        var rowVersionProp = entityType!.FindProperty(nameof(ConcurrentEntity.RowVersion));
+        Assert.NotNull(rowVersionProp);
+        Assert.True(rowVersionProp!.IsConcurrencyToken);
+    }
 }
