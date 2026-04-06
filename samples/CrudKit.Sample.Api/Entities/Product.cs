@@ -5,6 +5,10 @@ using CrudKit.Core.Entities;
 namespace CrudKit.Sample.Api.Entities;
 
 [CrudEntity(Table = "products")]
+[Audited]
+[Exportable]
+[Importable]
+[RequirePermissions]
 public class Product : AuditableEntity
 {
     [Required, MaxLength(200), Searchable]
@@ -15,6 +19,9 @@ public class Product : AuditableEntity
 
     public string? Description { get; set; }
 
-    [Unique]
+    [Unique, SkipUpdate]
     public string Sku { get; set; } = string.Empty;
+
+    [NotExportable]
+    public string? InternalNotes { get; set; }
 }

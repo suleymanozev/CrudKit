@@ -8,6 +8,10 @@ namespace CrudKit.Sample.Api.Entities;
 public enum OrderStatus { Pending, Processing, Completed, Cancelled }
 
 [CrudEntity(Table = "orders")]
+[Audited]
+[RequireAuth]
+[AuthorizeOperation("Delete", "admin")]
+[CascadeSoftDelete(typeof(OrderLine), nameof(OrderLine.OrderId))]
 public class Order : FullAuditableEntity, IStateMachine<OrderStatus>
 {
     [Required]

@@ -5,6 +5,8 @@ using CrudKit.Core.Entities;
 namespace CrudKit.Sample.Api.Entities;
 
 [CrudEntity(Table = "categories")]
+[Audited]
+[RequireAuth]
 public class Category : FullAuditableEntity
 {
     [Required, MaxLength(100), Unique]

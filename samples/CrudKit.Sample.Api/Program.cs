@@ -12,11 +12,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<SampleDbContext>((_, opts) =>
     opts.UseSqlite("Data Source=sample.db"));
 
-// CrudKit — single call registers everything
+// CrudKit
 builder.Services.AddCrudKit<SampleDbContext>(opts =>
 {
     opts.DefaultPageSize = 25;
     opts.MaxPageSize = 100;
+    opts.UseAuditTrail();
+    opts.UseExport();
+    opts.UseEnumAsString();
 });
 
 // OpenAPI — set decimal format to "decimal" instead of "double"
@@ -25,9 +28,7 @@ builder.Services.AddOpenApi(opts =>
     opts.AddSchemaTransformer((schema, ctx, _) =>
     {
         if (ctx.JsonTypeInfo.Type == typeof(decimal) || ctx.JsonTypeInfo.Type == typeof(decimal?))
-        {
             schema.Format = "decimal";
-        }
         return Task.CompletedTask;
     });
 });
@@ -43,14 +44,12 @@ using (var scope = app.Services.CreateScope())
 
 app.UseCrudKit();
 
-// Map CRUD endpoints
-app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>("products");
-app.MapCrudEndpoints<Category, CreateCategory, UpdateCategory>("categories");
-app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders")
+// Route-less — route derived from [CrudEntity(Table = ...)]
+app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
+app.MapCrudEndpoints<Category, CreateCategory, UpdateCategory>();
+app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
     .WithDetail<OrderLine, CreateOrderLine>("lines", "OrderId");
-
-// Read-only endpoint — only GET /api/units and GET /api/units/{id}
-app.MapCrudEndpoints<Unit>("units");
+app.MapCrudEndpoints<Unit>();
 
 // OpenAPI + Scalar UI
 app.MapOpenApi();

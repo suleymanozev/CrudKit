@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
+using CrudKit.Core.Attributes;
 using CrudKit.Core.Entities;
 
 namespace CrudKit.Sample.Api.Entities;
 
+[Exportable]
 public class OrderLine : AuditableEntity
 {
     public Guid OrderId { get; set; }
