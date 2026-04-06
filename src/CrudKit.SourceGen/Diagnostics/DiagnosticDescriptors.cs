@@ -23,19 +23,6 @@ internal static class DiagnosticDescriptors
         helpLinkUri: "https://crudkit.dev/diagnostics/CRUD001");
 
     /// <summary>
-    /// CRUD002: SoftDelete=true but the entity does not implement ISoftDeletable.
-    /// The generator will still produce code, but EF Core soft-delete will not work — warning.
-    /// </summary>
-    public static readonly DiagnosticDescriptor SoftDeleteWithoutISoftDeletable = new DiagnosticDescriptor(
-        id: "CRUD002",
-        title: "SoftDelete enabled but ISoftDeletable not implemented",
-        messageFormat: "'{0}' has SoftDelete=true but does not implement CrudKit.Core.Interfaces.ISoftDeletable. Add ISoftDeletable or set SoftDelete=false.",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true,
-        helpLinkUri: "https://crudkit.dev/diagnostics/CRUD002");
-
-    /// <summary>
     /// CRUD003: MultiTenant=true but the entity does not implement IMultiTenant.
     /// </summary>
     public static readonly DiagnosticDescriptor MultiTenantWithoutIMultiTenant = new DiagnosticDescriptor(

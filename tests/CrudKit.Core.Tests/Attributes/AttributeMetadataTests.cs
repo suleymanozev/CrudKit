@@ -8,7 +8,7 @@ namespace CrudKit.Core.Tests.Attributes;
 
 public class AttributeMetadataTests
 {
-    [CrudEntity(Table = "test_users", SoftDelete = true, Audit = true)]
+    [CrudEntity(Table = "test_users")]
     private class TestUser : IAuditableEntity, ISoftDeletable
     {
         public Guid Id { get; set; }
@@ -29,8 +29,6 @@ public class AttributeMetadataTests
         var attr = typeof(TestUser).GetCustomAttribute<CrudEntityAttribute>();
         Assert.NotNull(attr);
         Assert.Equal("test_users", attr.Table);
-        Assert.True(attr.SoftDelete);
-        Assert.True(attr.Audit);
     }
 
     [Fact]

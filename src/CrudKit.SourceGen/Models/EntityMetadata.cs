@@ -17,8 +17,6 @@ internal sealed class EntityMetadata
     public string Table { get; }
 
     // CrudEntityAttribute flags
-    public bool SoftDelete { get; }
-    public bool Audit { get; }
     public bool MultiTenant { get; }
     public bool ReadOnly { get; }
     public bool IsCreateEnabled { get; }
@@ -43,8 +41,6 @@ internal sealed class EntityMetadata
         string @namespace,
         string fullName,
         string table,
-        bool softDelete,
-        bool audit,
         bool multiTenant,
         bool readOnly,
         bool isCreateEnabled,
@@ -62,8 +58,6 @@ internal sealed class EntityMetadata
         Namespace = @namespace;
         FullName = fullName;
         Table = table;
-        SoftDelete = softDelete;
-        Audit = audit;
         MultiTenant = multiTenant;
         ReadOnly = readOnly;
         IsCreateEnabled = isCreateEnabled;

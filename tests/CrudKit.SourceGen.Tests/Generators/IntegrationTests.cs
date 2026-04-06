@@ -18,8 +18,6 @@ public class IntegrationTests
         {
             [CrudEntity(
                 Table = "Products",
-                SoftDelete = true,
-                Audit = true,
                 MultiTenant = true,
                 EnableBulkUpdate = true)]
             public class Product : IAuditableEntity, ISoftDeletable, IMultiTenant

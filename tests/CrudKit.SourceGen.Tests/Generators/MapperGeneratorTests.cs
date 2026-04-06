@@ -12,7 +12,7 @@ public class MapperGeneratorTests
 
         namespace Billing.Entities
         {
-            [CrudEntity(Table = "Invoices", SoftDelete = true)]
+            [CrudEntity(Table = "Invoices")]
             public class Invoice : IAuditableEntity, ISoftDeletable
             {
                 public Guid Id { get; set; }

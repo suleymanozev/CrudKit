@@ -12,7 +12,7 @@ public class ResponseDtoGeneratorTests
 
         namespace Store.Entities
         {
-            [CrudEntity(Table = "Categories", SoftDelete = true)]
+            [CrudEntity(Table = "Categories")]
             public class Category : IAuditableEntity, ISoftDeletable
             {
                 public Guid Id { get; set; }

@@ -179,8 +179,6 @@ public static class GeneratorTestHelper
             public class CrudEntityAttribute : Attribute
             {
                 public string Table { get; set; } = string.Empty;
-                public bool SoftDelete { get; set; }
-                public bool Audit { get; set; }
                 public bool MultiTenant { get; set; }
                 public string? Workflow { get; set; }
                 public string[]? WorkflowProtected { get; set; }

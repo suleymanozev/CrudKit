@@ -31,15 +31,6 @@ internal static class EntityValidator
                 metadata.Name));
         }
 
-        // CRUD002 — SoftDelete without ISoftDeletable
-        if (metadata.SoftDelete && !metadata.ImplementsISoftDeletable)
-        {
-            diagnostics.Add(Diagnostic.Create(
-                DiagnosticDescriptors.SoftDeleteWithoutISoftDeletable,
-                loc,
-                metadata.Name));
-        }
-
         // CRUD003 — MultiTenant without IMultiTenant
         if (metadata.MultiTenant && !metadata.ImplementsIMultiTenant)
         {
