@@ -84,3 +84,39 @@ opts.UseMultiTenancy()
 - `null` — all tenants (superadmin)
 - `["acme", "globex"]` — only listed tenants
 - `[]` — no cross-tenant access (tenant-scoped only)
+
+## ITenantContext
+
+`ITenantContext` provides the resolved tenant ID for the current request. It is populated by the configured tenant resolver and is separate from `ICurrentUser` — a request can be tenant-scoped without being authenticated.
+
+Inject it in hooks, services, or custom endpoints:
+
+```csharp
+public class OrderHooks : ICrudHooks<Order>
+{
+    private readonly ITenantContext _tenantContext;
+
+    public OrderHooks(ITenantContext tenantContext)
+        => _tenantContext = tenantContext;
+
+    public Task BeforeCreate(Order entity, AppContext ctx)
+    {
+        // TenantId is already set automatically, but available here if needed
+        var tenantId = _tenantContext.TenantId;
+        return Task.CompletedTask;
+    }
+}
+```
+
+## UseMultiTenancy() Scoped Builder
+
+Tenant resolvers are only accessible via the `UseMultiTenancy()` chain — they cannot be configured independently:
+
+```csharp
+opts.UseMultiTenancy()                                    // returns MultiTenancyOptions
+    .ResolveTenantFromHeader("X-Tenant-Id")               // resolver — only on MultiTenancyOptions
+    .RejectUnresolvedTenant()                             // guard
+    .CrossTenantPolicy(p => p.Allow("superadmin"));       // policy
+```
+
+Calling `ResolveTenantFromHeader` or other resolver methods outside the `UseMultiTenancy()` chain is not supported.

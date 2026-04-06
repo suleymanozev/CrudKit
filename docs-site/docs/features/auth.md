@@ -88,3 +88,21 @@ public interface ICurrentUser
 ```
 
 `AddCrudKit()` automatically registers `AnonymousCurrentUser` as the fallback if no other `ICurrentUser` implementation is found in DI.
+
+## Custom Endpoints with Auth
+
+Use `.WithCustomEndpoints()` to add additional endpoints under the same route group and apply auth filters per endpoint:
+
+```csharp
+app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
+    .Authorize(auth =>
+    {
+        auth.Read.RequireRole("user");
+        auth.Delete.RequireRole("admin");
+    })
+    .WithCustomEndpoints(group =>
+    {
+        group.MapPost("/{id}/approve", OrderEndpoints.Approve)
+             .AddEndpointFilter(new RequireRoleFilter("manager"));
+    });
+```

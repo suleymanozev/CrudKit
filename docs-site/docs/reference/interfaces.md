@@ -169,3 +169,14 @@ public interface IModule
     void MapEndpoints(WebApplication app);
 }
 ```
+
+## ICrudKitDbContext
+
+Marker interface implemented by `CrudKitDbContext` and `CrudKitIdentityDbContext`. Used internally by `CrudKitContextRegistry` to discover registered DbContexts and route entity operations to the correct context.
+
+```csharp
+public interface ICrudKitDbContext
+{
+    // Marker — no members. Implemented by CrudKitDbContext.
+}
+```

@@ -27,7 +27,8 @@
 21. [Database Dialect](#database-dialect)
 22. [TimeProvider](#timeprovider)
 23. [Testing](#testing)
-24. [Migrations](#migrations)
+24. [ASP.NET Identity Integration](#aspnet-identity-integration)
+25. [Migrations](#migrations)
 
 ---
 
@@ -1003,11 +1004,17 @@ Implement `IConcurrent` to enable automatic concurrency conflict detection.
 public class Product : AuditableEntity, IConcurrent
 {
     public string Name { get; set; } = string.Empty;
-    public uint RowVersion { get; set; }  // auto-managed by EF Core
+    public uint RowVersion { get; set; }  // auto-incremented on every update
 }
 ```
 
-`CrudKitDbContext` configures `RowVersion` as a concurrency token. When two requests update the same entity simultaneously, the second receives `409 Conflict`.
+`CrudKitDbContext` configures `RowVersion` as a concurrency token using the active database dialect. The dialect controls how the token is stored and incremented:
+
+| Dialect | Strategy |
+|---------|----------|
+| SQLite / PostgreSQL / SQL Server | `uint` column auto-incremented by CrudKit on every `SaveChanges` |
+
+When two requests update the same entity simultaneously, the second receives `409 Conflict`. The client must include the current `RowVersion` in the update request.
 
 ---
 
@@ -1271,6 +1278,76 @@ var factory = new WebApplicationFactory<Program>()
 
 var client = factory.CreateClient();
 ```
+
+---
+
+## ASP.NET Identity Integration
+
+`CrudKit.Identity` provides `CrudKitIdentityDbContext<TUser>` — a drop-in replacement for `IdentityDbContext<TUser>` that also inherits all CrudKit behaviors (soft delete, audit trail, multi-tenancy, etc.).
+
+### Setup
+
+Add the package:
+
+```bash
+dotnet add package CrudKit.Identity
+```
+
+Derive your `AppDbContext` from `CrudKitIdentityDbContext` instead of `CrudKitDbContext`:
+
+```csharp
+public class AppDbContext : CrudKitIdentityDbContext<AppUser>
+{
+    // 1-param constructor — uses default Identity schema
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    // 3-param constructor — passes ICurrentUser + TimeProvider
+    public AppDbContext(
+        DbContextOptions<AppDbContext> options,
+        ICurrentUser currentUser,
+        TimeProvider? timeProvider = null)
+        : base(options, currentUser, timeProvider) { }
+
+    // 8-param constructor — full Identity customization (custom key types, schemas)
+    public AppDbContext(
+        DbContextOptions<AppDbContext> options,
+        ICurrentUser currentUser,
+        TimeProvider? timeProvider,
+        string schema,
+        string usersTable,
+        string rolesTable,
+        string userClaimsTable,
+        string userRolesTable)
+        : base(options, currentUser, timeProvider, schema, usersTable, rolesTable, userClaimsTable, userRolesTable) { }
+
+    public DbSet<Product> Products => Set<Product>();
+}
+```
+
+Register with Identity:
+
+```csharp
+builder.Services.AddDbContext<AppDbContext>(opts =>
+    opts.UseSqlite("Data Source=app.db"));
+
+builder.Services.AddCrudKit<AppDbContext>(opts =>
+{
+    opts.UseAuditTrail();
+    opts.UseMultiTenancy().ResolveTenantFromClaim("tenant_id");
+});
+
+builder.Services
+    .AddIdentity<AppUser, IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>();
+```
+
+### Constructor Overloads
+
+| Overload | Parameters | Use Case |
+|----------|-----------|----------|
+| 1-param | `DbContextOptions` | Minimal setup, default Identity tables |
+| 3-param | `+ ICurrentUser, TimeProvider?` | CrudKit user tracking + testable timestamps |
+| 8-param | `+ schema, 5 table names` | Custom Identity table names or schemas |
 
 ---
 

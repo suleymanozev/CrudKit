@@ -208,6 +208,7 @@ src/
 ├── CrudKit.Core/                # Attributes, interfaces, models
 ├── CrudKit.EntityFrameworkCore/ # EF Core integration, repository, query
 ├── CrudKit.Api/                 # Minimal API layer, endpoint mapping, filters
+├── CrudKit.Identity/            # ASP.NET Identity integration (CrudKitIdentityDbContext)
 └── CrudKit.SourceGen/           # Roslyn source generator
 tests/
 ├── CrudKit.Core.Tests/
