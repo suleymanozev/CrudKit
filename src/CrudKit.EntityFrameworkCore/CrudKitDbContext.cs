@@ -21,7 +21,7 @@ namespace CrudKit.EntityFrameworkCore;
 /// - IMultiTenant      → global tenant filter, TenantId auto-set on Create
 /// - IConcurrent       → EF concurrency token
 /// - [Audited]         → audit log written on Create/Update/Delete (requires UseAuditTrail())
-/// - Enum properties   → stored as strings
+/// - Enum properties   → stored as strings (opt-in via UseEnumAsString())
 /// - [Unique]          → unique index (partial if ISoftDeletable)
 /// </summary>
 public abstract class CrudKitDbContext : DbContext
@@ -88,15 +88,18 @@ public abstract class CrudKitDbContext : DbContext
                     .IsConcurrencyToken();
             }
 
-            // ---- Enum properties → stored as strings ----
-            foreach (var prop in clrType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            // ---- Enum properties → stored as strings (opt-in via UseEnumAsString()) ----
+            if (_efOptions?.EnumAsStringEnabled == true)
             {
-                var propType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
-                if (propType.IsEnum)
+                foreach (var prop in clrType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
                 {
-                    modelBuilder.Entity(clrType)
-                        .Property(prop.Name)
-                        .HasConversion<string>();
+                    var propType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                    if (propType.IsEnum)
+                    {
+                        modelBuilder.Entity(clrType)
+                            .Property(prop.Name)
+                            .HasConversion<string>();
+                    }
                 }
             }
 

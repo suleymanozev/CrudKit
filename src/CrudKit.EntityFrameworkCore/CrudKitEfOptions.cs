@@ -11,4 +11,10 @@ public class CrudKitEfOptions
     /// to the __crud_audit_logs table.
     /// </summary>
     public bool AuditTrailEnabled { get; set; }
+
+    /// <summary>
+    /// When true, all enum properties on entities are stored as strings in the database.
+    /// Default: false (stored as integers).
+    /// </summary>
+    public bool EnumAsStringEnabled { get; set; }
 }

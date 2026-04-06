@@ -14,7 +14,7 @@ namespace CrudKit.EntityFrameworkCore.Tests.Helpers;
 public static class DbHelper
 {
     public static TestDbContext CreateDb(ICurrentUser? user = null, TimeProvider? timeProvider = null,
-        bool auditTrailEnabled = false)
+        bool auditTrailEnabled = false, bool enumAsStringEnabled = false)
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -23,7 +23,16 @@ public static class DbHelper
             .UseSqlite(connection)
             .Options;
 
-        var efOptions = auditTrailEnabled ? new CrudKitEfOptions { AuditTrailEnabled = true } : null;
+        CrudKitEfOptions? efOptions = null;
+        if (auditTrailEnabled || enumAsStringEnabled)
+        {
+            efOptions = new CrudKitEfOptions
+            {
+                AuditTrailEnabled = auditTrailEnabled,
+                EnumAsStringEnabled = enumAsStringEnabled,
+            };
+        }
+
         var db = new TestDbContext(options, user ?? new FakeCurrentUser(), connection, timeProvider, efOptions);
         db.Database.EnsureCreated();
         return db;

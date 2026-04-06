@@ -31,6 +31,12 @@ public class CrudKitApiOptions
     public bool ImportEnabled { get; set; }
 
     /// <summary>
+    /// When true, all enum properties on entities are stored as strings in the database.
+    /// Default: false (stored as integers).
+    /// </summary>
+    public bool EnumAsStringEnabled { get; set; }
+
+    /// <summary>
     /// Enables audit trail logging for entities decorated with [Audited].
     /// Changes are written to the __crud_audit_logs table on Create, Update, and Delete.
     /// </summary>
@@ -57,6 +63,16 @@ public class CrudKitApiOptions
     public CrudKitApiOptions UseImport()
     {
         ImportEnabled = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Stores all enum properties as their string name rather than integer value.
+    /// Affects all entities managed by CrudKitDbContext.
+    /// </summary>
+    public CrudKitApiOptions UseEnumAsString()
+    {
+        EnumAsStringEnabled = true;
         return this;
     }
 
