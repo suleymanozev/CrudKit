@@ -753,24 +753,6 @@ In Development, unhandled exceptions include the full stack trace. In Production
 
 ---
 
-### Configuration Options
-
-```csharp
-builder.Services.AddCrudKit<AppDbContext>(opts =>
-{
-    opts.DefaultPageSize = 25;           // Default: 20
-    opts.MaxPageSize = 100;              // Default: 100
-    opts.ApiPrefix = "/api";             // Default: "/api"
-    opts.BulkLimit = 10_000;             // Default: 10,000
-    opts.EnableIdempotency = true;       // Default: false
-    opts.ScanModulesFromAssembly = typeof(Program).Assembly;
-});
-```
-
-When `EnableIdempotency` is true, clients can send an `Idempotency-Key` header on mutating requests. The response is cached and replayed on duplicate requests. Expired records are cleaned up hourly by a background service.
-
----
-
 ### Migrations
 
 CrudKit uses standard EF Core migrations. `CrudKitDbContext` defines internal tables (`__crud_audit_logs`, `__crud_sequences`) in `OnModelCreating` — they are picked up automatically by `dotnet ef migrations add`.
@@ -815,15 +797,71 @@ The constructor signature: `CrudKitDbContext(DbContextOptions, ICurrentUser, Tim
 ```csharp
 builder.Services.AddCrudKit<AppDbContext>(opts =>
 {
+    // Pagination
     opts.DefaultPageSize = 25;           // Default: 20
     opts.MaxPageSize = 100;              // Default: 100
+
+    // Routing
     opts.ApiPrefix = "/api";             // Default: "/api"
+
+    // Bulk operations
     opts.BulkLimit = 10_000;             // Default: 10,000
+
+    // Idempotency
     opts.EnableIdempotency = true;       // Default: false
-    opts.UseAuditTrail();                // Enable [Audited] entity change logging
+
+    // Global feature flags — enable for all entities by default
+    opts.UseAuditTrail();                // All entities audited (opt-out with [NotAudited])
+    opts.UseExport();                    // All entities exportable (opt-out with [NotExportable])
+    opts.UseImport();                    // All entities importable (opt-out with [NotImportable])
+
+    // Module discovery
     opts.ScanModulesFromAssembly = typeof(Program).Assembly;
 });
 ```
+
+### Feature Flag Override (3 levels)
+
+Features can be controlled at three levels. Lower levels override higher:
+
+```
+Property attribute > Entity attribute > Global flag
+```
+
+| Level | Enable | Disable |
+|-------|--------|---------|
+| **Global** | `opts.UseExport()` | — (off by default) |
+| **Entity** | `[Exportable]` | `[NotExportable]` |
+| **Property** | — | `[NotExportable]` |
+
+Examples:
+
+```csharp
+// Global: all entities exportable
+opts.UseExport();
+
+// This entity opts out
+[NotExportable]
+public class TempLog : AuditableEntity { }
+
+// Global off, but this entity opts in
+[Exportable]
+public class Product : AuditableEntity
+{
+    public string Name { get; set; }
+
+    [NotExportable]  // this field excluded from export
+    public string InternalCode { get; set; }
+}
+```
+
+Same pattern applies to all features:
+
+| Feature | Global | Entity On | Entity Off | Property Off |
+|---------|--------|-----------|------------|-------------|
+| Export | `UseExport()` | `[Exportable]` | `[NotExportable]` | `[NotExportable]` |
+| Import | `UseImport()` | `[Importable]` | `[NotImportable]` | `[NotImportable]` |
+| Audit | `UseAuditTrail()` | `[Audited]` | `[NotAudited]` | `[AuditIgnore]` |
 
 ---
 
