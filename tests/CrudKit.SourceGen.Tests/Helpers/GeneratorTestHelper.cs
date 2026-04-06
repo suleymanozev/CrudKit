@@ -179,11 +179,8 @@ public static class GeneratorTestHelper
             public class CrudEntityAttribute : Attribute
             {
                 public string Table { get; set; } = string.Empty;
-                public bool MultiTenant { get; set; }
                 public string? Workflow { get; set; }
                 public string[]? WorkflowProtected { get; set; }
-                public string? NumberingPrefix { get; set; }
-                public bool NumberingYearlyReset { get; set; } = true;
                 public bool EnableBulkUpdate { get; set; }
                 public int BulkLimit { get; set; }
                 public string? OwnerField { get; set; }

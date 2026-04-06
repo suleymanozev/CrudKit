@@ -41,7 +41,6 @@ internal static class EntityParser
         string ns        = classSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
         string fullName  = string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
         string table     = GetString(attrArgs, "Table", name + "s");
-        bool multiTenant = GetBool(attrArgs, "MultiTenant");
         bool readOnly    = GetBool(attrArgs, "ReadOnly");
         bool enableCreate  = GetBool(attrArgs, "EnableCreate", defaultValue: true);
         bool enableUpdate  = GetBool(attrArgs, "EnableUpdate", defaultValue: true);
@@ -62,7 +61,6 @@ internal static class EntityParser
             @namespace: ns,
             fullName: fullName,
             table: table,
-            multiTenant: multiTenant,
             readOnly: readOnly,
             isCreateEnabled: !readOnly && enableCreate,
             isUpdateEnabled: !readOnly && enableUpdate,

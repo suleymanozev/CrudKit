@@ -31,15 +31,6 @@ internal static class EntityValidator
                 metadata.Name));
         }
 
-        // CRUD003 — MultiTenant without IMultiTenant
-        if (metadata.MultiTenant && !metadata.ImplementsIMultiTenant)
-        {
-            diagnostics.Add(Diagnostic.Create(
-                DiagnosticDescriptors.MultiTenantWithoutIMultiTenant,
-                loc,
-                metadata.Name));
-        }
-
         // CRUD010 — explicit empty table name (default is auto-derived, so empty = user set it wrong)
         // We detect this by checking: attribute has Table= but it's empty.
         // EntityParser defaults to "EntityName + s" when Table is empty/omitted, so we need to

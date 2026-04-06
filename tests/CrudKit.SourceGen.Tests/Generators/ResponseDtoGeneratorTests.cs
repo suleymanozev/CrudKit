@@ -108,7 +108,7 @@ public class ResponseDtoGeneratorTests
 
             namespace Store.Entities
             {
-                [CrudEntity(Table = "Tenanted", MultiTenant = true)]
+                [CrudEntity(Table = "Tenanted")]
                 public class Tenanted : IAuditableEntity, IMultiTenant
                 {
                     public Guid Id { get; set; }

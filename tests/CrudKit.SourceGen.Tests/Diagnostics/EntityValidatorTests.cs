@@ -9,10 +9,10 @@ public class EntityValidatorTests
     private static EntityMetadata MakeEntity(
         bool implementsIEntity = true,
         bool implementsISoftDeletable = false,
-        bool multiTenant = false, bool implementsIMultiTenant = false,
+        bool implementsIMultiTenant = false,
         string table = "test_table") =>
         new EntityMetadata("Test", "TestNs", "TestNs.Test", table,
-            multiTenant, false, true, true, true, false, false, null,
+            false, true, true, true, false, false, null,
             implementsIEntity, implementsISoftDeletable, implementsIMultiTenant, []);
 
     [Fact]
@@ -21,14 +21,6 @@ public class EntityValidatorTests
         var entity = MakeEntity(implementsIEntity: false);
         var diags = EntityValidator.Validate(entity, null);
         Assert.Contains(diags, d => d.Id == "CRUD001");
-    }
-
-    [Fact]
-    public void CRUD003_MultiTenantWithoutInterface()
-    {
-        var entity = MakeEntity(multiTenant: true, implementsIMultiTenant: false);
-        var diags = EntityValidator.Validate(entity, null);
-        Assert.Contains(diags, d => d.Id == "CRUD003");
     }
 
     [Fact]
@@ -42,8 +34,7 @@ public class EntityValidatorTests
     [Fact]
     public void ValidEntity_NoDiagnostics()
     {
-        var entity = MakeEntity(implementsISoftDeletable: true,
-            multiTenant: true, implementsIMultiTenant: true);
+        var entity = MakeEntity(implementsISoftDeletable: true, implementsIMultiTenant: true);
         var diags = EntityValidator.Validate(entity, null);
         Assert.Empty(diags);
     }

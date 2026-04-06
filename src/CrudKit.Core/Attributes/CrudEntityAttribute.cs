@@ -1,18 +1,15 @@
 namespace CrudKit.Core.Attributes;
 
 /// <summary>
-/// Configures entity behavior: table mapping, multi-tenancy, workflow, and bulk operations.
-/// Soft delete is driven by the ISoftDeletable interface; audit by the [Audited] attribute.
+/// Configures entity behavior: table mapping, workflow, and bulk operations.
+/// Multi-tenancy is driven by the IMultiTenant interface; soft delete by ISoftDeletable; audit by the [Audited] attribute.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class)]
 public class CrudEntityAttribute : Attribute
 {
     public string Table { get; set; } = string.Empty;
-    public bool MultiTenant { get; set; }
     public string? Workflow { get; set; }
     public string[]? WorkflowProtected { get; set; }
-    public string? NumberingPrefix { get; set; }
-    public bool NumberingYearlyReset { get; set; } = true;
     public bool EnableBulkUpdate { get; set; }
     public int BulkLimit { get; set; } = 0; // 0 = use global default from CrudKitApiOptions
 
