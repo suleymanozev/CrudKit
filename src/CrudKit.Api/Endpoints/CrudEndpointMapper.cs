@@ -320,6 +320,9 @@ public static class CrudEndpointMapper
             .ProducesProblem(400);
         }
 
+        // Apply entity-level auth attributes (default — can be overridden by fluent Authorize())
+        ApplyEntityAuth<TEntity>(group, route);
+
         return new CrudEndpointGroup<TEntity>(group, app, route);
     }
 
@@ -721,7 +724,65 @@ public static class CrudEndpointMapper
             .DisableAntiforgery();
         }
 
+        // Apply entity-level auth attributes (default — can be overridden by fluent Authorize())
+        ApplyEntityAuth<TEntity>(group, route);
+
         return new CrudEndpointGroup<TEntity>(group, app, route);
+    }
+
+    /// <summary>
+    /// Reads auth-related attributes from the entity type and applies matching filters
+    /// to the route group. Entity-level auth is the minimum default; fluent Authorize()
+    /// stacks on top (more restrictive).
+    /// </summary>
+    private static void ApplyEntityAuth<TEntity>(RouteGroupBuilder group, string route)
+    {
+        var entityType = typeof(TEntity);
+
+        // [RequireAuth] — simple authentication
+        if (entityType.GetCustomAttribute<RequireAuthAttribute>() != null)
+        {
+            group.AddEndpointFilter<RequireAuthFilter>();
+        }
+
+        // [RequireRole("admin")] — role for all operations
+        var roleAttr = entityType.GetCustomAttribute<RequireRoleAttribute>();
+        if (roleAttr != null)
+        {
+            group.AddEndpointFilter(new RequireRoleFilter(roleAttr.Role));
+        }
+
+        // [RequirePermissions] — convention permissions
+        if (entityType.GetCustomAttribute<RequirePermissionsAttribute>() != null)
+        {
+            var authBuilder = new Configuration.EndpointAuthorizationBuilder();
+            authBuilder.RequirePermissions();
+            group.AddEndpointFilter(new CrudAuthorizationFilter(authBuilder, route));
+        }
+
+        // [AuthorizeOperation("Read", "user")] — per-operation
+        var opAttrs = entityType.GetCustomAttributes<AuthorizeOperationAttribute>();
+        if (opAttrs.Any())
+        {
+            var authBuilder = new Configuration.EndpointAuthorizationBuilder();
+            foreach (var attr in opAttrs)
+            {
+                var op = attr.Operation.ToLowerInvariant() switch
+                {
+                    "read" => authBuilder.Read,
+                    "create" => authBuilder.Create,
+                    "update" => authBuilder.Update,
+                    "delete" => authBuilder.Delete,
+                    "restore" => authBuilder.Restore,
+                    "transition" => authBuilder.Transition,
+                    "export" => authBuilder.Export,
+                    "import" => authBuilder.Import,
+                    _ => (Configuration.OperationAuth?)null
+                };
+                op?.RequireRole(attr.Role);
+            }
+            group.AddEndpointFilter(new CrudAuthorizationFilter(authBuilder, route));
+        }
     }
 
     /// <summary>

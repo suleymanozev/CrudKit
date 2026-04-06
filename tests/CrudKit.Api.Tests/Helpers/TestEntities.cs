@@ -160,3 +160,85 @@ public class OptOutEntity : IAuditableEntity
 
 public class CreateOptOutDto { [Required] public string Name { get; set; } = string.Empty; }
 public class UpdateOptOutDto { public string? Name { get; set; } }
+
+// ---- Entity-level auth test entities ----
+
+/// <summary>
+/// Entity requiring authentication for all endpoints via [RequireAuth].
+/// </summary>
+[CrudEntity(Table = "secured_items")]
+[RequireAuth]
+public class SecuredEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateSecuredDto { [Required] public string Name { get; set; } = string.Empty; }
+public class UpdateSecuredDto { public string? Name { get; set; } }
+
+/// <summary>
+/// Entity requiring the "admin" role for all endpoints via [RequireRole].
+/// </summary>
+[CrudEntity(Table = "admin_items")]
+[RequireRole("admin")]
+public class AdminEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateAdminDto { [Required] public string Name { get; set; } = string.Empty; }
+public class UpdateAdminDto { public string? Name { get; set; } }
+
+/// <summary>
+/// Entity requiring convention-based permissions via [RequirePermissions].
+/// </summary>
+[CrudEntity(Table = "perm_items")]
+[RequirePermissions]
+public class PermissionEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreatePermissionDto { [Required] public string Name { get; set; } = string.Empty; }
+public class UpdatePermissionDto { public string? Name { get; set; } }
+
+/// <summary>
+/// Entity with per-operation auth via [AuthorizeOperation].
+/// </summary>
+[CrudEntity(Table = "op_items")]
+[AuthorizeOperation("Read", "user")]
+[AuthorizeOperation("Delete", "admin")]
+public class OpAuthEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateOpAuthDto { [Required] public string Name { get; set; } = string.Empty; }
+public class UpdateOpAuthDto { public string? Name { get; set; } }
+
+/// <summary>
+/// Entity used for route-less mapping tests.
+/// </summary>
+[CrudEntity(Table = "auto_routed")]
+public class AutoRoutedEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateAutoRoutedDto { [Required] public string Name { get; set; } = string.Empty; }
+public class UpdateAutoRoutedDto { public string? Name { get; set; } }

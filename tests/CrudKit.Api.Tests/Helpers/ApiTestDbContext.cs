@@ -19,6 +19,11 @@ public class ApiTestDbContext : CrudKitDbContext
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
     public DbSet<NoFlagEntity> NoFlagEntities => Set<NoFlagEntity>();
     public DbSet<OptOutEntity> OptOutEntities => Set<OptOutEntity>();
+    public DbSet<SecuredEntity> SecuredEntities => Set<SecuredEntity>();
+    public DbSet<AdminEntity> AdminEntities => Set<AdminEntity>();
+    public DbSet<PermissionEntity> PermissionEntities => Set<PermissionEntity>();
+    public DbSet<OpAuthEntity> OpAuthEntities => Set<OpAuthEntity>();
+    public DbSet<AutoRoutedEntity> AutoRoutedEntities => Set<AutoRoutedEntity>();
 
     protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
     {
