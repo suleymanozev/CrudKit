@@ -18,6 +18,7 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Idempotency via request header
 - Bulk operations (`/bulk-count`, `/bulk-delete`, `/bulk-update`)
 - ReadOnly entities (List + Get only)
+- CSV import/export (`[Exportable]`, `[Importable]`, per-property control)
 - Source generation — DTOs, mappers, endpoint mapping, hook stubs
 - `Optional<T>` for partial updates (distinguishes null from missing)
 - Property attributes: `[Hashed]`, `[SkipResponse]`, `[SkipUpdate]`, `[Protected]`, `[Unique]`, `[Searchable]`
@@ -489,6 +490,57 @@ The global default bulk limit is set via `CrudKitApiOptions.BulkLimit` (default:
 
 ---
 
+### Import / Export
+
+Add `[Exportable]` and/or `[Importable]` to an entity to get CSV endpoints automatically:
+
+```csharp
+[CrudEntity(Table = "products")]
+[Exportable]
+[Importable]
+public class Product : AuditableEntity
+{
+    [Required]
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+
+    [NotExportable]   // excluded from CSV export
+    public string InternalCode { get; set; } = string.Empty;
+
+    [NotImportable]   // ignored during CSV import
+    public string CalculatedField { get; set; } = string.Empty;
+}
+```
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/products/export?format=csv` | Export matching records as CSV |
+| POST | `/api/products/import` | Import CSV file (multipart form upload) |
+
+Export supports the same filters as List:
+
+```
+GET /api/products/export?format=csv&price=gte:100&sort=-name
+```
+
+Import validates each row and returns a detailed result:
+
+```json
+{
+  "total": 150,
+  "created": 142,
+  "failed": 8,
+  "errors": [
+    { "row": 3, "field": "Name", "message": "Name is required." },
+    { "row": 7, "field": "Price", "message": "Cannot convert 'abc' to Decimal" }
+  ]
+}
+```
+
+System fields (`Id`, `CreatedAt`, `UpdatedAt`, etc.) are handled automatically during import — they should not be included in the CSV.
+
+---
+
 ### Property Attributes
 
 | Attribute | Target | Effect |
@@ -502,6 +554,10 @@ The global default bulk limit is set via `CrudKitApiOptions.BulkLimit` (default:
 | `[DefaultInclude]` | Class | Auto-includes navigation property in queries (with `IncludeScope.All` or `DetailOnly`) |
 | `[Audited]` | Class | Changes to this entity are logged to audit trail (requires `UseAuditTrail()`) |
 | `[AuditIgnore]` | Property | Excluded from audit trail — field does not appear in change logs |
+| `[Exportable]` | Class | Adds GET /export endpoint for CSV download |
+| `[Importable]` | Class | Adds POST /import endpoint for CSV upload |
+| `[NotExportable]` | Property | Excluded from CSV export output |
+| `[NotImportable]` | Property | Ignored during CSV import |
 
 ```csharp
 [CrudEntity(Table = "users")]
