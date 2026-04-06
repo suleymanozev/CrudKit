@@ -166,7 +166,7 @@ public class ParentItemEntity : IAuditableEntity, ISoftDeletable
 }
 
 /// <summary>Child entity that participates in cascade soft-delete with <see cref="ParentItemEntity"/>.</summary>
-public class ChildItemEntity : IAuditableEntity, ISoftDeletable, ICascadeSoftDelete<ParentItemEntity>
+public class ChildItemEntity : IAuditableEntity, ISoftDeletable
 {
     public Guid Id { get; set; }
     public Guid ParentItemId { get; set; }
@@ -174,7 +174,6 @@ public class ChildItemEntity : IAuditableEntity, ISoftDeletable, ICascadeSoftDel
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
-    public static string ParentForeignKey => nameof(ParentItemId);
 }
 
 // ---------------------------------------------------------------------------
