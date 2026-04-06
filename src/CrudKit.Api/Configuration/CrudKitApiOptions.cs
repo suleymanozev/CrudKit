@@ -22,8 +22,20 @@ public class CrudKitApiOptions
     /// <summary>
     /// When true, failed SaveChanges operations are also logged to the audit trail
     /// with action prefixed as "Failed" (e.g. "FailedCreate"). Default: false.
+    /// Requires UseAuditTrail() to be enabled.
     /// </summary>
     public bool AuditFailedOperations { get; set; }
+
+    /// <summary>
+    /// Enables logging of failed SaveChanges operations to the audit trail.
+    /// Failed operations are logged with action "FailedCreate", "FailedUpdate", "FailedDelete".
+    /// Useful for security auditing and compliance.
+    /// </summary>
+    public CrudKitApiOptions EnableAuditFailedOperations()
+    {
+        AuditFailedOperations = true;
+        return this;
+    }
 
     /// <summary>
     /// Custom <see cref="CrudKit.Core.Interfaces.IAuditWriter"/> implementation type.
