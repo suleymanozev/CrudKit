@@ -8,7 +8,7 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 
 - Auto-mapped REST endpoints (List, Get, Create, Update, Delete)
 - Soft delete with cascade and restore
-- Multi-tenant isolation (`ITenantContext` + 5 built-in resolvers: header, JWT claim, subdomain, route, query)
+- Multi-tenant isolation (`ITenantContext` + 5 built-in resolvers + 3-layer cross-tenant protection)
 - Audit trail (`[Audited]` + `UseAuditTrail()` opt-in, `[AuditIgnore]` per-property, `[Hashed]` auto-masked)
 - Optimistic concurrency
 - Lifecycle hooks (`ICrudHooks<T>`) + global hooks (`IGlobalCrudHook`) for cross-cutting concerns
@@ -161,6 +161,34 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 ```
 
 Tenant resolution uses `ITenantContext` — separate from `ICurrentUser`. A request can be tenant-scoped without authentication (e.g. public API with subdomain-based tenancy). Resolver methods are only accessible via `UseMultiTenancy()` chain.
+
+**3. Cross-tenant protection** — 3-layer security:
+
+```csharp
+opts.UseMultiTenancy()
+    .ResolveTenantFromHeader("X-Tenant-Id")
+    .RejectUnresolvedTenant()                    // no tenant header → 400
+    .CrossTenantPolicy(policy =>
+    {
+        policy.Allow("superadmin");              // full access to all tenants
+        policy.AllowReadOnly("support");          // read-only across tenants
+        policy.AllowReadOnly("auditor")
+              .Only<Order, Invoice>();             // read-only, only these entities
+    });
+```
+
+| Layer | What | Behavior |
+|-------|------|----------|
+| Middleware | Unresolved tenant | 400 `TENANT_REQUIRED` |
+| Middleware | Tenant not in user's `AccessibleTenants` | 403 `TENANT_ACCESS_DENIED` |
+| Middleware | ReadOnly role + mutation (POST/PUT/DELETE) | 403 `CROSS_TENANT_READ_ONLY` |
+| Startup | `IMultiTenant` entity exists but no resolver | Warning log |
+| EfRepo | Null tenant + multi-tenant entity | 400 guard |
+
+`ICurrentUser.AccessibleTenants` controls which tenants a user can access:
+- `null` → all tenants (superadmin)
+- `["acme", "globex"]` → only these tenants
+- `[]` → no cross-tenant access
 
 ### `[CrudEntity]` options
 
