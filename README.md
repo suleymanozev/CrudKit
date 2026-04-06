@@ -48,12 +48,16 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 var app = builder.Build();
 app.UseCrudKit();
 
-app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>("products");
+// Route derived from [CrudEntity(Table = "products")] — no string needed
+app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
+
+// Or with SourceGen — one line maps all entities
+app.MapAllCrudEndpoints();
 
 app.Run();
 ```
 
-`AddCrudKit<TContext>` registers the EF Core repository, validation, JSON options, and startup validation in a single call. `UseCrudKit()` activates any registered `IModule` instances.
+`AddCrudKit<TContext>` registers the EF Core repository, validation, JSON options, and startup validation in a single call. `UseCrudKit()` activates any registered `IModule` instances. Route is auto-derived from `[CrudEntity(Table = ...)]`.
 
 ---
 
@@ -65,8 +69,9 @@ Use base classes to get automatic behavior — pick the level you need:
 // Lookup table — only Id (Guid)
 public class Currency : Entity { }
 
-// Timestamps — Id + CreatedAt/UpdatedAt
+// Timestamps — Id + CreatedAt/UpdatedAt + permission-based auth
 [CrudEntity(Table = "products")]
+[RequirePermissions]  // auto: products:read, products:create, products:update, products:delete
 public class Product : AuditableEntity
 {
     [Required, MaxLength(200), Searchable]
@@ -79,8 +84,10 @@ public class Product : AuditableEntity
     public string Sku { get; set; } = string.Empty;
 }
 
-// Full — timestamps + soft delete
+// Full — timestamps + soft delete + per-operation auth
 [CrudEntity(Table = "orders")]
+[RequireAuth]
+[AuthorizeOperation("Delete", "admin")]
 public class Order : FullAuditableEntity
 {
     [Required]
@@ -88,8 +95,9 @@ public class Order : FullAuditableEntity
     public decimal Total { get; set; }
 }
 
-// Full + user tracking (CreatedBy, UpdatedBy, DeletedBy navigation properties)
+// Full + user tracking + admin-only
 [CrudEntity(Table = "invoices")]
+[RequireRole("admin")]
 public class Invoice : FullAuditableEntityWithUser<AppUser>
 {
     public string InvoiceNumber { get; set; } = string.Empty;
@@ -461,44 +469,54 @@ builder.Services.AddScoped<IValidator<CreateProduct>, CreateProductValidator>();
 
 ### Auth
 
-**Simple** — same rule for all operations:
+Auth can be declared on the **entity** (recommended) or via **fluent API** at registration.
+
+**Entity-level** — auth travels with the entity, never forgotten:
 
 ```csharp
-app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders")
-    .RequireAuth();
+// Simple auth
+[CrudEntity(Table = "orders")]
+[RequireAuth]
+public class Order : FullAuditableEntity { }
 
-app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>("products")
-    .Authorize(auth => auth.RequireRole("admin"));
+// Role-based
+[CrudEntity(Table = "admin_settings")]
+[RequireRole("admin")]
+public class AdminSetting : AuditableEntity { }
+
+// Convention permissions — auto: admin_settings:read, admin_settings:create, ...
+[CrudEntity(Table = "products")]
+[RequirePermissions]
+public class Product : AuditableEntity { }
+
+// Per-operation roles
+[CrudEntity(Table = "invoices")]
+[AuthorizeOperation("Read", "user")]
+[AuthorizeOperation("Create", "manager")]
+[AuthorizeOperation("Delete", "admin")]
+public class Invoice : FullAuditableEntity { }
 ```
 
-**Per-operation** — different roles for read, create, update, delete:
+**Fluent API** — adds restrictions on top of entity-level defaults:
 
 ```csharp
-app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders")
+// Per-operation via fluent (stacks with entity attributes)
+app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
     .Authorize(auth =>
     {
         auth.Read.RequireRole("user");
-        auth.Create.RequireRole("manager");
-        auth.Update.RequireRole("manager");
         auth.Delete.RequireRole("admin");
-        auth.Export.RequireRole("user");
-        auth.Import.RequireRole("admin");
     });
-```
 
-**Convention permissions** — auto-generates `{route}:read`, `{route}:create`, etc.:
-
-```csharp
-app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>("products")
+// Convention permissions via fluent
+app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>()
     .Authorize(auth => auth.RequirePermissions());
-// Checks: products:read, products:create, products:update, products:delete
 ```
 
 **Custom endpoints** — add your own endpoints under the same route group:
 
 ```csharp
-app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders")
-    .Authorize(auth => auth.Read.RequireRole("user"))
+app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
     .WithCustomEndpoints(group =>
     {
         group.MapPost("/{id}/approve", OrderEndpoints.Approve)
@@ -506,7 +524,7 @@ app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders")
     });
 ```
 
-Unauthenticated requests return `401`. Forbidden requests return `403`.
+Entity attributes set the default. Fluent `.Authorize()` stacks additional restrictions. Unauthenticated → `401`. Forbidden → `403`.
 
 ---
 
