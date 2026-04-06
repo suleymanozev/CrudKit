@@ -102,9 +102,11 @@ public class Invoice : FullAuditableEntityWithUser<AppUser>
 | `Entity` | `Guid Id` |
 | `Entity<TKey>` | Custom key type (e.g. `long`, `int`) |
 | `AuditableEntity` | `Id` + `CreatedAt`, `UpdatedAt` |
-| `AuditableEntityWithUser<TUser>` | + `CreatedBy`, `UpdatedBy` navigation properties |
+| `AuditableEntityWithUser<TUser>` | + `CreatedById`, `UpdatedById` (auto-set from `ICurrentUser`) + `CreatedBy`, `UpdatedBy` navigations |
 | `FullAuditableEntity` | `AuditableEntity` + `DeletedAt` (implements `ISoftDeletable`) |
-| `FullAuditableEntityWithUser<TUser>` | + `CreatedBy`, `UpdatedBy`, `DeletedBy` navigations |
+| `FullAuditableEntityWithUser<TUser>` | + `CreatedById`, `UpdatedById`, `DeletedById` (auto-set) + navigations |
+
+`CreatedById`, `UpdatedById`, and `DeletedById` are set automatically from `ICurrentUser.Id` on SaveChanges. `CreatedById` is preserved on updates. Key type conversion (string → Guid/int/long) is handled automatically.
 
 All base classes default to `Guid` keys. For custom keys use the `<TKey>` variants:
 
