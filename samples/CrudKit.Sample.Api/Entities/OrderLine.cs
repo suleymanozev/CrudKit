@@ -1,19 +1,15 @@
 using System.ComponentModel.DataAnnotations;
-using CrudKit.Core.Interfaces;
+using CrudKit.Core.Entities;
 
 namespace CrudKit.Sample.Api.Entities;
 
-public class OrderLine : IAuditableEntity
+public class OrderLine : AuditableEntity
 {
-    public Guid Id { get; set; }
-    public string OrderId { get; set; } = string.Empty;
+    public Guid OrderId { get; set; }
 
     [Required]
     public string ProductName { get; set; } = string.Empty;
 
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
-
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
 }

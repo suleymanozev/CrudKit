@@ -14,7 +14,7 @@ public record UpdateOrder
 }
 
 public record CreateOrderLine(
-    string OrderId,
+    Guid OrderId,
     [Required] string ProductName,
     int Quantity = 1,
     decimal UnitPrice = 0);

@@ -112,7 +112,7 @@ public class InvoiceEntity : IAuditableEntity
 public class InvoiceLineEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
-    public string InvoiceId { get; set; } = string.Empty;
+    public Guid InvoiceId { get; set; }
     public string Description { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -123,7 +123,7 @@ public class CreateInvoiceDto { [Required] public string Title { get; set; } = s
 public class UpdateInvoiceDto { public string? Title { get; set; } }
 public class CreateInvoiceLineDto
 {
-    public string InvoiceId { get; set; } = string.Empty;
+    public Guid InvoiceId { get; set; }
     [Required] public string Description { get; set; } = string.Empty;
     [Range(0.01, 1_000_000_000)] public decimal Amount { get; set; }
 }

@@ -111,7 +111,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
             var dtoFkProp = typeof(TCreateDetail).GetProperty(foreignKeyProperty,
                 BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if (dtoFkProp != null)
-                dtoFkProp.SetValue(dto, masterId);
+                dtoFkProp.SetValue(dto, CrudEndpointMapper.ConvertFkValue(masterId, dtoFkProp.PropertyType));
 
             var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
             await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -121,7 +121,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
 
                 if (dtoFkProp == null)
                 {
-                    fkProp.SetValue(entity, masterId);
+                    fkProp.SetValue(entity, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType));
                     await db.SaveChangesAsync(ct);
                 }
 
@@ -187,13 +187,13 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
                 foreach (var dto in dtos)
                 {
                     if (dtoFkProp != null)
-                        dtoFkProp.SetValue(dto, masterId);
+                        dtoFkProp.SetValue(dto, CrudEndpointMapper.ConvertFkValue(masterId, dtoFkProp.PropertyType));
 
                     var entity = await detailRepo.Create(dto, ct);
 
                     if (dtoFkProp == null)
                     {
-                        fkProp.SetValue(entity, masterId);
+                        fkProp.SetValue(entity, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType));
                         await db.SaveChangesAsync(ct);
                     }
 
@@ -867,6 +867,18 @@ public static class CrudEndpointMapper
         if (Guid.TryParse(value, out var guid))
             return guid;
         throw AppError.NotFound($"{entityName} with id '{value}' was not found.");
+    }
+
+    /// <summary>
+    /// Converts a string value to the target property type for FK assignment.
+    /// Handles Guid, string, and other convertible types.
+    /// </summary>
+    internal static object? ConvertFkValue(string value, Type targetType)
+    {
+        var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        if (underlying == typeof(string)) return value;
+        if (underlying == typeof(Guid)) return Guid.Parse(value);
+        return Convert.ChangeType(value, underlying);
     }
 
     private static Dictionary<string, FilterOp> ParseFilters(Dictionary<string, string>? raw)
