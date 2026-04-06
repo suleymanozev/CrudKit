@@ -5,6 +5,7 @@ using CrudKit.Core.Entities;
 namespace CrudKit.Sample.Api.Entities;
 
 [Exportable]
+[ChildOf(typeof(Order))]
 public class OrderLine : AuditableEntity
 {
     public Guid OrderId { get; set; }

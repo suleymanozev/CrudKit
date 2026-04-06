@@ -24,6 +24,9 @@ public class ApiTestDbContext : CrudKitDbContext
     public DbSet<PermissionEntity> PermissionEntities => Set<PermissionEntity>();
     public DbSet<OpAuthEntity> OpAuthEntities => Set<OpAuthEntity>();
     public DbSet<AutoRoutedEntity> AutoRoutedEntities => Set<AutoRoutedEntity>();
+    public DbSet<ProjectEntity> Projects => Set<ProjectEntity>();
+    public DbSet<ProjectTaskEntity> ProjectTasks => Set<ProjectTaskEntity>();
+    public DbSet<ProjectMilestoneEntity> ProjectMilestones => Set<ProjectMilestoneEntity>();
 
     protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
     {

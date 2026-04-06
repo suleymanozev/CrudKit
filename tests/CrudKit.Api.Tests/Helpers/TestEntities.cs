@@ -242,3 +242,53 @@ public class AutoRoutedEntity : IAuditableEntity
 
 public class CreateAutoRoutedDto { [Required] public string Name { get; set; } = string.Empty; }
 public class UpdateAutoRoutedDto { public string? Name { get; set; } }
+
+// ---- [ChildOf] auto-discovery test entities ----
+
+/// <summary>Master entity used to test [ChildOf] auto-discovery.</summary>
+public class ProjectEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    [Required] public string Title { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateProjectDto { [Required] public string Title { get; set; } = string.Empty; }
+public class UpdateProjectDto { public string? Title { get; set; } }
+
+/// <summary>
+/// Child entity using default FK and route conventions.
+/// Route: "project-tasks" (ProjectTask → project-task + s)
+/// FK: "ProjectEntityId" would be wrong; we use ForeignKey = "ProjectId" explicitly
+/// to avoid ambiguity with the entity class name suffix.
+/// </summary>
+[ChildOf(typeof(ProjectEntity), ForeignKey = "ProjectId")]
+public class ProjectTaskEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public Guid ProjectId { get; set; }
+    [Required] public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Child entity with a custom route and custom FK via [ChildOf].
+/// Route: "milestones", FK: "ParentProjectId"
+/// </summary>
+[ChildOf(typeof(ProjectEntity), Route = "milestones", ForeignKey = "ParentProjectId")]
+public class ProjectMilestoneEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public Guid ParentProjectId { get; set; }
+    [Required] public string Label { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateProjectMilestoneDto
+{
+    public Guid ParentProjectId { get; set; }
+    [Required] public string Label { get; set; } = string.Empty;
+}

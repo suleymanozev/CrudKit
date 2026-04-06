@@ -33,6 +33,12 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
     /// <summary>The route prefix used for the master entity (e.g. "products").</summary>
     public string Route { get; }
 
+    /// <summary>
+    /// Tracks child entity types already registered via <see cref="WithDetail{TDetail,TCreateDetail}"/>.
+    /// Used by <see cref="MapChildEndpoints"/> to skip duplicates.
+    /// </summary>
+    internal HashSet<Type> RegisteredDetailTypes { get; } = new();
+
     internal CrudEndpointGroup(RouteGroupBuilder group, WebApplication app, string route)
     {
         Group = group;
@@ -63,6 +69,55 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
     }
 
     /// <summary>
+    /// Scans all loaded assemblies for entities decorated with <c>[ChildOf(typeof(TMaster))]</c>
+    /// and registers detail endpoints (List, Get, Delete) for each one.
+    /// Child types already registered via <see cref="WithDetail{TDetail,TCreateDetail}"/> are skipped.
+    /// Call this AFTER all explicit <see cref="WithDetail{TDetail,TCreateDetail}"/> calls so that
+    /// the skip-deduplication set is fully populated before scanning.
+    /// </summary>
+    public CrudEndpointGroup<TMaster> MapChildEndpoints()
+    {
+        var parentType = typeof(TMaster);
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            Type[] types;
+            try { types = assembly.GetTypes(); }
+            catch { continue; }
+
+            foreach (var childType in types)
+            {
+                var childOfAttr = childType.GetCustomAttributes<ChildOfAttribute>()
+                    .FirstOrDefault(a => a.ParentType == parentType);
+
+                if (childOfAttr is null) continue;
+                if (!typeof(IAuditableEntity).IsAssignableFrom(childType)) continue;
+
+                // Skip types already registered via WithDetail
+                if (RegisteredDetailTypes.Contains(childType)) continue;
+
+                RegisteredDetailTypes.Add(childType);
+
+                var detailRoute = childOfAttr.Route
+                    ?? CrudEndpointMapper.ToKebabCase(childType.Name) + "s";
+
+                var foreignKey = childOfAttr.ForeignKey
+                    ?? parentType.Name + "Id";
+
+                // Invoke the generic helper via reflection since TDetail is only known at runtime
+                var method = typeof(CrudEndpointMapper)
+                    .GetMethod(nameof(CrudEndpointMapper.RegisterChildEndpoints),
+                        BindingFlags.NonPublic | BindingFlags.Static)!
+                    .MakeGenericMethod(parentType, childType);
+
+                method.Invoke(null, [App, Route, detailRoute, foreignKey]);
+            }
+        }
+
+        return this;
+    }
+
+    /// <summary>
     /// Maps nested CRUD endpoints for a detail (child) entity scoped under the master route.
     /// Returns the same group for further fluent chaining.
     /// </summary>
@@ -72,6 +127,8 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
         where TDetail : class, IAuditableEntity
         where TCreateDetail : class
     {
+        RegisteredDetailTypes.Add(typeof(TDetail));
+
         var masterTag = typeof(TMaster).Name.Replace("Entity", "");
         var detailTag = typeof(TDetail).Name.Replace("Entity", "");
         var tag = $"{masterTag}{detailTag}";
@@ -801,6 +858,107 @@ public static class CrudEndpointMapper
             table = typeof(TEntity).Name.ToLowerInvariant() + "s";
         // Convert underscores to dashes for URL convention
         return table.Replace('_', '-');
+    }
+
+    /// <summary>
+    /// Converts a PascalCase type name to kebab-case.
+    /// Example: OrderLine → order-line.
+    /// </summary>
+    internal static string ToKebabCase(string name)
+    {
+        var result = new System.Text.StringBuilder();
+        for (var i = 0; i < name.Length; i++)
+        {
+            if (char.IsUpper(name[i]) && i > 0)
+                result.Append('-');
+            result.Append(char.ToLowerInvariant(name[i]));
+        }
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// Registers List, Get, and Delete endpoints for a child (detail) entity discovered via
+    /// <c>[ChildOf]</c>. Called via reflection from <see cref="CrudEndpointGroup{TMaster}.MapChildEndpoints"/>.
+    /// A POST (create) endpoint is NOT registered here; use <c>WithDetail</c> for that.
+    /// </summary>
+    internal static void RegisterChildEndpoints<TMaster, TDetail>(
+        WebApplication app, string masterRoute, string detailRoute, string foreignKey)
+        where TMaster : class, IAuditableEntity
+        where TDetail : class, IAuditableEntity
+    {
+        var masterTag = typeof(TMaster).Name.Replace("Entity", "");
+        var detailTag = typeof(TDetail).Name.Replace("Entity", "");
+        var tag = $"{masterTag}{detailTag}";
+
+        var group = app.MapGroup($"/api/{masterRoute}/{{masterId}}/{detailRoute}").WithTags(tag);
+        group.AddEndpointFilter<AppErrorFilter>();
+
+        var fkProp = typeof(TDetail).GetProperty(foreignKey,
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
+            ?? throw new InvalidOperationException(
+                $"[ChildOf] FK property '{foreignKey}' not found on {typeof(TDetail).Name}.");
+
+        // GET /api/{masterRoute}/{masterId}/{detailRoute} — List details by master
+        group.MapGet("/", async (string masterId, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
+        {
+            var masterGuid = ParseGuid(masterId, typeof(TMaster).Name);
+            if (!await masterRepo.Exists(masterGuid, ct))
+                throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
+
+            var details = await detailRepo.FindByField(foreignKey, masterId, ct);
+            return Results.Ok(details);
+        })
+        .WithName($"List{tag}")
+        .Produces<List<TDetail>>(200)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
+
+        // GET /api/{masterRoute}/{masterId}/{detailRoute}/{id} — Get single detail
+        group.MapGet("/{id}", async (string masterId, string id, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
+        {
+            var masterGuid = ParseGuid(masterId, typeof(TMaster).Name);
+            var detailGuid = ParseGuid(id, typeof(TDetail).Name);
+            if (!await masterRepo.Exists(masterGuid, ct))
+                throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
+
+            var entity = await detailRepo.FindByIdOrDefault(detailGuid, ct);
+            if (entity is null)
+                return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TDetail).Name} with id '{id}' was not found." }, statusCode: 404);
+
+            var fkValue = fkProp.GetValue(entity)?.ToString();
+            if (fkValue != masterId)
+                return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TDetail).Name} with id '{id}' was not found." }, statusCode: 404);
+
+            return Results.Ok(entity);
+        })
+        .WithName($"Get{tag}")
+        .Produces<TDetail>(200)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
+
+        // DELETE /api/{masterRoute}/{masterId}/{detailRoute}/{id} — Delete detail
+        group.MapDelete("/{id}", async (string masterId, string id, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
+        {
+            var masterGuid = ParseGuid(masterId, typeof(TMaster).Name);
+            var detailGuid = ParseGuid(id, typeof(TDetail).Name);
+            if (!await masterRepo.Exists(masterGuid, ct))
+                throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
+
+            var entity = await detailRepo.FindByIdOrDefault(detailGuid, ct);
+            if (entity is null)
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
+
+            var fkValue = fkProp.GetValue(entity)?.ToString();
+            if (fkValue != masterId)
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
+
+            await detailRepo.Delete(detailGuid, ct);
+            return Results.NoContent();
+        })
+        .WithName($"Delete{tag}")
+        .Produces(204)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
     }
 
     /// <summary>
