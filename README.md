@@ -10,6 +10,8 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Soft delete with cascade and restore
 - Multi-tenant isolation (`ITenantContext` + 5 built-in resolvers + 3-layer cross-tenant protection)
 - Audit trail (`[Audited]` + `UseAuditTrail()` opt-in, `[AuditIgnore]` per-property, `[Hashed]` auto-masked)
+- Per-operation authorization (`Authorize()` builder — role-based, permission-based, convention)
+- Custom endpoints via `.WithCustomEndpoints()` under same route group
 - Optimistic concurrency
 - Lifecycle hooks (`ICrudHooks<T>`) + global hooks (`IGlobalCrudHook`) for cross-cutting concerns
 - Validation (FluentValidation priority, DataAnnotation fallback)
@@ -459,20 +461,49 @@ builder.Services.AddScoped<IValidator<CreateProduct>, CreateProductValidator>();
 
 ### Auth
 
-Use the fluent extension methods on the returned `CrudEndpointGroup<T>` or directly on `RouteGroupBuilder`:
+**Simple** — same rule for all operations:
 
 ```csharp
-// Require authentication on all endpoints for this resource
 app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders")
     .RequireAuth();
 
-// Require a role
 app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>("products")
-    .RequireRole("admin");
+    .Authorize(auth => auth.RequireRole("admin"));
+```
 
-// Require a specific permission
-app.MapCrudEndpoints<Category, CreateCategory, UpdateCategory>("categories")
-    .RequirePermission("Category", "write");
+**Per-operation** — different roles for read, create, update, delete:
+
+```csharp
+app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders")
+    .Authorize(auth =>
+    {
+        auth.Read.RequireRole("user");
+        auth.Create.RequireRole("manager");
+        auth.Update.RequireRole("manager");
+        auth.Delete.RequireRole("admin");
+        auth.Export.RequireRole("user");
+        auth.Import.RequireRole("admin");
+    });
+```
+
+**Convention permissions** — auto-generates `{route}:read`, `{route}:create`, etc.:
+
+```csharp
+app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>("products")
+    .Authorize(auth => auth.RequirePermissions());
+// Checks: products:read, products:create, products:update, products:delete
+```
+
+**Custom endpoints** — add your own endpoints under the same route group:
+
+```csharp
+app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>("orders")
+    .Authorize(auth => auth.Read.RequireRole("user"))
+    .WithCustomEndpoints(group =>
+    {
+        group.MapPost("/{id}/approve", OrderEndpoints.Approve)
+             .AddEndpointFilter(new RequireRoleFilter("manager"));
+    });
 ```
 
 Unauthenticated requests return `401`. Forbidden requests return `403`.
