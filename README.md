@@ -143,19 +143,24 @@ public class Order : FullAuditableEntity, IMultiTenant<Tenant>
 ```csharp
 builder.Services.AddCrudKit<AppDbContext>(opts =>
 {
-    opts.ResolveTenantFromHeader("X-Tenant-Id");      // HTTP header
+    opts.UseMultiTenancy()
+        .ResolveTenantFromHeader("X-Tenant-Id");      // HTTP header
     // or
-    opts.ResolveTenantFromClaim("tenant_id");          // JWT claim
+    opts.UseMultiTenancy()
+        .ResolveTenantFromClaim("tenant_id");          // JWT claim
     // or
-    opts.ResolveTenantFromSubdomain();                 // acme.app.com → "acme"
+    opts.UseMultiTenancy()
+        .ResolveTenantFromSubdomain();                 // acme.app.com → "acme"
     // or
-    opts.ResolveTenantFromRoute("tenantId");            // /api/{tenantId}/products
+    opts.UseMultiTenancy()
+        .ResolveTenantFromRoute("tenantId");            // /api/{tenantId}/products
     // or
-    opts.ResolveTenantFromQuery("tenant");              // ?tenant=acme
+    opts.UseMultiTenancy()
+        .ResolveTenantFromQuery("tenant");              // ?tenant=acme
 });
 ```
 
-Tenant resolution uses `ITenantContext` — separate from `ICurrentUser`. A request can be tenant-scoped without authentication (e.g. public API with subdomain-based tenancy).
+Tenant resolution uses `ITenantContext` — separate from `ICurrentUser`. A request can be tenant-scoped without authentication (e.g. public API with subdomain-based tenancy). Resolver methods are only accessible via `UseMultiTenancy()` chain.
 
 ### `[CrudEntity]` options
 
@@ -846,7 +851,8 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
     opts.UseImport();                    // All entities importable (opt-out with [NotImportable])
 
     // Tenant resolution
-    opts.ResolveTenantFromHeader("X-Tenant-Id");  // or FromClaim, FromSubdomain, FromRoute, FromQuery
+    opts.UseMultiTenancy()
+        .ResolveTenantFromHeader("X-Tenant-Id");  // or FromClaim, FromSubdomain, FromRoute, FromQuery
 
     // Module discovery
     opts.ScanModulesFromAssembly = typeof(Program).Assembly;
