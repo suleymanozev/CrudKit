@@ -351,9 +351,15 @@ public static class CrudEndpointMapper
             try
             {
                 var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
+                var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
                 var entity = await repo.Create(dto, ct);
 
                 var appCtx = BuildAppContext(httpCtx);
+
+                // Global before hooks run first
+                foreach (var gh in globalHooks)
+                    await gh.BeforeCreate(entity, appCtx);
+
                 if (hooks != null)
                 {
                     await hooks.BeforeCreate(entity, appCtx);
@@ -364,6 +370,10 @@ public static class CrudEndpointMapper
 
                 if (hooks != null)
                     await hooks.AfterCreate(entity, appCtx);
+
+                // Global after hooks run last
+                foreach (var gh in globalHooks)
+                    await gh.AfterCreate(entity, appCtx);
 
                 return Results.Created($"/api/{route}/{entity.Id}", entity);
             }
@@ -389,9 +399,15 @@ public static class CrudEndpointMapper
             try
             {
                 var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
+                var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
                 var entity = await repo.Update(guid, dto, ct);
 
                 var appCtx = BuildAppContext(httpCtx);
+
+                // Global before hooks run first
+                foreach (var gh in globalHooks)
+                    await gh.BeforeUpdate(entity, appCtx);
+
                 if (hooks != null)
                 {
                     await hooks.BeforeUpdate(entity, appCtx);
@@ -402,6 +418,10 @@ public static class CrudEndpointMapper
 
                 if (hooks != null)
                     await hooks.AfterUpdate(entity, appCtx);
+
+                // Global after hooks run last
+                foreach (var gh in globalHooks)
+                    await gh.AfterUpdate(entity, appCtx);
 
                 return Results.Ok(entity);
             }
@@ -428,26 +448,41 @@ public static class CrudEndpointMapper
             try
             {
                 var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
+                var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
                 var appCtx = BuildAppContext(httpCtx);
 
-                if (hooks != null)
+                // Load entity for Before hooks (needed by both global and entity-specific)
+                TEntity? entityForBefore = null;
+                if (hooks != null || globalHooks.Count > 0)
                 {
-                    var entity = await repo.FindByIdOrDefault(guid, ct);
-                    if (entity is null)
+                    entityForBefore = await repo.FindByIdOrDefault(guid, ct);
+                    if (entityForBefore is null)
                         throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
-                    await hooks.BeforeDelete(entity, appCtx);
                 }
+
+                // Global before hooks run first
+                if (entityForBefore != null)
+                {
+                    foreach (var gh in globalHooks)
+                        await gh.BeforeDelete(entityForBefore, appCtx);
+                }
+
+                if (hooks != null && entityForBefore != null)
+                    await hooks.BeforeDelete(entityForBefore, appCtx);
 
                 await repo.Delete(guid, ct);
                 await tx.CommitAsync(ct);
 
+                // AfterDelete receives a minimal entity with just the Id
+                var stub = Activator.CreateInstance<TEntity>();
+                stub.Id = guid;
+
                 if (hooks != null)
-                {
-                    // AfterDelete receives a minimal entity with just the Id
-                    var stub = Activator.CreateInstance<TEntity>();
-                    stub.Id = guid;
                     await hooks.AfterDelete(stub, appCtx);
-                }
+
+                // Global after hooks run last
+                foreach (var gh in globalHooks)
+                    await gh.AfterDelete(stub, appCtx);
 
                 return Results.NoContent();
             }
@@ -493,6 +528,8 @@ public static class CrudEndpointMapper
                     throw;
                 }
             })
+            // Note: Restore is not part of the standard CRUD lifecycle for IGlobalCrudHook
+            // (no BeforeRestore/AfterRestore on IGlobalCrudHook — entity-specific hooks handle it)
             .WithName($"Restore{tag}")
             .Produces(200)
             .ProducesProblem(404)
@@ -601,6 +638,8 @@ public static class CrudEndpointMapper
                 importResult.Errors.AddRange(parseErrors);
 
                 // Create each valid row via direct entity creation
+                var importAppCtx = BuildAppContext(httpCtx);
+                var importGlobalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
                 await using var tx = await db.Database.BeginTransactionAsync(ct);
                 try
                 {
@@ -616,8 +655,18 @@ public static class CrudEndpointMapper
                                 if (prop != null && prop.CanWrite && value != null)
                                     prop.SetValue(entity, value);
                             }
+
+                            // Call global before hooks per entity
+                            foreach (var gh in importGlobalHooks)
+                                await gh.BeforeCreate(entity, importAppCtx);
+
                             db.Set<TEntity>().Add(entity);
                             await db.SaveChangesAsync(ct);
+
+                            // Call global after hooks per entity
+                            foreach (var gh in importGlobalHooks)
+                                await gh.AfterCreate(entity, importAppCtx);
+
                             importResult.Created++;
                         }
                         catch (Exception ex)

@@ -1,4 +1,5 @@
 using System.Reflection;
+using CrudKit.Core.Interfaces;
 
 namespace CrudKit.Api.Configuration;
 
@@ -56,6 +57,19 @@ public class CrudKitApiOptions
     public CrudKitApiOptions UseImport()
     {
         ImportEnabled = true;
+        return this;
+    }
+
+    // Store global hook types to register in DI
+    internal List<Type> GlobalHookTypes { get; } = new();
+
+    /// <summary>
+    /// Registers a global hook that runs for all entity CRUD operations.
+    /// Multiple global hooks can be registered — they run in registration order.
+    /// </summary>
+    public CrudKitApiOptions UseGlobalHook<T>() where T : class, IGlobalCrudHook
+    {
+        GlobalHookTypes.Add(typeof(T));
         return this;
     }
 }

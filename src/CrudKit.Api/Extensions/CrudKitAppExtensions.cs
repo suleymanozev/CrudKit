@@ -38,6 +38,10 @@ public static class CrudKitAppExtensions
 
         services.AddHostedService<CrudKitStartupValidator>();
 
+        // Register global hooks
+        foreach (var hookType in opts.GlobalHookTypes)
+            services.AddScoped(typeof(IGlobalCrudHook), hookType);
+
         if (opts.ScanModulesFromAssembly != null)
         {
             var moduleTypes = opts.ScanModulesFromAssembly.GetTypes()
