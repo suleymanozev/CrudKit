@@ -45,4 +45,28 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         helpLinkUri: "https://crudkit.dev/diagnostics/CRUD010");
+
+    /// <summary>
+    /// CRUD011: A naming pattern in [assembly: CrudKit] is set to an empty string.
+    /// </summary>
+    public static readonly DiagnosticDescriptor NamingPatternEmpty = new DiagnosticDescriptor(
+        id: "CRUD011",
+        title: "CrudKit naming pattern is empty",
+        messageFormat: "'{0}' naming pattern in [assembly: CrudKit] cannot be empty",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: "https://crudkit.dev/diagnostics/CRUD011");
+
+    /// <summary>
+    /// CRUD012: A naming pattern in [assembly: CrudKit] does not contain the {Name} placeholder.
+    /// </summary>
+    public static readonly DiagnosticDescriptor NamingPatternMissingPlaceholder = new DiagnosticDescriptor(
+        id: "CRUD012",
+        title: "CrudKit naming pattern missing {Name} placeholder",
+        messageFormat: "'{0}' naming pattern '{1}' in [assembly: CrudKit] must contain {{Name}} placeholder",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: "https://crudkit.dev/diagnostics/CRUD012");
 }

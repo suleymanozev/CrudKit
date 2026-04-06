@@ -59,9 +59,9 @@ public class IntegrationTests
 
         var fileNames = result.GeneratedTrees.Select(t => System.IO.Path.GetFileName(t.FilePath)).ToList();
 
-        Assert.Contains("ProductCreateDto.g.cs", fileNames);
-        Assert.Contains("ProductUpdateDto.g.cs", fileNames);
-        Assert.Contains("ProductResponseDto.g.cs", fileNames);
+        Assert.Contains("CreateProduct.g.cs", fileNames);
+        Assert.Contains("UpdateProduct.g.cs", fileNames);
+        Assert.Contains("ProductResponse.g.cs", fileNames);
         Assert.Contains("ProductMapper.g.cs", fileNames);
         Assert.Contains("ProductHooks.g.cs", fileNames);
         Assert.Contains("CrudKitEndpoints.g.cs", fileNames);
@@ -81,7 +81,7 @@ public class IntegrationTests
     public void FullEntity_CreateDto_HasCorrectShape()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(FullEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "ProductCreateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateProduct.g.cs");
 
         // Required props
         Assert.Contains("[Required]", source);
@@ -102,7 +102,7 @@ public class IntegrationTests
     public void FullEntity_UpdateDto_WrapsInOptional()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(FullEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "ProductUpdateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "UpdateProduct.g.cs");
 
         Assert.Contains("Optional<string> Name", source);
         Assert.Contains("Optional<decimal> Price", source);
@@ -116,7 +116,7 @@ public class IntegrationTests
     public void FullEntity_ResponseDto_ExcludesSkipResponse()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(FullEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "ProductResponseDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "ProductResponse.g.cs");
 
         Assert.DoesNotContain("InternalTag", source);
         Assert.Contains("DateTime? DeletedAt", source);

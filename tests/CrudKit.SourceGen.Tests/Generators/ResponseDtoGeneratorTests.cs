@@ -34,7 +34,7 @@ public class ResponseDtoGeneratorTests
     public void ResponseDto_ContainsSystemFields()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(CategoryEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "CategoryResponseDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CategoryResponse.g.cs");
 
         Assert.Contains("Guid Id", source);
         Assert.Contains("DateTime CreatedAt", source);
@@ -45,7 +45,7 @@ public class ResponseDtoGeneratorTests
     public void ResponseDto_ContainsDeletedAt_WhenSoftDeletable()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(CategoryEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "CategoryResponseDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CategoryResponse.g.cs");
 
         Assert.Contains("DateTime? DeletedAt", source);
     }
@@ -54,7 +54,7 @@ public class ResponseDtoGeneratorTests
     public void ResponseDto_ExcludesSkipResponseProps()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(CategoryEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "CategoryResponseDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CategoryResponse.g.cs");
 
         Assert.DoesNotContain("InternalTag", source);
     }
@@ -63,7 +63,7 @@ public class ResponseDtoGeneratorTests
     public void ResponseDto_IncludesUserProps()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(CategoryEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "CategoryResponseDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CategoryResponse.g.cs");
 
         Assert.Contains("string Name", source);
         Assert.Contains("int SortOrder", source);
@@ -93,7 +93,7 @@ public class ResponseDtoGeneratorTests
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(entity);
 
         var responseDtoTree = result.GeneratedTrees
-            .FirstOrDefault(t => t.FilePath.Contains("ResponseDto"));
+            .FirstOrDefault(t => t.FilePath.Contains("ReadViewResponse"));
 
         Assert.NotNull(responseDtoTree);
     }
@@ -121,7 +121,7 @@ public class ResponseDtoGeneratorTests
             """;
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(entity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "TenantedResponseDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "TenantedResponse.g.cs");
 
         Assert.Contains("string TenantId", source);
     }

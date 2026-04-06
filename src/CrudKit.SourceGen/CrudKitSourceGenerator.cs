@@ -24,6 +24,7 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
     private const string CrudEntityAttributeFqn    = "CrudKit.Core.Attributes.CrudEntityAttribute";
     private const string CreateDtoForAttributeFqn  = "CrudKit.Core.Attributes.CreateDtoForAttribute";
     private const string UpdateDtoForAttributeFqn  = "CrudKit.Core.Attributes.UpdateDtoForAttribute";
+    private const string CrudKitAttributeFqn       = "CrudKit.Core.Attributes.CrudKitAttribute";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -76,16 +77,44 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
             .Where(static n => n is not null)
             .Collect();
 
-        // 4. Combine per-entity symbols with the manual DTO sets so each output
-        //    step knows which DTOs already exist.
+        // 4. Read [assembly: CrudKit(...)] naming convention
+        var namingConvention = context.CompilationProvider.Select(static (compilation, _) =>
+        {
+            var attr = compilation.Assembly.GetAttributes()
+                .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == CrudKitAttributeFqn);
+
+            if (attr == null)
+                return NamingConvention.Default;
+
+            // Start from defaults and apply each named argument
+            var naming = NamingConvention.Default;
+            foreach (var arg in attr.NamedArguments)
+            {
+                var value = arg.Value.Value as string ?? string.Empty;
+                naming = arg.Key switch
+                {
+                    "CreateDto"  => naming with { CreateDtoPattern  = value },
+                    "UpdateDto"  => naming with { UpdateDtoPattern  = value },
+                    "ResponseDto"=> naming with { ResponseDtoPattern = value },
+                    "Mapper"     => naming with { MapperPattern     = value },
+                    "Hooks"      => naming with { HooksPattern      = value },
+                    _            => naming,
+                };
+            }
+            return naming;
+        });
+
+        // 5. Combine per-entity symbols with the manual DTO sets and naming convention
         var entityWithManualDtos = entitySymbols
             .Combine(manualCreateDtos)
             .Combine(manualUpdateDtos);
 
-        // 5. Validate and emit per-entity files
-        context.RegisterSourceOutput(entityWithManualDtos, static (spc, data) =>
+        var entityWithNaming = entityWithManualDtos.Combine(namingConvention);
+
+        // 6. Validate and emit per-entity files
+        context.RegisterSourceOutput(entityWithNaming, static (spc, data) =>
         {
-            var ((item, createSkipSet), updateSkipSet) = data;
+            var (((item, createSkipSet), updateSkipSet), naming) = data;
             var (symbol, location) = item;
 
             // CRUD010 — check for explicit empty Table name before parsing
@@ -110,6 +139,13 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
                 }
             }
 
+            // Validate naming patterns — report CRUD011/CRUD012 errors
+            ValidateNamingPattern(spc, "CreateDto",   naming.CreateDtoPattern);
+            ValidateNamingPattern(spc, "UpdateDto",   naming.UpdateDtoPattern);
+            ValidateNamingPattern(spc, "ResponseDto", naming.ResponseDtoPattern);
+            ValidateNamingPattern(spc, "Mapper",      naming.MapperPattern);
+            ValidateNamingPattern(spc, "Hooks",       naming.HooksPattern);
+
             var metadata = EntityParser.Parse(symbol);
             if (metadata is null)
                 return;
@@ -123,39 +159,83 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
             if (!metadata.ImplementsIEntity)
                 return;
 
+            // Do not generate code when naming patterns are invalid
+            if (!IsNamingValid(naming))
+                return;
+
             bool skipCreate = createSkipSet.Contains(metadata.Name);
             bool skipUpdate = updateSkipSet.Contains(metadata.Name);
 
             // Per-entity files
-            EmitPerEntityFiles(spc, metadata, skipCreate, skipUpdate);
+            EmitPerEntityFiles(spc, metadata, naming, skipCreate, skipUpdate);
         });
 
-        // 6. Collect all valid entities for collective generators
+        // 7. Collect all valid entities for collective generators
         var allEntities = entitySymbols
             .Where(static item => EntityParser.Parse(item.Symbol) != null)
             .Select(static (item, _) => EntityParser.Parse(item.Symbol)!)
             .Where(static m => m.ImplementsIEntity)
             .Collect();
 
-        // 7. Emit collective files
-        context.RegisterSourceOutput(allEntities, static (spc, entities) =>
+        var allEntitiesWithNaming = allEntities.Combine(namingConvention);
+
+        // 8. Emit collective files
+        context.RegisterSourceOutput(allEntitiesWithNaming, static (spc, data) =>
         {
+            var (entities, naming) = data;
+
             if (entities.IsEmpty)
+                return;
+
+            // Skip collective generation when naming is invalid
+            if (!IsNamingValid(naming))
                 return;
 
             var list = entities.ToList();
 
             // CrudKitEndpoints.g.cs
-            var endpointsSource = EndpointMappingGenerator.Generate(list);
+            var endpointsSource = EndpointMappingGenerator.Generate(list, naming);
             if (!string.IsNullOrEmpty(endpointsSource))
                 spc.AddSource("CrudKitEndpoints.g.cs", endpointsSource);
 
             // CrudKitMappers.g.cs
-            var mappersSource = DiRegistrationGenerator.Generate(list);
+            var mappersSource = DiRegistrationGenerator.Generate(list, naming);
             if (!string.IsNullOrEmpty(mappersSource))
                 spc.AddSource("CrudKitMappers.g.cs", mappersSource);
         });
     }
+
+    // ---------------------------------------------------------------------------
+    // Naming validation helpers
+    // ---------------------------------------------------------------------------
+
+    private static void ValidateNamingPattern(SourceProductionContext spc, string property, string pattern)
+    {
+        if (string.IsNullOrEmpty(pattern))
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.NamingPatternEmpty, Location.None, property));
+            return;
+        }
+
+        if (!pattern.Contains("{Name}"))
+        {
+            spc.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.NamingPatternMissingPlaceholder, Location.None, property, pattern));
+        }
+    }
+
+    private static bool IsNamingValid(NamingConvention naming)
+    {
+        return IsPatternValid(naming.CreateDtoPattern)
+            && IsPatternValid(naming.UpdateDtoPattern)
+            && IsPatternValid(naming.ResponseDtoPattern)
+            && IsPatternValid(naming.MapperPattern)
+            && IsPatternValid(naming.HooksPattern);
+    }
+
+    private static bool IsPatternValid(string pattern)
+        => !string.IsNullOrEmpty(pattern) && pattern.Contains("{Name}");
 
     // ---------------------------------------------------------------------------
     // Per-entity file emission
@@ -164,35 +244,36 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
     private static void EmitPerEntityFiles(
         SourceProductionContext spc,
         EntityMetadata entity,
+        NamingConvention naming,
         bool skipCreate,
         bool skipUpdate)
     {
         // CreateDto — skip when manual DTO is present or feature is disabled
         if (!skipCreate)
         {
-            var createDtoSource = CreateDtoGenerator.Generate(entity);
+            var createDtoSource = CreateDtoGenerator.Generate(entity, naming);
             if (createDtoSource != null)
-                spc.AddSource($"{entity.Name}CreateDto.g.cs", createDtoSource);
+                spc.AddSource($"{naming.FormatCreateDto(entity.Name)}.g.cs", createDtoSource);
         }
 
         // UpdateDto — skip when manual DTO is present or feature is disabled
         if (!skipUpdate)
         {
-            var updateDtoSource = UpdateDtoGenerator.Generate(entity);
+            var updateDtoSource = UpdateDtoGenerator.Generate(entity, naming);
             if (updateDtoSource != null)
-                spc.AddSource($"{entity.Name}UpdateDto.g.cs", updateDtoSource);
+                spc.AddSource($"{naming.FormatUpdateDto(entity.Name)}.g.cs", updateDtoSource);
         }
 
         // ResponseDto — always emitted (no manual override attribute)
-        var responseDtoSource = ResponseDtoGenerator.Generate(entity);
-        spc.AddSource($"{entity.Name}ResponseDto.g.cs", responseDtoSource);
+        var responseDtoSource = ResponseDtoGenerator.Generate(entity, naming);
+        spc.AddSource($"{naming.FormatResponseDto(entity.Name)}.g.cs", responseDtoSource);
 
         // Mapper — always emitted
-        var mapperSource = MapperGenerator.Generate(entity);
-        spc.AddSource($"{entity.Name}Mapper.g.cs", mapperSource);
+        var mapperSource = MapperGenerator.Generate(entity, naming);
+        spc.AddSource($"{naming.FormatMapper(entity.Name)}.g.cs", mapperSource);
 
         // Hook stub — always emitted
-        var hookStubSource = HookStubGenerator.Generate(entity);
-        spc.AddSource($"{entity.Name}Hooks.g.cs", hookStubSource);
+        var hookStubSource = HookStubGenerator.Generate(entity, naming);
+        spc.AddSource($"{naming.FormatHooks(entity.Name)}.g.cs", hookStubSource);
     }
 }

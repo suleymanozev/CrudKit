@@ -217,6 +217,16 @@ public static class GeneratorTestHelper
                 public Type EntityType { get; }
                 public UpdateDtoForAttribute(Type entityType) => EntityType = entityType;
             }
+
+            [AttributeUsage(AttributeTargets.Assembly)]
+            public class CrudKitAttribute : Attribute
+            {
+                public string CreateDto { get; set; } = "Create{Name}";
+                public string UpdateDto { get; set; } = "Update{Name}";
+                public string ResponseDto { get; set; } = "{Name}Response";
+                public string Mapper { get; set; } = "{Name}Mapper";
+                public string Hooks { get; set; } = "{Name}Hooks";
+            }
         }
         """;
 }

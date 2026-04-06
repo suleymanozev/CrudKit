@@ -5,7 +5,7 @@ using CrudKit.SourceGen.Models;
 namespace CrudKit.SourceGen.Generators;
 
 /// <summary>
-/// Generates <c>{Name}Mapper</c> implementing the appropriate mapper interface(s):
+/// Generates a Mapper class implementing the appropriate mapper interface(s) using the configured naming convention:
 /// <list type="bullet">
 ///   <item>All CRUD enabled → <c>ICrudMapper&lt;TEntity, TCreate, TUpdate, TResponse&gt;</c></item>
 ///   <item>ReadOnly → <c>IResponseMapper&lt;TEntity, TResponse&gt;</c></item>
@@ -15,13 +15,18 @@ namespace CrudKit.SourceGen.Generators;
 /// </summary>
 internal static class MapperGenerator
 {
-    public static string Generate(EntityMetadata entity)
+    public static string Generate(EntityMetadata entity, NamingConvention naming)
     {
         bool hasCreate = entity.IsCreateEnabled;
         bool hasUpdate = entity.IsUpdateEnabled;
 
+        string createDtoName   = naming.FormatCreateDto(entity.Name);
+        string updateDtoName   = naming.FormatUpdateDto(entity.Name);
+        string responseDtoName = naming.FormatResponseDto(entity.Name);
+        string mapperClassName = naming.FormatMapper(entity.Name);
+
         // Determine which interface(s) to implement
-        string interfaceList = BuildInterfaceList(entity, hasCreate, hasUpdate);
+        string interfaceList = BuildInterfaceList(entity, hasCreate, hasUpdate, createDtoName, updateDtoName, responseDtoName);
 
         var responseProps = BuildResponseProps(entity);
         var assignments   = BuildAssignments(responseProps);
@@ -44,13 +49,13 @@ internal static class MapperGenerator
         sb.AppendLine($"namespace {entity.Namespace}.Mappers;");
         sb.AppendLine();
         sb.AppendLine($"/// <summary>Mapper for <see cref=\"{entity.Name}\"/>.</summary>");
-        sb.AppendLine($"public sealed class {entity.Name}Mapper : {interfaceList}");
+        sb.AppendLine($"public sealed class {mapperClassName} : {interfaceList}");
         sb.AppendLine("{");
 
         // --- IResponseMapper: Map() ---
-        sb.AppendLine($"    public {entity.Name}Response Map({entity.Name} entity)");
+        sb.AppendLine($"    public {responseDtoName} Map({entity.Name} entity)");
         sb.AppendLine("    {");
-        sb.AppendLine($"        return new {entity.Name}Response(");
+        sb.AppendLine($"        return new {responseDtoName}(");
 
         for (int i = 0; i < assignments.Count; i++)
         {
@@ -66,9 +71,9 @@ internal static class MapperGenerator
         sb.AppendLine();
 
         // --- IResponseMapper: Project() ---
-        sb.AppendLine($"    public IQueryable<{entity.Name}Response> Project(IQueryable<{entity.Name}> query)");
+        sb.AppendLine($"    public IQueryable<{responseDtoName}> Project(IQueryable<{entity.Name}> query)");
         sb.AppendLine("    {");
-        sb.AppendLine($"        return query.Select(entity => new {entity.Name}Response(");
+        sb.AppendLine($"        return query.Select(entity => new {responseDtoName}(");
 
         for (int i = 0; i < assignments.Count; i++)
         {
@@ -86,7 +91,7 @@ internal static class MapperGenerator
         if (hasCreate)
         {
             sb.AppendLine();
-            sb.AppendLine($"    public {entity.Name} FromCreateDto(Create{entity.Name} dto)");
+            sb.AppendLine($"    public {entity.Name} FromCreateDto({createDtoName} dto)");
             sb.AppendLine("    {");
             sb.AppendLine($"        return new {entity.Name}");
             sb.AppendLine("        {");
@@ -102,7 +107,7 @@ internal static class MapperGenerator
         if (hasUpdate)
         {
             sb.AppendLine();
-            sb.AppendLine($"    public void ApplyUpdate({entity.Name} entity, Update{entity.Name} dto)");
+            sb.AppendLine($"    public void ApplyUpdate({entity.Name} entity, {updateDtoName} dto)");
             sb.AppendLine("    {");
 
             foreach (var p in updateProps)
@@ -123,13 +128,19 @@ internal static class MapperGenerator
     // Interface list builder
     // ---------------------------------------------------------------------------
 
-    private static string BuildInterfaceList(EntityMetadata entity, bool hasCreate, bool hasUpdate)
+    private static string BuildInterfaceList(
+        EntityMetadata entity,
+        bool hasCreate,
+        bool hasUpdate,
+        string createDtoName,
+        string updateDtoName,
+        string responseDtoName)
     {
         string n    = entity.Name;
-        string resp = $"IResponseMapper<{n}, {n}Response>";
-        string cre  = $"ICreateMapper<{n}, Create{n}>";
-        string upd  = $"IUpdateMapper<{n}, Update{n}>";
-        string crud = $"ICrudMapper<{n}, Create{n}, Update{n}, {n}Response>";
+        string resp = $"IResponseMapper<{n}, {responseDtoName}>";
+        string cre  = $"ICreateMapper<{n}, {createDtoName}>";
+        string upd  = $"IUpdateMapper<{n}, {updateDtoName}>";
+        string crud = $"ICrudMapper<{n}, {createDtoName}, {updateDtoName}, {responseDtoName}>";
 
         if (hasCreate && hasUpdate)
             return crud;

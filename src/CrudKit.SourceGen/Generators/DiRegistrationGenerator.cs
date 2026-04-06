@@ -7,10 +7,11 @@ namespace CrudKit.SourceGen.Generators;
 /// <summary>
 /// Generates <c>CrudKitMappers.g.cs</c> containing an <c>AddAllCrudMappers()</c>
 /// extension on <c>IServiceCollection</c> that registers all generated mapper classes.
+/// DTO and mapper type names are resolved via <see cref="NamingConvention"/>.
 /// </summary>
 internal static class DiRegistrationGenerator
 {
-    public static string Generate(IReadOnlyList<EntityMetadata> entities)
+    public static string Generate(IReadOnlyList<EntityMetadata> entities, NamingConvention naming)
     {
         if (entities.Count == 0)
             return string.Empty;
@@ -51,35 +52,41 @@ internal static class DiRegistrationGenerator
             bool hasCreate = entity.IsCreateEnabled;
             bool hasUpdate = entity.IsUpdateEnabled;
 
+            string n      = entity.Name;
+            string create = naming.FormatCreateDto(n);
+            string update = naming.FormatUpdateDto(n);
+            string resp   = naming.FormatResponseDto(n);
+            string mapper = naming.FormatMapper(n);
+
             if (hasCreate && hasUpdate)
             {
                 // Full CRUD: register as ICrudMapper, then forward individual interfaces
-                sb.AppendLine($"        services.AddScoped<ICrudMapper<{entity.Name}, Create{entity.Name}, Update{entity.Name}, {entity.Name}Response>, {entity.Name}Mapper>();");
-                sb.AppendLine($"        services.AddScoped<IResponseMapper<{entity.Name}, {entity.Name}Response>>(sp =>");
-                sb.AppendLine($"            sp.GetRequiredService<ICrudMapper<{entity.Name}, Create{entity.Name}, Update{entity.Name}, {entity.Name}Response>>());");
-                sb.AppendLine($"        services.AddScoped<ICreateMapper<{entity.Name}, Create{entity.Name}>>(sp =>");
-                sb.AppendLine($"            sp.GetRequiredService<ICrudMapper<{entity.Name}, Create{entity.Name}, Update{entity.Name}, {entity.Name}Response>>());");
-                sb.AppendLine($"        services.AddScoped<IUpdateMapper<{entity.Name}, Update{entity.Name}>>(sp =>");
-                sb.AppendLine($"            sp.GetRequiredService<ICrudMapper<{entity.Name}, Create{entity.Name}, Update{entity.Name}, {entity.Name}Response>>());");
+                sb.AppendLine($"        services.AddScoped<ICrudMapper<{n}, {create}, {update}, {resp}>, {mapper}>();");
+                sb.AppendLine($"        services.AddScoped<IResponseMapper<{n}, {resp}>>(sp =>");
+                sb.AppendLine($"            sp.GetRequiredService<ICrudMapper<{n}, {create}, {update}, {resp}>>());");
+                sb.AppendLine($"        services.AddScoped<ICreateMapper<{n}, {create}>>(sp =>");
+                sb.AppendLine($"            sp.GetRequiredService<ICrudMapper<{n}, {create}, {update}, {resp}>>());");
+                sb.AppendLine($"        services.AddScoped<IUpdateMapper<{n}, {update}>>(sp =>");
+                sb.AppendLine($"            sp.GetRequiredService<ICrudMapper<{n}, {create}, {update}, {resp}>>());");
             }
             else if (!hasCreate && !hasUpdate)
             {
                 // ReadOnly: only IResponseMapper
-                sb.AppendLine($"        services.AddScoped<IResponseMapper<{entity.Name}, {entity.Name}Response>, {entity.Name}Mapper>();");
+                sb.AppendLine($"        services.AddScoped<IResponseMapper<{n}, {resp}>, {mapper}>();");
             }
             else if (hasCreate)
             {
                 // Update disabled: IResponseMapper + ICreateMapper
-                sb.AppendLine($"        services.AddScoped<IResponseMapper<{entity.Name}, {entity.Name}Response>, {entity.Name}Mapper>();");
-                sb.AppendLine($"        services.AddScoped<ICreateMapper<{entity.Name}, Create{entity.Name}>>(sp =>");
-                sb.AppendLine($"            (ICreateMapper<{entity.Name}, Create{entity.Name}>)sp.GetRequiredService<IResponseMapper<{entity.Name}, {entity.Name}Response>>());");
+                sb.AppendLine($"        services.AddScoped<IResponseMapper<{n}, {resp}>, {mapper}>();");
+                sb.AppendLine($"        services.AddScoped<ICreateMapper<{n}, {create}>>(sp =>");
+                sb.AppendLine($"            (ICreateMapper<{n}, {create}>)sp.GetRequiredService<IResponseMapper<{n}, {resp}>>());");
             }
             else
             {
                 // Create disabled: IResponseMapper + IUpdateMapper
-                sb.AppendLine($"        services.AddScoped<IResponseMapper<{entity.Name}, {entity.Name}Response>, {entity.Name}Mapper>();");
-                sb.AppendLine($"        services.AddScoped<IUpdateMapper<{entity.Name}, Update{entity.Name}>>(sp =>");
-                sb.AppendLine($"            (IUpdateMapper<{entity.Name}, Update{entity.Name}>)sp.GetRequiredService<IResponseMapper<{entity.Name}, {entity.Name}Response>>());");
+                sb.AppendLine($"        services.AddScoped<IResponseMapper<{n}, {resp}>, {mapper}>();");
+                sb.AppendLine($"        services.AddScoped<IUpdateMapper<{n}, {update}>>(sp =>");
+                sb.AppendLine($"            (IUpdateMapper<{n}, {update}>)sp.GetRequiredService<IResponseMapper<{n}, {resp}>>());");
             }
         }
 

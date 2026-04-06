@@ -39,7 +39,7 @@ public class CreateDtoGeneratorTests
     public void CreateDto_ContainsRequiredProps()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "ProductCreateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateProduct.g.cs");
 
         Assert.Contains("CreateProduct", source);
         Assert.Contains("[Required]", source);
@@ -52,7 +52,7 @@ public class CreateDtoGeneratorTests
     public void CreateDto_ExcludesProtectedProps()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "ProductCreateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateProduct.g.cs");
 
         Assert.DoesNotContain("InternalCode", source);
     }
@@ -61,7 +61,7 @@ public class CreateDtoGeneratorTests
     public void CreateDto_ExcludesSystemFields()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "ProductCreateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateProduct.g.cs");
 
         Assert.DoesNotContain("CreatedAt", source);
         Assert.DoesNotContain("UpdatedAt", source);
@@ -91,7 +91,7 @@ public class CreateDtoGeneratorTests
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(entity);
 
-        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("CreateDto"));
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("CreateLog"));
     }
 
     [Fact]
@@ -117,14 +117,14 @@ public class CreateDtoGeneratorTests
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(entity);
 
-        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("CreateDto"));
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("CreateView"));
     }
 
     [Fact]
     public void CreateDto_HasRangeAttribute_WhenPropertyHasRange()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "ProductCreateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateProduct.g.cs");
 
         Assert.Contains("[Range(0.01, 99999.99)]", source);
     }
@@ -159,10 +159,10 @@ public class CreateDtoGeneratorTests
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(source);
 
         // CreateDto should NOT be generated — manual DTO exists
-        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("OrderCreateDto"));
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("CreateOrder"));
 
         // UpdateDto SHOULD still be generated — no manual override
-        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("OrderUpdateDto"));
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("UpdateOrder"));
     }
 
     [Fact]
@@ -192,8 +192,8 @@ public class CreateDtoGeneratorTests
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(source);
 
-        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("InvoiceCreateDto"));
-        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("InvoiceUpdateDto"));
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("CreateInvoice"));
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("UpdateInvoice"));
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public class CreateDtoGeneratorTests
         // Verifies existing behaviour is unchanged when no manual DTOs exist
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity);
 
-        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("ProductCreateDto"));
-        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("ProductUpdateDto"));
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("CreateProduct"));
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("UpdateProduct"));
     }
 }

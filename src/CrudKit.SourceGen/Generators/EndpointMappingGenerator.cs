@@ -9,10 +9,11 @@ namespace CrudKit.SourceGen.Generators;
 /// extension method on <c>IEndpointRouteBuilder</c>.
 /// Each entity uses <c>MapCrudEndpoints</c> (full CRUD with 3 generic params) or
 /// <c>MapCrudEndpoints</c> (read-only with 1 generic param) depending on its operation flags.
+/// DTO type names are resolved via <see cref="NamingConvention"/>.
 /// </summary>
 internal static class EndpointMappingGenerator
 {
-    public static string Generate(IReadOnlyList<EntityMetadata> entities)
+    public static string Generate(IReadOnlyList<EntityMetadata> entities, NamingConvention naming)
     {
         if (entities.Count == 0)
             return string.Empty;
@@ -51,6 +52,9 @@ internal static class EndpointMappingGenerator
 
         foreach (var entity in entities)
         {
+            string createDtoFqn = $"{entity.Namespace}.Dtos.{naming.FormatCreateDto(entity.Name)}";
+            string updateDtoFqn = $"{entity.Namespace}.Dtos.{naming.FormatUpdateDto(entity.Name)}";
+
             // Determine which mapper overload to call
             if (entity.ReadOnly || (!entity.IsCreateEnabled && !entity.IsUpdateEnabled))
             {
@@ -60,7 +64,7 @@ internal static class EndpointMappingGenerator
             else
             {
                 // Full CRUD: 3 type params, no route (derived from [CrudEntity(Table=...)])
-                sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}, {entity.Namespace}.Dtos.Create{entity.Name}, {entity.Namespace}.Dtos.Update{entity.Name}>();");
+                sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}, {createDtoFqn}, {updateDtoFqn}>();");
             }
         }
 

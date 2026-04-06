@@ -39,7 +39,7 @@ public class UpdateDtoGeneratorTests
     public void UpdateDto_ContainsOptionalWrappedProps()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(OrderEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "OrderUpdateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "UpdateOrder.g.cs");
 
         Assert.Contains("UpdateOrder", source);
         Assert.Contains("Optional<string> CustomerName", source);
@@ -51,7 +51,7 @@ public class UpdateDtoGeneratorTests
     public void UpdateDto_ExcludesSkipUpdateProps()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(OrderEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "OrderUpdateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "UpdateOrder.g.cs");
 
         Assert.DoesNotContain("OrderNumber", source);
     }
@@ -60,7 +60,7 @@ public class UpdateDtoGeneratorTests
     public void UpdateDto_ExcludesProtectedProps()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(OrderEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "OrderUpdateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "UpdateOrder.g.cs");
 
         Assert.DoesNotContain("CreatedById", source);
     }
@@ -69,7 +69,7 @@ public class UpdateDtoGeneratorTests
     public void UpdateDto_ExcludesSystemFields()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(OrderEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "OrderUpdateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "UpdateOrder.g.cs");
 
         Assert.DoesNotContain("CreatedAt", source);
         Assert.DoesNotContain("UpdatedAt", source);
@@ -79,7 +79,7 @@ public class UpdateDtoGeneratorTests
     public void UpdateDto_HasDefaultValues_ForOptionalParams()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(OrderEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "OrderUpdateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "UpdateOrder.g.cs");
 
         // Each parameter should default to Optional<T>.Undefined (default)
         Assert.Contains("= default", source);
@@ -108,14 +108,14 @@ public class UpdateDtoGeneratorTests
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(entity);
 
-        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("UpdateDto"));
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("UpdateImmutableRecord"));
     }
 
     [Fact]
     public void UpdateDto_ImportsOptionalNamespace()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(OrderEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "OrderUpdateDto.g.cs");
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "UpdateOrder.g.cs");
 
         Assert.Contains("using CrudKit.Core.Models;", source);
     }
@@ -151,10 +151,10 @@ public class UpdateDtoGeneratorTests
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(source);
 
         // UpdateDto should NOT be generated — manual DTO exists
-        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("OrderUpdateDto"));
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("UpdateOrder"));
 
         // CreateDto SHOULD still be generated — no manual override
-        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("OrderCreateDto"));
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("CreateOrder"));
     }
 
     [Fact]
@@ -191,10 +191,10 @@ public class UpdateDtoGeneratorTests
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(source);
 
         // Neither CreateDto nor UpdateDto should be generated
-        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("ProductCreateDto"));
-        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("ProductUpdateDto"));
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("CreateProduct"));
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("UpdateProduct"));
 
         // ResponseDto should still be generated
-        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("ProductResponseDto"));
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("ProductResponse"));
     }
 }
