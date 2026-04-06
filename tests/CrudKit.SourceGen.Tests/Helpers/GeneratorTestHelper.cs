@@ -203,6 +203,20 @@ public static class GeneratorTestHelper
             [AttributeUsage(AttributeTargets.Property)] public class SkipResponseAttribute : Attribute { }
             [AttributeUsage(AttributeTargets.Property)] public class UniqueAttribute : Attribute { }
             [AttributeUsage(AttributeTargets.Property)] public class SearchableAttribute : Attribute { }
+
+            [AttributeUsage(AttributeTargets.Class)]
+            public class CreateDtoForAttribute : Attribute
+            {
+                public Type EntityType { get; }
+                public CreateDtoForAttribute(Type entityType) => EntityType = entityType;
+            }
+
+            [AttributeUsage(AttributeTargets.Class)]
+            public class UpdateDtoForAttribute : Attribute
+            {
+                public Type EntityType { get; }
+                public UpdateDtoForAttribute(Type entityType) => EntityType = entityType;
+            }
         }
         """;
 }

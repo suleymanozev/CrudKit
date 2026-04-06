@@ -1,5 +1,7 @@
 <Solution>
-  <Folder Name="/samples/" />
+  <Folder Name="/samples/">
+    <Project Path="samples/CrudKit.Sample.Api/CrudKit.Sample.Api.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/CrudKit.Api/CrudKit.Api.csproj" />
     <Project Path="src/CrudKit.Core/CrudKit.Core.csproj" />
@@ -14,5 +16,4 @@
     <Project Path="tests/CrudKit.Identity.Tests/CrudKit.Identity.Tests.csproj" />
     <Project Path="tests/CrudKit.SourceGen.Tests/CrudKit.SourceGen.Tests.csproj" />
   </Folder>
-  <Project Path="samples/CrudKit.Sample.Api/CrudKit.Sample.Api.csproj" />
 </Solution>

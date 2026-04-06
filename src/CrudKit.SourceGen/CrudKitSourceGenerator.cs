@@ -21,7 +21,9 @@ namespace CrudKit.SourceGen;
 [Generator]
 public sealed class CrudKitSourceGenerator : IIncrementalGenerator
 {
-    private const string CrudEntityAttributeFqn = "CrudKit.Core.Attributes.CrudEntityAttribute";
+    private const string CrudEntityAttributeFqn    = "CrudKit.Core.Attributes.CrudEntityAttribute";
+    private const string CreateDtoForAttributeFqn  = "CrudKit.Core.Attributes.CreateDtoForAttribute";
+    private const string UpdateDtoForAttributeFqn  = "CrudKit.Core.Attributes.UpdateDtoForAttribute";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -38,9 +40,52 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
                 })
             .WithTrackingName("CrudEntityClasses");
 
-        // 2. Validate and emit diagnostics
-        context.RegisterSourceOutput(entitySymbols, static (spc, item) =>
+        // 2. Find all classes/records decorated with [CreateDtoFor(...)]
+        //    Collect the entity type names that have manual Create DTOs.
+        var manualCreateDtos = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                CreateDtoForAttributeFqn,
+                predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
+                transform: static (ctx, _) =>
+                {
+                    var attr = ctx.TargetSymbol.GetAttributes()
+                        .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == CreateDtoForAttributeFqn);
+                    if (attr?.ConstructorArguments.Length > 0
+                        && attr.ConstructorArguments[0].Value is INamedTypeSymbol entityType)
+                        return entityType.Name;
+                    return null;
+                })
+            .Where(static n => n is not null)
+            .Collect();
+
+        // 3. Find all classes/records decorated with [UpdateDtoFor(...)]
+        //    Collect the entity type names that have manual Update DTOs.
+        var manualUpdateDtos = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                UpdateDtoForAttributeFqn,
+                predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
+                transform: static (ctx, _) =>
+                {
+                    var attr = ctx.TargetSymbol.GetAttributes()
+                        .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == UpdateDtoForAttributeFqn);
+                    if (attr?.ConstructorArguments.Length > 0
+                        && attr.ConstructorArguments[0].Value is INamedTypeSymbol entityType)
+                        return entityType.Name;
+                    return null;
+                })
+            .Where(static n => n is not null)
+            .Collect();
+
+        // 4. Combine per-entity symbols with the manual DTO sets so each output
+        //    step knows which DTOs already exist.
+        var entityWithManualDtos = entitySymbols
+            .Combine(manualCreateDtos)
+            .Combine(manualUpdateDtos);
+
+        // 5. Validate and emit per-entity files
+        context.RegisterSourceOutput(entityWithManualDtos, static (spc, data) =>
         {
+            var ((item, createSkipSet), updateSkipSet) = data;
             var (symbol, location) = item;
 
             // CRUD010 — check for explicit empty Table name before parsing
@@ -78,18 +123,21 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
             if (!metadata.ImplementsIEntity)
                 return;
 
+            bool skipCreate = createSkipSet.Contains(metadata.Name);
+            bool skipUpdate = updateSkipSet.Contains(metadata.Name);
+
             // Per-entity files
-            EmitPerEntityFiles(spc, metadata);
+            EmitPerEntityFiles(spc, metadata, skipCreate, skipUpdate);
         });
 
-        // 3. Collect all valid entities for collective generators
+        // 6. Collect all valid entities for collective generators
         var allEntities = entitySymbols
             .Where(static item => EntityParser.Parse(item.Symbol) != null)
             .Select(static (item, _) => EntityParser.Parse(item.Symbol)!)
             .Where(static m => m.ImplementsIEntity)
             .Collect();
 
-        // 4. Emit collective files
+        // 7. Emit collective files
         context.RegisterSourceOutput(allEntities, static (spc, entities) =>
         {
             if (entities.IsEmpty)
@@ -113,19 +161,29 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
     // Per-entity file emission
     // ---------------------------------------------------------------------------
 
-    private static void EmitPerEntityFiles(SourceProductionContext spc, EntityMetadata entity)
+    private static void EmitPerEntityFiles(
+        SourceProductionContext spc,
+        EntityMetadata entity,
+        bool skipCreate,
+        bool skipUpdate)
     {
-        // CreateDto — null when disabled
-        var createDtoSource = CreateDtoGenerator.Generate(entity);
-        if (createDtoSource != null)
-            spc.AddSource($"{entity.Name}CreateDto.g.cs", createDtoSource);
+        // CreateDto — skip when manual DTO is present or feature is disabled
+        if (!skipCreate)
+        {
+            var createDtoSource = CreateDtoGenerator.Generate(entity);
+            if (createDtoSource != null)
+                spc.AddSource($"{entity.Name}CreateDto.g.cs", createDtoSource);
+        }
 
-        // UpdateDto — null when disabled
-        var updateDtoSource = UpdateDtoGenerator.Generate(entity);
-        if (updateDtoSource != null)
-            spc.AddSource($"{entity.Name}UpdateDto.g.cs", updateDtoSource);
+        // UpdateDto — skip when manual DTO is present or feature is disabled
+        if (!skipUpdate)
+        {
+            var updateDtoSource = UpdateDtoGenerator.Generate(entity);
+            if (updateDtoSource != null)
+                spc.AddSource($"{entity.Name}UpdateDto.g.cs", updateDtoSource);
+        }
 
-        // ResponseDto — always emitted
+        // ResponseDto — always emitted (no manual override attribute)
         var responseDtoSource = ResponseDtoGenerator.Generate(entity);
         spc.AddSource($"{entity.Name}ResponseDto.g.cs", responseDtoSource);
 

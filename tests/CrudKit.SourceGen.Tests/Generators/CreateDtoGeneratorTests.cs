@@ -128,4 +128,81 @@ public class CreateDtoGeneratorTests
 
         Assert.Contains("[Range(0.01, 99999.99)]", source);
     }
+
+    [Fact]
+    public void CreateDto_NotGenerated_WhenManualDtoHasCreateDtoForAttribute()
+    {
+        const string source = """
+            using CrudKit.Core.Attributes;
+            using CrudKit.Core.Interfaces;
+            using System;
+            using System.ComponentModel.DataAnnotations;
+
+            namespace TestApp
+            {
+                [CrudEntity(Table = "Orders")]
+                public class Order : IEntity, IAuditableEntity
+                {
+                    public Guid Id { get; set; }
+                    public DateTime CreatedAt { get; set; }
+                    public DateTime UpdatedAt { get; set; }
+                    [Required]
+                    public string CustomerName { get; set; } = "";
+                    public decimal Total { get; set; }
+                }
+
+                [CreateDtoFor(typeof(Order))]
+                public record CreateOrder(string CustomerName, decimal Total);
+            }
+            """;
+
+        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(source);
+
+        // CreateDto should NOT be generated — manual DTO exists
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("OrderCreateDto"));
+
+        // UpdateDto SHOULD still be generated — no manual override
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("OrderUpdateDto"));
+    }
+
+    [Fact]
+    public void CreateDto_NotGenerated_WhenManualRecordHasCreateDtoForAttribute()
+    {
+        // Verifies that record syntax (not just class) is also recognised
+        const string source = """
+            using CrudKit.Core.Attributes;
+            using CrudKit.Core.Interfaces;
+            using System;
+
+            namespace TestApp
+            {
+                [CrudEntity(Table = "Invoices")]
+                public class Invoice : IEntity, IAuditableEntity
+                {
+                    public Guid Id { get; set; }
+                    public DateTime CreatedAt { get; set; }
+                    public DateTime UpdatedAt { get; set; }
+                    public string Number { get; set; } = "";
+                }
+
+                [CreateDtoFor(typeof(Invoice))]
+                public record CreateInvoice(string Number);
+            }
+            """;
+
+        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(source);
+
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("InvoiceCreateDto"));
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("InvoiceUpdateDto"));
+    }
+
+    [Fact]
+    public void BothDtos_Generated_WhenNoManualAttributesPresent()
+    {
+        // Verifies existing behaviour is unchanged when no manual DTOs exist
+        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity);
+
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("ProductCreateDto"));
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("ProductUpdateDto"));
+    }
 }

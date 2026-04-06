@@ -119,4 +119,82 @@ public class UpdateDtoGeneratorTests
 
         Assert.Contains("using CrudKit.Core.Models;", source);
     }
+
+    [Fact]
+    public void UpdateDto_NotGenerated_WhenManualDtoHasUpdateDtoForAttribute()
+    {
+        const string source = """
+            using CrudKit.Core.Attributes;
+            using CrudKit.Core.Interfaces;
+            using System;
+
+            namespace TestApp
+            {
+                [CrudEntity(Table = "Orders")]
+                public class Order : IEntity, IAuditableEntity
+                {
+                    public Guid Id { get; set; }
+                    public DateTime CreatedAt { get; set; }
+                    public DateTime UpdatedAt { get; set; }
+                    public string CustomerName { get; set; } = "";
+                    public decimal Total { get; set; }
+                }
+
+                [UpdateDtoFor(typeof(Order))]
+                public record UpdateOrder
+                {
+                    public string? CustomerName { get; init; }
+                }
+            }
+            """;
+
+        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(source);
+
+        // UpdateDto should NOT be generated — manual DTO exists
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("OrderUpdateDto"));
+
+        // CreateDto SHOULD still be generated — no manual override
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("OrderCreateDto"));
+    }
+
+    [Fact]
+    public void BothDtos_NotGenerated_WhenBothManualAttributesPresent()
+    {
+        const string source = """
+            using CrudKit.Core.Attributes;
+            using CrudKit.Core.Interfaces;
+            using System;
+
+            namespace TestApp
+            {
+                [CrudEntity(Table = "Products")]
+                public class Product : IEntity, IAuditableEntity
+                {
+                    public Guid Id { get; set; }
+                    public DateTime CreatedAt { get; set; }
+                    public DateTime UpdatedAt { get; set; }
+                    public string Name { get; set; } = "";
+                    public decimal Price { get; set; }
+                }
+
+                [CreateDtoFor(typeof(Product))]
+                public record CreateProduct(string Name, decimal Price);
+
+                [UpdateDtoFor(typeof(Product))]
+                public record UpdateProduct
+                {
+                    public string? Name { get; init; }
+                }
+            }
+            """;
+
+        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(source);
+
+        // Neither CreateDto nor UpdateDto should be generated
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("ProductCreateDto"));
+        Assert.DoesNotContain(result.GeneratedTrees, t => t.FilePath.Contains("ProductUpdateDto"));
+
+        // ResponseDto should still be generated
+        Assert.Contains(result.GeneratedTrees, t => t.FilePath.Contains("ProductResponseDto"));
+    }
 }
