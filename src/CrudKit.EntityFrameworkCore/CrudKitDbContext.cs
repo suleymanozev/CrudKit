@@ -368,11 +368,18 @@ public abstract class CrudKitDbContext : DbContext
 
     private static string SerializeCurrentValues(IEnumerable<PropertyEntry> props)
         => JsonSerializer.Serialize(
-            props.ToDictionary(p => p.Metadata.Name, p => p.CurrentValue));
+            props.ToDictionary(p => p.Metadata.Name, p => MaskIfHashed(p, p.CurrentValue)));
 
     private static string SerializeOriginalValues(IEnumerable<PropertyEntry> props)
         => JsonSerializer.Serialize(
-            props.ToDictionary(p => p.Metadata.Name, p => p.OriginalValue));
+            props.ToDictionary(p => p.Metadata.Name, p => MaskIfHashed(p, p.OriginalValue)));
+
+    private static object? MaskIfHashed(PropertyEntry prop, object? value)
+    {
+        if (prop.Metadata.PropertyInfo?.GetCustomAttribute<HashedAttribute>() != null)
+            return "***";
+        return value;
+    }
 }
 
 /// <summary>
