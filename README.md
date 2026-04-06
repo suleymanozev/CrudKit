@@ -27,7 +27,6 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Multi-database dialect (SQLite, PostgreSQL, SQL Server) — auto-detected
 - Entity base class hierarchy (`Entity`, `AuditableEntity`, `FullAuditableEntity` — with `<TUser>` variants)
 - Enum properties stored as strings automatically
-- Domain events (`IEventBus`) — publish from hooks
 - Structured error responses (409 concurrency, dev/prod stack trace toggle)
 
 ---
@@ -191,45 +190,30 @@ For `app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>("products")`:
 
 ### Soft Delete
 
-Implement `ISoftDeletable` and set `SoftDelete = true` on `[CrudEntity]`. DELETE sets `DeletedAt` instead of removing the row. Soft-deleted records are excluded from all queries automatically.
+Use `FullAuditableEntity` (or implement `ISoftDeletable`) for soft-delete support. DELETE sets `DeletedAt` instead of removing the row. Soft-deleted records are excluded from all queries automatically.
 
 ```csharp
-[CrudEntity(Table = "categories", SoftDelete = true)]
-public class Category : IEntity, ISoftDeletable
+[CrudEntity(Table = "categories")]
+public class Category : FullAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-    public DateTime? DeletedAt { get; set; }
 }
 ```
 
 The restore endpoint is mapped automatically: `POST /api/categories/{id}/restore`.
 
-**Cascade Soft Delete** — when a parent is soft-deleted, cascade to children automatically:
+**Cascade Soft Delete** — when a parent is soft-deleted, cascade to children automatically using the `[CascadeSoftDelete]` attribute:
 
 ```csharp
-[CrudEntity(Table = "orders", SoftDelete = true)]
+[CrudEntity(Table = "orders")]
 [CascadeSoftDelete(typeof(OrderLine), nameof(OrderLine.OrderId))]
-public class Order : IEntity, ISoftDeletable
+public class Order : FullAuditableEntity
 {
     // ...
 }
 ```
 
-Children can also declare their parent via interface:
-
-```csharp
-public class OrderLine : IEntity, ISoftDeletable, ICascadeSoftDelete<Order>
-{
-    public string OrderId { get; set; } = string.Empty;
-    public static string ParentForeignKey => nameof(OrderId);
-    // ...
-}
-```
-
-Both approaches trigger raw SQL cascade — no N+1 queries. Restore also cascades: restoring the parent restores all its children.
+The `[CascadeSoftDelete]` attribute triggers raw SQL cascade — no N+1 queries. Restore also cascades: restoring the parent restores all its children.
 
 **Restore Unique Constraint** — when restoring a soft-deleted entity, CrudKit checks `[Unique]` properties against active records. If a conflict exists (another active record has the same unique value), the restore fails with `409 Conflict`.
 
@@ -362,19 +346,14 @@ Implement `IStateMachine<TState>` to add transition endpoints. Define valid stat
 ```csharp
 public enum OrderStatus { Pending, Processing, Completed, Cancelled }
 
-[CrudEntity(Table = "orders", SoftDelete = true)]
-public class Order : IEntity, ISoftDeletable, IStateMachine<OrderStatus>
+[CrudEntity(Table = "orders")]
+public class Order : FullAuditableEntity, IStateMachine<OrderStatus>
 {
-    public string Id { get; set; } = string.Empty;
     public string CustomerName { get; set; } = string.Empty;
     public decimal Total { get; set; }
 
     [Protected]
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
-
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-    public DateTime? DeletedAt { get; set; }
 
     public static IReadOnlyList<(OrderStatus From, OrderStatus To, string Action)> Transitions =>
     [
@@ -505,7 +484,7 @@ Enable bulk endpoints on an entity:
 
 ```csharp
 [CrudEntity(Table = "products", EnableBulkDelete = true, EnableBulkUpdate = true, BulkLimit = 500)]
-public class Product : IEntity { ... }
+public class Product : AuditableEntity { ... }
 ```
 
 | Method | Route | Description |
@@ -621,16 +600,12 @@ Auto-generate sequential document numbers scoped by entity type, tenant, and yea
 
 ```csharp
 [CrudEntity(Table = "invoices", NumberingPrefix = "INV", NumberingYearlyReset = true)]
-public class Invoice : IEntity, IDocumentNumbering
+public class Invoice : AuditableEntity, IDocumentNumbering
 {
-    public string Id { get; set; } = string.Empty;
     public string DocumentNumber { get; set; } = string.Empty; // INV-2026-00001
     // ...
     public static string Prefix => "INV";
     public static bool YearlyReset => true;
-
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
 }
 ```
 
@@ -736,29 +711,6 @@ public class Order : FullAuditableEntity { }
 | `[AuditIgnore]` | Completely excluded — field never appears |
 
 If `UseAuditTrail()` is not called, `[Audited]` is silently ignored and `__crud_audit_logs` table is not created.
-
----
-
-### Domain Events
-
-CrudKit defines an `IEventBus` interface and event types. The framework does **not** publish events automatically — you publish from hooks using your preferred infrastructure (MediatR, MassTransit, etc.):
-
-```csharp
-public class OrderHooks : ICrudHooks<Order>
-{
-    private readonly IEventBus _eventBus;
-    public OrderHooks(IEventBus eventBus) => _eventBus = eventBus;
-
-    public async Task AfterCreate(Order entity, AppContext ctx)
-    {
-        await _eventBus.Publish(new EntityCreatedEvent
-        {
-            EntityType = nameof(Order),
-            EntityId = entity.Id
-        });
-    }
-}
-```
 
 ---
 
