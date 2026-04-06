@@ -11,7 +11,7 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Multi-tenant isolation
 - Audit trail (`[Audited]` + `UseAuditTrail()` opt-in, `[AuditIgnore]` per-property, `[Hashed]` auto-masked)
 - Optimistic concurrency
-- Lifecycle hooks (`ICrudHooks<T>`)
+- Lifecycle hooks (`ICrudHooks<T>`) + global hooks (`IGlobalCrudHook`) for cross-cutting concerns
 - Validation (FluentValidation priority, DataAnnotation fallback)
 - State machine transitions (`IStateMachine<TState>`)
 - Master-detail relationships (fluent `.WithDetail()`)
@@ -288,6 +288,34 @@ public class OrderHooks : ICrudHooks<Order>
     public IQueryable<Order> ApplyIncludes(IQueryable<Order> query)
         => query.Include(o => o.Lines).ThenInclude(l => l.Product);
 }
+```
+
+**Global Hooks** — run for ALL entities, useful for cross-cutting concerns like search indexing or cache invalidation:
+
+```csharp
+builder.Services.AddCrudKit<AppDbContext>(opts =>
+{
+    opts.UseGlobalHook<SearchIndexHook>();
+    opts.UseGlobalHook<CacheInvalidationHook>();
+});
+
+public class SearchIndexHook : IGlobalCrudHook
+{
+    private readonly ISearchService _search;
+    public SearchIndexHook(ISearchService search) => _search = search;
+
+    public async Task AfterCreate(object entity, AppContext ctx)
+        => await _search.Index(entity);
+
+    public async Task AfterUpdate(object entity, AppContext ctx)
+        => await _search.Index(entity);
+
+    public async Task AfterDelete(object entity, AppContext ctx)
+        => await _search.Remove(entity);
+}
+```
+
+Execution order: `Global Before` → `Entity Before` → DB operation → `Entity After` → `Global After`. Multiple global hooks run in registration order.
 
 ---
 
