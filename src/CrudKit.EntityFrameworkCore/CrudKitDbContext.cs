@@ -5,6 +5,7 @@ using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Concurrency;
+using CrudKit.EntityFrameworkCore.Dialect;
 using CrudKit.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -95,9 +96,10 @@ public abstract class CrudKitDbContext : DbContext
             // ---- Optimistic concurrency ----
             if (isConcurrent)
             {
-                modelBuilder.Entity(clrType)
-                    .Property(nameof(IConcurrent.RowVersion))
-                    .IsConcurrencyToken();
+                // Delegate to the dialect so each provider can apply its own strategy.
+                // All current providers use IsConcurrencyToken() with a manual uint token
+                // that CrudKitDbContext auto-increments in BeforeSaveChanges.
+                DialectDetector.Detect(this).ConfigureConcurrencyToken(modelBuilder, clrType);
             }
 
             // ---- Enum properties → stored as strings (opt-in via UseEnumAsString()) ----
@@ -252,6 +254,9 @@ public abstract class CrudKitDbContext : DbContext
                     TrySetUserField(entry, "UpdatedById");
                     // Prevent overwriting CreatedById on update
                     TryPreserveField(entry, "CreatedById");
+                    // Auto-increment concurrency token so EF detects stale reads
+                    if (entry.Entity is IConcurrent concurrent)
+                        concurrent.RowVersion++;
                     break;
 
                 case EntityState.Deleted:

@@ -1,4 +1,6 @@
 using System.Linq.Expressions;
+using CrudKit.EntityFrameworkCore.Concurrency;
+using Microsoft.EntityFrameworkCore;
 
 namespace CrudKit.EntityFrameworkCore.Dialect;
 
@@ -55,4 +57,12 @@ public class SqliteDialect : IDbDialect
 
     public string GetSequenceNextValueSql(string sequenceName)
         => throw new NotSupportedException("SQLite does not support sequences. Use SequenceGenerator.");
+
+    public void ConfigureConcurrencyToken(ModelBuilder modelBuilder, Type entityType)
+    {
+        // SQLite: manual uint token — app increments RowVersion on each save
+        modelBuilder.Entity(entityType)
+            .Property(nameof(IConcurrent.RowVersion))
+            .IsConcurrencyToken();
+    }
 }

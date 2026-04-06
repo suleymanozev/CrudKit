@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using System.Reflection;
+using CrudKit.EntityFrameworkCore.Concurrency;
 using Microsoft.EntityFrameworkCore;
 
 namespace CrudKit.EntityFrameworkCore.Dialect;
@@ -82,4 +83,13 @@ public class PostgresDialect : IDbDialect
 
     public string GetSequenceNextValueSql(string sequenceName)
         => $"SELECT nextval('{sequenceName}')";
+
+    public void ConfigureConcurrencyToken(ModelBuilder modelBuilder, Type entityType)
+    {
+        // PostgreSQL: manual uint token — works with all PostgreSQL setups.
+        // For xmin-based concurrency, override OnModelCreatingCustom and call UseXminAsConcurrencyToken().
+        modelBuilder.Entity(entityType)
+            .Property(nameof(IConcurrent.RowVersion))
+            .IsConcurrencyToken();
+    }
 }

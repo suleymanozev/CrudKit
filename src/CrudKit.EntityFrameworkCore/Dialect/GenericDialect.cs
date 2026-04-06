@@ -1,4 +1,6 @@
 using System.Linq.Expressions;
+using CrudKit.EntityFrameworkCore.Concurrency;
+using Microsoft.EntityFrameworkCore;
 
 namespace CrudKit.EntityFrameworkCore.Dialect;
 
@@ -55,4 +57,12 @@ public class GenericDialect : IDbDialect
     public string GetSequenceNextValueSql(string sequenceName)
         => throw new NotSupportedException(
             $"Provider does not support sequences. Use SequenceGenerator with table-based approach.");
+
+    public void ConfigureConcurrencyToken(ModelBuilder modelBuilder, Type entityType)
+    {
+        // Generic fallback: manual uint token — app increments RowVersion on each save
+        modelBuilder.Entity(entityType)
+            .Property(nameof(IConcurrent.RowVersion))
+            .IsConcurrencyToken();
+    }
 }

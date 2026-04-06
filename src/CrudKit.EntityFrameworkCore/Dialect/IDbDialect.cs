@@ -22,4 +22,10 @@ public interface IDbDialect
 
     /// <summary>Generates SQL to fetch the next sequence value.</summary>
     string GetSequenceNextValueSql(string sequenceName);
+
+    /// <summary>
+    /// Configures the concurrency token strategy for IConcurrent entities.
+    /// SQL Server uses IsRowVersion(), others use IsConcurrencyToken().
+    /// </summary>
+    void ConfigureConcurrencyToken(Microsoft.EntityFrameworkCore.ModelBuilder modelBuilder, Type entityType);
 }

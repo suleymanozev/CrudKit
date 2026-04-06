@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using CrudKit.EntityFrameworkCore.Concurrency;
 using Microsoft.EntityFrameworkCore;
 
 namespace CrudKit.EntityFrameworkCore.Dialect;
@@ -71,4 +72,14 @@ public class SqlServerDialect : IDbDialect
 
     public string GetSequenceNextValueSql(string sequenceName)
         => $"SELECT NEXT VALUE FOR {sequenceName}";
+
+    public void ConfigureConcurrencyToken(ModelBuilder modelBuilder, Type entityType)
+    {
+        // SQL Server: manual uint token with IsConcurrencyToken().
+        // The app increments RowVersion before each save (done by CrudKitDbContext.BeforeSaveChanges).
+        // For native byte[] rowversion, override OnModelCreatingCustom and call IsRowVersion() directly.
+        modelBuilder.Entity(entityType)
+            .Property(nameof(IConcurrent.RowVersion))
+            .IsConcurrencyToken();
+    }
 }
