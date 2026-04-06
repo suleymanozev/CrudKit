@@ -114,8 +114,12 @@ public abstract class CrudKitDbContext : DbContext
             }
         }
 
-        // CrudKit internal tables — audit log only when UseAuditTrail() is enabled
-        if (_efOptions?.AuditTrailEnabled == true)
+        // CrudKit internal tables — audit log when global UseAuditTrail() is on,
+        // OR when any registered entity type carries [Audited] (entity-level override).
+        var anyEntityAudited = modelBuilder.Model.GetEntityTypes()
+            .Any(et => et.ClrType.GetCustomAttribute<AuditedAttribute>() != null);
+
+        if (_efOptions?.AuditTrailEnabled == true || anyEntityAudited)
         {
             modelBuilder.Entity<AuditLogEntry>(b =>
             {
@@ -282,11 +286,20 @@ public abstract class CrudKitDbContext : DbContext
 
     private void WriteAuditLogs(DateTime now)
     {
-        if (_efOptions?.AuditTrailEnabled != true) return;
+        var globalAuditEnabled = _efOptions?.AuditTrailEnabled == true;
 
         var entries = ChangeTracker.Entries()
-            .Where(e => e.Entity.GetType().GetCustomAttribute<AuditedAttribute>() != null
-                && e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+            .Where(e =>
+            {
+                var type = e.Entity.GetType();
+                // [NotAudited] = force disable, even when global is on
+                if (type.GetCustomAttribute<NotAuditedAttribute>() != null) return false;
+                // [Audited] = force enable, even when global is off
+                if (type.GetCustomAttribute<AuditedAttribute>() != null) return true;
+                // No attribute: fall back to global flag
+                return globalAuditEnabled;
+            })
+            .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
             .ToList();
 
         if (entries.Count == 0) return;

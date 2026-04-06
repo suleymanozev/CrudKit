@@ -1,7 +1,8 @@
 namespace CrudKit.Core.Attributes;
 
 /// <summary>
-/// Excludes a property from export output (CSV/XLSX).
+/// When applied to a class, disables the export endpoint for this entity even when
+/// global UseExport() is enabled. When applied to a property, excludes it from export output.
 /// </summary>
-[AttributeUsage(AttributeTargets.Property)]
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Property)]
 public class NotExportableAttribute : Attribute { }

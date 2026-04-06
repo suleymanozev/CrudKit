@@ -17,6 +17,8 @@ public class ApiTestDbContext : CrudKitDbContext
     public DbSet<InvoiceEntity> Invoices => Set<InvoiceEntity>();
     public DbSet<InvoiceLineEntity> InvoiceLines => Set<InvoiceLineEntity>();
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
+    public DbSet<NoFlagEntity> NoFlagEntities => Set<NoFlagEntity>();
+    public DbSet<OptOutEntity> OptOutEntities => Set<OptOutEntity>();
 
     protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
     {

@@ -28,7 +28,8 @@ public sealed class TestWebApp : IAsyncDisposable
         ICurrentUser? currentUser = null,
         Action<WebApplication>? configureEndpoints = null,
         Action<IServiceCollection>? configureServices = null,
-        string environment = "Development")
+        string environment = "Development",
+        Action<CrudKit.Api.Configuration.CrudKitApiOptions>? configureOptions = null)
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -41,7 +42,7 @@ public sealed class TestWebApp : IAsyncDisposable
 
         builder.Services.AddDbContext<ApiTestDbContext>((_, opts) => opts.UseSqlite(connection));
         builder.Services.AddScoped<ICurrentUser>(_ => currentUser ?? new FakeCurrentUser());
-        builder.Services.AddCrudKit<ApiTestDbContext>();
+        builder.Services.AddCrudKit<ApiTestDbContext>(configureOptions);
 
         configureServices?.Invoke(builder.Services);
 

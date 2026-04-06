@@ -1,7 +1,8 @@
 namespace CrudKit.Core.Attributes;
 
 /// <summary>
-/// Excludes a property from import mapping. The column is ignored during CSV/XLSX import.
+/// When applied to a class, disables the import endpoint for this entity even when
+/// global UseImport() is enabled. When applied to a property, excludes it from import mapping.
 /// </summary>
-[AttributeUsage(AttributeTargets.Property)]
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Property)]
 public class NotImportableAttribute : Attribute { }

@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using CrudKit.Api.Filters;
+using CrudKit.Api.Helpers;
 using CrudKit.Api.Models;
 using CrudKit.Api.Services;
 using CrudKit.Core.Attributes;
@@ -265,8 +266,9 @@ public static class CrudEndpointMapper
         .ProducesProblem(404)
         .ProducesProblem(500);
 
-        // GET /api/{route}/export — Export (read-only, Exportable only)
-        if (typeof(TEntity).GetCustomAttribute<ExportableAttribute>() != null)
+        // GET /api/{route}/export — Export (3-level: [NotExportable] class > [Exportable] class > global UseExport())
+        var exportOptsRo = app.Services.GetService<Configuration.CrudKitApiOptions>();
+        if (FeatureResolver.IsExportEnabled<TEntity>(exportOptsRo?.ExportEnabled ?? false))
         {
             group.MapGet("/export", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
             {
@@ -548,8 +550,9 @@ public static class CrudEndpointMapper
         .ProducesProblem(400)
         .ProducesProblem(500);
 
-        // GET /api/{route}/export — Export (Exportable only)
-        if (typeof(TEntity).GetCustomAttribute<ExportableAttribute>() != null)
+        // GET /api/{route}/export — Export (3-level: [NotExportable] class > [Exportable] class > global UseExport())
+        var exportOpts = app.Services.GetService<Configuration.CrudKitApiOptions>();
+        if (FeatureResolver.IsExportEnabled<TEntity>(exportOpts?.ExportEnabled ?? false))
         {
             group.MapGet("/export", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
             {
@@ -578,8 +581,9 @@ public static class CrudEndpointMapper
             .ProducesProblem(400);
         }
 
-        // POST /api/{route}/import — Import (Importable only)
-        if (typeof(TEntity).GetCustomAttribute<ImportableAttribute>() != null)
+        // POST /api/{route}/import — Import (3-level: [NotImportable] class > [Importable] class > global UseImport())
+        var importOpts = app.Services.GetService<Configuration.CrudKitApiOptions>();
+        if (FeatureResolver.IsImportEnabled<TEntity>(importOpts?.ImportEnabled ?? false))
         {
             group.MapPost("/import", async (HttpContext httpCtx, CrudKitDbContext db, CancellationToken ct) =>
             {

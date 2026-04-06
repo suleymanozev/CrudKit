@@ -127,3 +127,36 @@ public class CreateInvoiceLineDto
     [Required] public string Description { get; set; } = string.Empty;
     [Range(0.01, 1_000_000_000)] public decimal Amount { get; set; }
 }
+
+// ---- Feature flag test entities ----
+
+/// <summary>
+/// Entity with no export/import attributes — relies entirely on global flags.
+/// </summary>
+public class NoFlagEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateNoFlagDto { [Required] public string Name { get; set; } = string.Empty; }
+public class UpdateNoFlagDto { public string? Name { get; set; } }
+
+/// <summary>
+/// Entity explicitly opting out of export and import via class-level [NotExportable] / [NotImportable].
+/// Even with global UseExport()/UseImport(), these endpoints must not exist.
+/// </summary>
+[NotExportable]
+[NotImportable]
+public class OptOutEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateOptOutDto { [Required] public string Name { get; set; } = string.Empty; }
+public class UpdateOptOutDto { public string? Name { get; set; } }
