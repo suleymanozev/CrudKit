@@ -70,63 +70,18 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
     /// <summary>Override to add entity configurations and seed data.</summary>
     protected virtual void OnModelCreatingCustom(ModelBuilder modelBuilder) { }
 
+    // ---- SaveChanges overrides — delegated to helper ----
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
-    {
-        if (IsAuditSave)
-            return base.SaveChanges(acceptAllChangesOnSuccess);
+        => CrudKitDbContextHelper.SaveChanges(
+            this, base.SaveChanges, acceptAllChangesOnSuccess,
+            _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter);
 
-        var auditEntries = _auditWriter != null
-            ? CrudKitDbContextHelper.CollectAuditEntries(ChangeTracker, _currentUser, _timeProvider, _efOptions)
-            : [];
-        var cascadeOps = CrudKitDbContextHelper.ProcessBeforeSave(ChangeTracker, _currentUser, _tenantContext, _timeProvider);
-
-        try
-        {
-            var result = base.SaveChanges(acceptAllChangesOnSuccess);
-            CrudKitDbContextHelper.ExecuteCascadeOps(Database, cascadeOps);
-
-            if (auditEntries.Count > 0 && _auditWriter != null)
-                _auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
-
-            return result;
-        }
-        catch when (_efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && _auditWriter != null)
-        {
-            foreach (var e in auditEntries) e.Action = $"Failed{e.Action}";
-            _auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
-            throw;
-        }
-    }
-
-    public override async Task<int> SaveChangesAsync(
-        bool acceptAllChangesOnSuccess,
-        CancellationToken ct = default)
-    {
-        if (IsAuditSave)
-            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
-
-        var auditEntries = _auditWriter != null
-            ? CrudKitDbContextHelper.CollectAuditEntries(ChangeTracker, _currentUser, _timeProvider, _efOptions)
-            : [];
-        var cascadeOps = CrudKitDbContextHelper.ProcessBeforeSave(ChangeTracker, _currentUser, _tenantContext, _timeProvider);
-
-        try
-        {
-            var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
-            CrudKitDbContextHelper.ExecuteCascadeOps(Database, cascadeOps);
-
-            if (auditEntries.Count > 0 && _auditWriter != null)
-                await _auditWriter.WriteAsync(auditEntries, ct);
-
-            return result;
-        }
-        catch when (_efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && _auditWriter != null)
-        {
-            foreach (var e in auditEntries) e.Action = $"Failed{e.Action}";
-            await _auditWriter.WriteAsync(auditEntries, ct);
-            throw;
-        }
-    }
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess, CancellationToken ct = default)
+        => CrudKitDbContextHelper.SaveChangesAsync(
+            this, base.SaveChangesAsync, acceptAllChangesOnSuccess,
+            _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter, ct);
 
     public string? CurrentTenantId => _tenantContext?.TenantId;
     public ICurrentUser CurrentUser => _currentUser;

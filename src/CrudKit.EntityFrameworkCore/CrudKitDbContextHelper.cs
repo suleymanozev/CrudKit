@@ -273,6 +273,89 @@ public static class CrudKitDbContextHelper
         return auditEntries;
     }
 
+    // ---- SaveChanges orchestration ----
+
+    /// <summary>
+    /// Orchestrates the full SaveChanges flow: collect audit entries, process before save,
+    /// call base save, execute cascade ops, write audit.
+    /// Used by both CrudKitDbContext and CrudKitIdentityDbContext to avoid duplication.
+    /// </summary>
+    public static int SaveChanges(
+        ICrudKitDbContext context,
+        Func<bool, int> baseSaveChanges,
+        bool acceptAllChangesOnSuccess,
+        ICurrentUser currentUser,
+        ITenantContext? tenantContext,
+        TimeProvider timeProvider,
+        CrudKitEfOptions? efOptions,
+        IAuditWriter? auditWriter)
+    {
+        if (context.IsAuditSave)
+            return baseSaveChanges(acceptAllChangesOnSuccess);
+
+        var auditEntries = auditWriter != null
+            ? CollectAuditEntries(context.ChangeTracker, currentUser, timeProvider, efOptions)
+            : [];
+        var cascadeOps = ProcessBeforeSave(context.ChangeTracker, currentUser, tenantContext, timeProvider);
+
+        try
+        {
+            var result = baseSaveChanges(acceptAllChangesOnSuccess);
+            ExecuteCascadeOps(context.Database, cascadeOps);
+
+            if (auditEntries.Count > 0 && auditWriter != null)
+                auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
+
+            return result;
+        }
+        catch when (efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && auditWriter != null)
+        {
+            foreach (var e in auditEntries) e.Action = $"Failed{e.Action}";
+            auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Async version of SaveChanges orchestration.
+    /// </summary>
+    public static async Task<int> SaveChangesAsync(
+        ICrudKitDbContext context,
+        Func<bool, CancellationToken, Task<int>> baseSaveChangesAsync,
+        bool acceptAllChangesOnSuccess,
+        ICurrentUser currentUser,
+        ITenantContext? tenantContext,
+        TimeProvider timeProvider,
+        CrudKitEfOptions? efOptions,
+        IAuditWriter? auditWriter,
+        CancellationToken ct = default)
+    {
+        if (context.IsAuditSave)
+            return await baseSaveChangesAsync(acceptAllChangesOnSuccess, ct);
+
+        var auditEntries = auditWriter != null
+            ? CollectAuditEntries(context.ChangeTracker, currentUser, timeProvider, efOptions)
+            : [];
+        var cascadeOps = ProcessBeforeSave(context.ChangeTracker, currentUser, tenantContext, timeProvider);
+
+        try
+        {
+            var result = await baseSaveChangesAsync(acceptAllChangesOnSuccess, ct);
+            ExecuteCascadeOps(context.Database, cascadeOps);
+
+            if (auditEntries.Count > 0 && auditWriter != null)
+                await auditWriter.WriteAsync(auditEntries, ct);
+
+            return result;
+        }
+        catch when (efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && auditWriter != null)
+        {
+            foreach (var e in auditEntries) e.Action = $"Failed{e.Action}";
+            await auditWriter.WriteAsync(auditEntries, ct);
+            throw;
+        }
+    }
+
     // ---- Filter expression builders ----
 
     /// <summary>Builds a lambda expression that filters out soft-deleted entities.</summary>
