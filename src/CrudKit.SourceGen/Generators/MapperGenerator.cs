@@ -20,10 +20,10 @@ internal static class MapperGenerator
         bool hasCreate = entity.IsCreateEnabled;
         bool hasUpdate = entity.IsUpdateEnabled;
 
-        string createDtoName   = naming.FormatCreateDto(entity.Name);
-        string updateDtoName   = naming.FormatUpdateDto(entity.Name);
-        string responseDtoName = naming.FormatResponseDto(entity.Name);
-        string mapperClassName = naming.FormatMapper(entity.Name);
+        string createDtoName   = naming.FormatCreateDtoName(entity.Name);
+        string updateDtoName   = naming.FormatUpdateDtoName(entity.Name);
+        string responseDtoName = naming.FormatResponseDtoName(entity.Name);
+        string mapperClassName = naming.FormatMapperName(entity.Name);
 
         // Determine which interface(s) to implement
         string interfaceList = BuildInterfaceList(entity, hasCreate, hasUpdate, createDtoName, updateDtoName, responseDtoName);

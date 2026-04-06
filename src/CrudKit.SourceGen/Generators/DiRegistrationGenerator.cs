@@ -53,10 +53,10 @@ internal static class DiRegistrationGenerator
             bool hasUpdate = entity.IsUpdateEnabled;
 
             string n      = entity.Name;
-            string create = naming.FormatCreateDto(n);
-            string update = naming.FormatUpdateDto(n);
-            string resp   = naming.FormatResponseDto(n);
-            string mapper = naming.FormatMapper(n);
+            string create = naming.FormatCreateDtoName(n);
+            string update = naming.FormatUpdateDtoName(n);
+            string resp   = naming.FormatResponseDtoName(n);
+            string mapper = naming.FormatMapperName(n);
 
             if (hasCreate && hasUpdate)
             {

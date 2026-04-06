@@ -52,8 +52,8 @@ internal static class EndpointMappingGenerator
 
         foreach (var entity in entities)
         {
-            string createDtoFqn = $"{entity.Namespace}.Dtos.{naming.FormatCreateDto(entity.Name)}";
-            string updateDtoFqn = $"{entity.Namespace}.Dtos.{naming.FormatUpdateDto(entity.Name)}";
+            string createDtoFqn = $"{entity.Namespace}.Dtos.{naming.FormatCreateDtoName(entity.Name)}";
+            string updateDtoFqn = $"{entity.Namespace}.Dtos.{naming.FormatUpdateDtoName(entity.Name)}";
 
             // Determine which mapper overload to call
             if (entity.ReadOnly || (!entity.IsCreateEnabled && !entity.IsUpdateEnabled))

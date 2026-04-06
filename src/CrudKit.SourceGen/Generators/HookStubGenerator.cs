@@ -11,7 +11,7 @@ internal static class HookStubGenerator
 {
     public static string Generate(EntityMetadata entity, NamingConvention naming)
     {
-        string className = naming.FormatHooks(entity.Name);
+        string className = naming.FormatHooksName(entity.Name);
 
         var sb = new StringBuilder();
 

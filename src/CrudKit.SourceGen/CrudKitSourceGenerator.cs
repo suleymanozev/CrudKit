@@ -93,12 +93,12 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
                 var value = arg.Value.Value as string ?? string.Empty;
                 naming = arg.Key switch
                 {
-                    "CreateDto"  => naming with { CreateDtoPattern  = value },
-                    "UpdateDto"  => naming with { UpdateDtoPattern  = value },
-                    "ResponseDto"=> naming with { ResponseDtoPattern = value },
-                    "Mapper"     => naming with { MapperPattern     = value },
-                    "Hooks"      => naming with { HooksPattern      = value },
-                    _            => naming,
+                    "CreateDtoNamingTemplate"  => naming with { CreateDtoNamingTemplate  = value },
+                    "UpdateDtoNamingTemplate"  => naming with { UpdateDtoNamingTemplate  = value },
+                    "ResponseDtoNamingTemplate"=> naming with { ResponseDtoNamingTemplate = value },
+                    "MapperNamingTemplate"     => naming with { MapperNamingTemplate     = value },
+                    "HooksNamingTemplate"      => naming with { HooksNamingTemplate      = value },
+                    _                          => naming,
                 };
             }
             return naming;
@@ -139,12 +139,12 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
                 }
             }
 
-            // Validate naming patterns — report CRUD011/CRUD012 errors
-            ValidateNamingPattern(spc, "CreateDto",   naming.CreateDtoPattern);
-            ValidateNamingPattern(spc, "UpdateDto",   naming.UpdateDtoPattern);
-            ValidateNamingPattern(spc, "ResponseDto", naming.ResponseDtoPattern);
-            ValidateNamingPattern(spc, "Mapper",      naming.MapperPattern);
-            ValidateNamingPattern(spc, "Hooks",       naming.HooksPattern);
+            // Validate naming templates — report CRUD011/CRUD012 errors
+            ValidateNamingPattern(spc, "CreateDtoNamingTemplate",   naming.CreateDtoNamingTemplate);
+            ValidateNamingPattern(spc, "UpdateDtoNamingTemplate",   naming.UpdateDtoNamingTemplate);
+            ValidateNamingPattern(spc, "ResponseDtoNamingTemplate", naming.ResponseDtoNamingTemplate);
+            ValidateNamingPattern(spc, "MapperNamingTemplate",      naming.MapperNamingTemplate);
+            ValidateNamingPattern(spc, "HooksNamingTemplate",       naming.HooksNamingTemplate);
 
             var metadata = EntityParser.Parse(symbol);
             if (metadata is null)
@@ -227,11 +227,11 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
 
     private static bool IsNamingValid(NamingConvention naming)
     {
-        return IsPatternValid(naming.CreateDtoPattern)
-            && IsPatternValid(naming.UpdateDtoPattern)
-            && IsPatternValid(naming.ResponseDtoPattern)
-            && IsPatternValid(naming.MapperPattern)
-            && IsPatternValid(naming.HooksPattern);
+        return IsPatternValid(naming.CreateDtoNamingTemplate)
+            && IsPatternValid(naming.UpdateDtoNamingTemplate)
+            && IsPatternValid(naming.ResponseDtoNamingTemplate)
+            && IsPatternValid(naming.MapperNamingTemplate)
+            && IsPatternValid(naming.HooksNamingTemplate);
     }
 
     private static bool IsPatternValid(string pattern)
@@ -253,7 +253,7 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
         {
             var createDtoSource = CreateDtoGenerator.Generate(entity, naming);
             if (createDtoSource != null)
-                spc.AddSource($"{naming.FormatCreateDto(entity.Name)}.g.cs", createDtoSource);
+                spc.AddSource($"{naming.FormatCreateDtoName(entity.Name)}.g.cs", createDtoSource);
         }
 
         // UpdateDto — skip when manual DTO is present or feature is disabled
@@ -261,19 +261,19 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
         {
             var updateDtoSource = UpdateDtoGenerator.Generate(entity, naming);
             if (updateDtoSource != null)
-                spc.AddSource($"{naming.FormatUpdateDto(entity.Name)}.g.cs", updateDtoSource);
+                spc.AddSource($"{naming.FormatUpdateDtoName(entity.Name)}.g.cs", updateDtoSource);
         }
 
         // ResponseDto — always emitted (no manual override attribute)
         var responseDtoSource = ResponseDtoGenerator.Generate(entity, naming);
-        spc.AddSource($"{naming.FormatResponseDto(entity.Name)}.g.cs", responseDtoSource);
+        spc.AddSource($"{naming.FormatResponseDtoName(entity.Name)}.g.cs", responseDtoSource);
 
         // Mapper — always emitted
         var mapperSource = MapperGenerator.Generate(entity, naming);
-        spc.AddSource($"{naming.FormatMapper(entity.Name)}.g.cs", mapperSource);
+        spc.AddSource($"{naming.FormatMapperName(entity.Name)}.g.cs", mapperSource);
 
         // Hook stub — always emitted
         var hookStubSource = HookStubGenerator.Generate(entity, naming);
-        spc.AddSource($"{naming.FormatHooks(entity.Name)}.g.cs", hookStubSource);
+        spc.AddSource($"{naming.FormatHooksName(entity.Name)}.g.cs", hookStubSource);
     }
 }

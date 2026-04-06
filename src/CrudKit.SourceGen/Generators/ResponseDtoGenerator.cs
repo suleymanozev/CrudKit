@@ -41,7 +41,7 @@ internal static class ResponseDtoGenerator
             responseProps.Add((typeName, p.Name));
         }
 
-        string className = naming.FormatResponseDto(entity.Name);
+        string className = naming.FormatResponseDtoName(entity.Name);
 
         var sb = new StringBuilder();
 

@@ -1,21 +1,21 @@
 namespace CrudKit.SourceGen.Models;
 
 /// <summary>
-/// Resolved naming patterns from [assembly: CrudKit(...)] attribute.
+/// Resolved naming templates from [assembly: CrudKit(...)] attribute.
 /// </summary>
 internal sealed record NamingConvention
 {
-    public string CreateDtoPattern   { get; init; } = "Create{Name}";
-    public string UpdateDtoPattern   { get; init; } = "Update{Name}";
-    public string ResponseDtoPattern { get; init; } = "{Name}Response";
-    public string MapperPattern      { get; init; } = "{Name}Mapper";
-    public string HooksPattern       { get; init; } = "{Name}Hooks";
+    public string CreateDtoNamingTemplate   { get; init; } = "Create{Name}";
+    public string UpdateDtoNamingTemplate   { get; init; } = "Update{Name}";
+    public string ResponseDtoNamingTemplate { get; init; } = "{Name}Response";
+    public string MapperNamingTemplate      { get; init; } = "{Name}Mapper";
+    public string HooksNamingTemplate       { get; init; } = "{Name}Hooks";
 
-    public string FormatCreateDto(string entityName)   => CreateDtoPattern.Replace("{Name}", entityName);
-    public string FormatUpdateDto(string entityName)   => UpdateDtoPattern.Replace("{Name}", entityName);
-    public string FormatResponseDto(string entityName) => ResponseDtoPattern.Replace("{Name}", entityName);
-    public string FormatMapper(string entityName)      => MapperPattern.Replace("{Name}", entityName);
-    public string FormatHooks(string entityName)       => HooksPattern.Replace("{Name}", entityName);
+    public string FormatCreateDtoName(string entityName)   => CreateDtoNamingTemplate.Replace("{Name}", entityName);
+    public string FormatUpdateDtoName(string entityName)   => UpdateDtoNamingTemplate.Replace("{Name}", entityName);
+    public string FormatResponseDtoName(string entityName) => ResponseDtoNamingTemplate.Replace("{Name}", entityName);
+    public string FormatMapperName(string entityName)      => MapperNamingTemplate.Replace("{Name}", entityName);
+    public string FormatHooksName(string entityName)       => HooksNamingTemplate.Replace("{Name}", entityName);
 
     public static NamingConvention Default => new NamingConvention();
 }

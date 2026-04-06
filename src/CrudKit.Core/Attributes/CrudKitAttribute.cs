@@ -8,18 +8,18 @@ namespace CrudKit.Core.Attributes;
 [AttributeUsage(AttributeTargets.Assembly)]
 public class CrudKitAttribute : Attribute
 {
-    /// <summary>Naming pattern for Create DTOs. Default: "Create{Name}". Must contain {Name}.</summary>
-    public string CreateDto { get; set; } = "Create{Name}";
+    /// <summary>Naming template for Create DTOs. Default: "Create{Name}". Must contain {Name}.</summary>
+    public string CreateDtoNamingTemplate { get; set; } = "Create{Name}";
 
-    /// <summary>Naming pattern for Update DTOs. Default: "Update{Name}". Must contain {Name}.</summary>
-    public string UpdateDto { get; set; } = "Update{Name}";
+    /// <summary>Naming template for Update DTOs. Default: "Update{Name}". Must contain {Name}.</summary>
+    public string UpdateDtoNamingTemplate { get; set; } = "Update{Name}";
 
-    /// <summary>Naming pattern for Response DTOs. Default: "{Name}Response". Must contain {Name}.</summary>
-    public string ResponseDto { get; set; } = "{Name}Response";
+    /// <summary>Naming template for Response DTOs. Default: "{Name}Response". Must contain {Name}.</summary>
+    public string ResponseDtoNamingTemplate { get; set; } = "{Name}Response";
 
-    /// <summary>Naming pattern for Mappers. Default: "{Name}Mapper". Must contain {Name}.</summary>
-    public string Mapper { get; set; } = "{Name}Mapper";
+    /// <summary>Naming template for Mappers. Default: "{Name}Mapper". Must contain {Name}.</summary>
+    public string MapperNamingTemplate { get; set; } = "{Name}Mapper";
 
-    /// <summary>Naming pattern for Hook stubs. Default: "{Name}Hooks". Must contain {Name}.</summary>
-    public string Hooks { get; set; } = "{Name}Hooks";
+    /// <summary>Naming template for Hook stubs. Default: "{Name}Hooks". Must contain {Name}.</summary>
+    public string HooksNamingTemplate { get; set; } = "{Name}Hooks";
 }

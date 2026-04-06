@@ -57,7 +57,7 @@ public class NamingConventionTests
     {
         const string assemblyAttr = """
             using CrudKit.Core.Attributes;
-            [assembly: CrudKit(CreateDto = "{Name}CreateRequest")]
+            [assembly: CrudKit(CreateDtoNamingTemplate = "{Name}CreateRequest")]
             """;
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity, assemblyAttr);
@@ -77,7 +77,7 @@ public class NamingConventionTests
     {
         const string assemblyAttr = """
             using CrudKit.Core.Attributes;
-            [assembly: CrudKit(UpdateDto = "{Name}UpdateRequest")]
+            [assembly: CrudKit(UpdateDtoNamingTemplate = "{Name}UpdateRequest")]
             """;
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity, assemblyAttr);
@@ -97,7 +97,7 @@ public class NamingConventionTests
     {
         const string assemblyAttr = """
             using CrudKit.Core.Attributes;
-            [assembly: CrudKit(ResponseDto = "{Name}Dto")]
+            [assembly: CrudKit(ResponseDtoNamingTemplate = "{Name}Dto")]
             """;
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity, assemblyAttr);
@@ -121,7 +121,7 @@ public class NamingConventionTests
     {
         const string assemblyAttr = """
             using CrudKit.Core.Attributes;
-            [assembly: CrudKit(CreateDto = "{Name}CreateRequest")]
+            [assembly: CrudKit(CreateDtoNamingTemplate = "{Name}CreateRequest")]
             """;
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity, assemblyAttr);
@@ -129,9 +129,9 @@ public class NamingConventionTests
             .Select(t => System.IO.Path.GetFileName(t.FilePath))
             .ToList();
 
-        // CreateDto overridden
+        // CreateDtoNamingTemplate overridden
         Assert.Contains("ProductCreateRequest.g.cs", fileNames);
-        // UpdateDto, ResponseDto, Mapper, Hooks use defaults
+        // UpdateDtoNamingTemplate, ResponseDtoNamingTemplate, MapperNamingTemplate, HooksNamingTemplate use defaults
         Assert.Contains("UpdateProduct.g.cs", fileNames);
         Assert.Contains("ProductResponse.g.cs", fileNames);
         Assert.Contains("ProductMapper.g.cs", fileNames);
@@ -147,7 +147,7 @@ public class NamingConventionTests
     {
         const string assemblyAttr = """
             using CrudKit.Core.Attributes;
-            [assembly: CrudKit(CreateDto = "")]
+            [assembly: CrudKit(CreateDtoNamingTemplate = "")]
             """;
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity, assemblyAttr);
@@ -160,7 +160,7 @@ public class NamingConventionTests
     {
         const string assemblyAttr = """
             using CrudKit.Core.Attributes;
-            [assembly: CrudKit(CreateDto = "CreateRequest")]
+            [assembly: CrudKit(CreateDtoNamingTemplate = "CreateRequest")]
             """;
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity, assemblyAttr);
@@ -175,7 +175,7 @@ public class NamingConventionTests
     {
         const string assemblyAttr = """
             using CrudKit.Core.Attributes;
-            [assembly: CrudKit(CreateDto = "")]
+            [assembly: CrudKit(CreateDtoNamingTemplate = "")]
             """;
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity, assemblyAttr);
@@ -190,7 +190,7 @@ public class NamingConventionTests
     {
         const string assemblyAttr = """
             using CrudKit.Core.Attributes;
-            [assembly: CrudKit(CreateDto = "CreateRequest", UpdateDto = "UpdateRequest")]
+            [assembly: CrudKit(CreateDtoNamingTemplate = "CreateRequest", UpdateDtoNamingTemplate = "UpdateRequest")]
             """;
 
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(ProductEntity, assemblyAttr);

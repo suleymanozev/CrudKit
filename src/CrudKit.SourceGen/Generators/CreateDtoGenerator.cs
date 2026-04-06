@@ -27,7 +27,7 @@ internal static class CreateDtoGenerator
                 props.Add(p);
         }
 
-        string className = naming.FormatCreateDto(entity.Name);
+        string className = naming.FormatCreateDtoName(entity.Name);
 
         var sb = new StringBuilder();
 
