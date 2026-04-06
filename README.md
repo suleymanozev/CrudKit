@@ -842,7 +842,68 @@ public class Order : FullAuditableEntity { }
 | `[Hashed]` | Masked as `"***"` — change recorded, value hidden |
 | `[AuditIgnore]` | Completely excluded — field never appears |
 
-If `UseAuditTrail()` is not called, `[Audited]` is silently ignored and `__crud_audit_logs` table is not created.
+**4. Log failed operations** (optional — for compliance):
+
+```csharp
+opts.UseAuditTrail()
+    .EnableAuditFailedOperations();  // logs FailedCreate, FailedUpdate, FailedDelete
+```
+
+**5. Custom audit writer** — write to Elasticsearch, separate DB, file, etc.:
+
+```csharp
+opts.UseAuditTrail<ElasticAuditWriter>();
+
+public class ElasticAuditWriter : IAuditWriter
+{
+    public async Task WriteAsync(IReadOnlyList<AuditEntry> entries, CancellationToken ct)
+    {
+        // write to Elasticsearch, file, separate DB — anything
+    }
+}
+```
+
+If `UseAuditTrail()` is not called, `[Audited]` is silently ignored and `__crud_audit_logs` table is not created. Default `DbAuditWriter` writes to the same database; custom writers can target any storage.
+
+---
+
+### Optimistic Concurrency
+
+Implement `IConcurrent` to enable automatic concurrency conflict detection:
+
+```csharp
+[CrudEntity(Table = "products")]
+public class Product : AuditableEntity, IConcurrent
+{
+    public string Name { get; set; } = string.Empty;
+    public uint RowVersion { get; set; }  // auto-managed by EF Core
+}
+```
+
+`CrudKitDbContext` configures `RowVersion` as a concurrency token automatically. When two requests update the same entity simultaneously, the second one receives `409 Conflict`.
+
+---
+
+### Testing Helpers
+
+CrudKit provides two `ICurrentUser` implementations for testing and development:
+
+```csharp
+// FakeCurrentUser — authenticated admin with full access (for tests)
+var user = new FakeCurrentUser
+{
+    Id = "user-123",
+    Username = "testadmin",
+    Roles = new List<string> { "admin" },
+    AccessibleTenants = null  // null = all tenants
+};
+
+// AnonymousCurrentUser — unauthenticated user (default fallback)
+var anon = new AnonymousCurrentUser();
+// IsAuthenticated = false, no roles, no permissions
+```
+
+`AddCrudKit()` automatically registers `AnonymousCurrentUser` as the `ICurrentUser` fallback if no other implementation is registered.
 
 ---
 
