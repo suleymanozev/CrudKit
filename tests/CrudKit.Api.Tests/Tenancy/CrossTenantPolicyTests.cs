@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using CrudKit.Api.Tenancy;
 using CrudKit.Api.Tests.Helpers;
 using CrudKit.Core.Auth;
 using Xunit;
@@ -169,6 +170,85 @@ public class CrossTenantPolicyTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("CROSS_TENANT_READ_ONLY", GetString(doc, "code"));
+    }
+
+    // ---- CrossTenantRuleBuilder.Only<T> overload tests ----
+
+    [Fact]
+    public void AllowReadOnly_Only_RestrictsToSpecificEntity()
+    {
+        // Arrange & Act
+        var policy = new CrudKit.Api.Tenancy.CrossTenantPolicy();
+        policy.AllowReadOnly("support").Only<OrderEntity>();
+
+        // Assert
+        var rule = Assert.Single(policy.Rules);
+        Assert.Equal("support", rule.Role);
+        Assert.Equal(CrossTenantAccessLevel.ReadOnly, rule.AccessLevel);
+        Assert.NotNull(rule.AllowedEntityTypes);
+        Assert.Single(rule.AllowedEntityTypes);
+        Assert.Contains(typeof(OrderEntity), rule.AllowedEntityTypes);
+    }
+
+    [Fact]
+    public void AllowReadOnly_Only_TwoTypes()
+    {
+        // Arrange & Act
+        var policy = new CrudKit.Api.Tenancy.CrossTenantPolicy();
+        policy.AllowReadOnly("support").Only<OrderEntity, InvoiceEntity>();
+
+        // Assert
+        var rule = Assert.Single(policy.Rules);
+        Assert.Equal(CrossTenantAccessLevel.ReadOnly, rule.AccessLevel);
+        Assert.NotNull(rule.AllowedEntityTypes);
+        Assert.Equal(2, rule.AllowedEntityTypes.Count);
+        Assert.Contains(typeof(OrderEntity), rule.AllowedEntityTypes);
+        Assert.Contains(typeof(InvoiceEntity), rule.AllowedEntityTypes);
+    }
+
+    [Fact]
+    public void AllowReadOnly_Only_ThreeTypes()
+    {
+        // Arrange & Act
+        var policy = new CrudKit.Api.Tenancy.CrossTenantPolicy();
+        policy.AllowReadOnly("support").Only<OrderEntity, InvoiceEntity, ProductEntity>();
+
+        // Assert
+        var rule = Assert.Single(policy.Rules);
+        Assert.Equal(CrossTenantAccessLevel.ReadOnly, rule.AccessLevel);
+        Assert.NotNull(rule.AllowedEntityTypes);
+        Assert.Equal(3, rule.AllowedEntityTypes.Count);
+        Assert.Contains(typeof(OrderEntity), rule.AllowedEntityTypes);
+        Assert.Contains(typeof(InvoiceEntity), rule.AllowedEntityTypes);
+        Assert.Contains(typeof(ProductEntity), rule.AllowedEntityTypes);
+    }
+
+    [Fact]
+    public void AllowReadOnly_Only_MultipleRoles_EachRuleGetsEntityTypes()
+    {
+        // Arrange & Act — two roles, both restricted to the same type
+        var policy = new CrudKit.Api.Tenancy.CrossTenantPolicy();
+        policy.AllowReadOnly("support", "auditor").Only<OrderEntity>();
+
+        // Assert: one rule per role, both restricted
+        Assert.Equal(2, policy.Rules.Count);
+        foreach (var rule in policy.Rules)
+        {
+            Assert.NotNull(rule.AllowedEntityTypes);
+            Assert.Single(rule.AllowedEntityTypes);
+            Assert.Contains(typeof(OrderEntity), rule.AllowedEntityTypes);
+        }
+    }
+
+    [Fact]
+    public void AllowReadOnly_WithoutOnly_AllowedEntityTypesIsNull()
+    {
+        // When Only<T> is NOT called, AllowedEntityTypes should remain null (all types allowed)
+        var policy = new CrudKit.Api.Tenancy.CrossTenantPolicy();
+        policy.AllowReadOnly("support");
+
+        var rule = Assert.Single(policy.Rules);
+        Assert.Null(rule.AllowedEntityTypes);
     }
 
     [Fact]
