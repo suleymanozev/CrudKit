@@ -17,4 +17,11 @@ public class CrudKitEfOptions
     /// Default: false (stored as integers).
     /// </summary>
     public bool EnumAsStringEnabled { get; set; }
+
+    /// <summary>
+    /// When true, failed SaveChanges operations are also logged to the audit trail
+    /// with action prefixed as "Failed" (e.g. "FailedCreate", "FailedUpdate").
+    /// Useful for security auditing and compliance. Default: false.
+    /// </summary>
+    public bool AuditFailedOperations { get; set; }
 }

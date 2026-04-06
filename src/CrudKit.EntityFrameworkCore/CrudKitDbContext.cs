@@ -169,13 +169,23 @@ public abstract class CrudKitDbContext : DbContext
 
         var auditEntries = CollectAuditEntries();
         var cascadeOps = BeforeSaveChanges();
-        var result = base.SaveChanges(acceptAllChangesOnSuccess);
-        ExecuteCascadeOps(cascadeOps);
 
-        if (auditEntries.Count > 0 && _auditWriter != null)
+        try
+        {
+            var result = base.SaveChanges(acceptAllChangesOnSuccess);
+            ExecuteCascadeOps(cascadeOps);
+
+            if (auditEntries.Count > 0 && _auditWriter != null)
+                _auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
+
+            return result;
+        }
+        catch when (_efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && _auditWriter != null)
+        {
+            foreach (var e in auditEntries) e.Action = $"Failed{e.Action}";
             _auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
-
-        return result;
+            throw;
+        }
     }
 
     public override async Task<int> SaveChangesAsync(
@@ -187,13 +197,23 @@ public abstract class CrudKitDbContext : DbContext
 
         var auditEntries = CollectAuditEntries();
         var cascadeOps = BeforeSaveChanges();
-        var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
-        ExecuteCascadeOps(cascadeOps);
 
-        if (auditEntries.Count > 0 && _auditWriter != null)
+        try
+        {
+            var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
+            ExecuteCascadeOps(cascadeOps);
+
+            if (auditEntries.Count > 0 && _auditWriter != null)
+                await _auditWriter.WriteAsync(auditEntries, ct);
+
+            return result;
+        }
+        catch when (_efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && _auditWriter != null)
+        {
+            foreach (var e in auditEntries) e.Action = $"Failed{e.Action}";
             await _auditWriter.WriteAsync(auditEntries, ct);
-
-        return result;
+            throw;
+        }
     }
 
     private List<(string Sql, object[] Params)> BeforeSaveChanges()

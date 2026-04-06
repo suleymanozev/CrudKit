@@ -33,6 +33,7 @@ public static class CrudKitAppExtensions
         {
             AuditTrailEnabled = opts.AuditTrailEnabled,
             EnumAsStringEnabled = opts.EnumAsStringEnabled,
+            AuditFailedOperations = opts.AuditFailedOperations,
         });
 
         // Register audit writer when audit trail is enabled
