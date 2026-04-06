@@ -1283,42 +1283,21 @@ var client = factory.CreateClient();
 
 ## ASP.NET Identity Integration
 
-`CrudKit.Identity` provides `CrudKitIdentityDbContext<TUser>` — a drop-in replacement for `IdentityDbContext<TUser>` that also inherits all CrudKit behaviors (soft delete, audit trail, multi-tenancy, etc.).
+`CrudKit.Identity` provides `CrudKitIdentityDbContext` — a drop-in replacement for `IdentityDbContext` that includes all CrudKit behaviors (soft delete, audit trail, multi-tenancy, user tracking, etc.).
 
 ### Setup
-
-Add the package:
 
 ```bash
 dotnet add package CrudKit.Identity
 ```
 
-Derive your `AppDbContext` from `CrudKitIdentityDbContext` instead of `CrudKitDbContext`:
-
 ```csharp
+public class AppUser : IdentityUser { }
+
 public class AppDbContext : CrudKitIdentityDbContext<AppUser>
 {
-    // 1-param constructor — uses default Identity schema
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
-    // 3-param constructor — passes ICurrentUser + TimeProvider
-    public AppDbContext(
-        DbContextOptions<AppDbContext> options,
-        ICurrentUser currentUser,
-        TimeProvider? timeProvider = null)
-        : base(options, currentUser, timeProvider) { }
-
-    // 8-param constructor — full Identity customization (custom key types, schemas)
-    public AppDbContext(
-        DbContextOptions<AppDbContext> options,
-        ICurrentUser currentUser,
-        TimeProvider? timeProvider,
-        string schema,
-        string usersTable,
-        string rolesTable,
-        string userClaimsTable,
-        string userRolesTable)
-        : base(options, currentUser, timeProvider, schema, usersTable, rolesTable, userClaimsTable, userRolesTable) { }
+    public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUser currentUser)
+        : base(options, currentUser) { }
 
     public DbSet<Product> Products => Set<Product>();
 }
@@ -1341,13 +1320,30 @@ builder.Services
     .AddEntityFrameworkStores<AppDbContext>();
 ```
 
-### Constructor Overloads
+### Class Overloads
 
-| Overload | Parameters | Use Case |
-|----------|-----------|----------|
-| 1-param | `DbContextOptions` | Minimal setup, default Identity tables |
-| 3-param | `+ ICurrentUser, TimeProvider?` | CrudKit user tracking + testable timestamps |
-| 8-param | `+ schema, 5 table names` | Custom Identity table names or schemas |
+Three class variants with increasing Identity customization. All share the same constructor signature.
+
+| Class | Generic Params | Use Case |
+|-------|---------------|----------|
+| `CrudKitIdentityDbContext<TUser>` | 1 | Default `string` keys, `IdentityRole` — most common |
+| `CrudKitIdentityDbContext<TUser, TRole, TKey>` | 3 | Custom key type (`int`, `Guid`) or custom role |
+| `CrudKitIdentityDbContext<TUser, TRole, TKey, ...>` | 8 | Fully custom Identity entity types |
+
+Inheritance chain: `1-param → 3-param → 8-param → IdentityDbContext`. All CrudKit logic lives in the 8-param base. The 1-param and 3-param are convenience shortcuts.
+
+### Constructor Parameters
+
+All overloads share the same constructor. Optional parameters are resolved via DI:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `options` | `DbContextOptions` | Yes | EF Core options |
+| `currentUser` | `ICurrentUser` | Yes | Current authenticated user |
+| `timeProvider` | `TimeProvider?` | No | Testable timestamps (default: `TimeProvider.System`) |
+| `efOptions` | `CrudKitEfOptions?` | No | Audit trail, enum-as-string flags |
+| `tenantContext` | `ITenantContext?` | No | Current tenant for multi-tenancy |
+| `auditWriter` | `IAuditWriter?` | No | Custom audit writer |
 
 ---
 
