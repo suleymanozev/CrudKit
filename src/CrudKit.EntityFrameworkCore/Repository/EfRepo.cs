@@ -140,7 +140,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
         // Auto-assign document number for IDocumentNumbering entities
         if (entity is IDocumentNumbering numbering && _sequenceGenerator != null)
         {
-            var tenantId = (entity is IMultiTenant mt) ? mt.TenantId : "__global__";
+            var tenantId = _db.TenantCtx?.TenantId ?? "__global__";
             var nextMethod = typeof(SequenceGenerator)
                 .GetMethod(nameof(SequenceGenerator.Next))!
                 .MakeGenericMethod(typeof(T));
