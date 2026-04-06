@@ -25,6 +25,9 @@ public static class CrudKitAppExtensions
         configure?.Invoke(opts);
         services.TryAddSingleton(opts);
 
+        // Propagate AuditTrailEnabled to the EF layer options
+        services.AddSingleton(new CrudKitEfOptions { AuditTrailEnabled = opts.AuditTrailEnabled });
+
         services.TryAddScoped<ICurrentUser, AnonymousCurrentUser>();
 
         services.Configure<JsonOptions>(jsonOpts =>

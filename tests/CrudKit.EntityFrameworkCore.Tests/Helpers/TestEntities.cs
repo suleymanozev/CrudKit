@@ -1,6 +1,6 @@
-using CrudKit.Core.Interfaces;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Enums;
+using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore.Concurrency;
 
 namespace CrudKit.EntityFrameworkCore.Tests.Helpers;
@@ -35,8 +35,9 @@ public class TenantPersonEntity : IAuditableEntity, IMultiTenant
     public DateTime UpdatedAt { get; set; }
 }
 
-/// <summary>IAuditable entity.</summary>
-public class AuditPersonEntity : IAuditableEntity, IAuditable
+/// <summary>[Audited] entity — changes are logged to the audit trail when UseAuditTrail() is enabled.</summary>
+[Audited]
+public class AuditPersonEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;

@@ -1,6 +1,6 @@
 namespace CrudKit.EntityFrameworkCore.Models;
 
-/// <summary>One row per entity change, written by CrudKitDbContext for IAuditable entities.</summary>
+/// <summary>One row per entity change, written by CrudKitDbContext for [Audited] entities.</summary>
 public class AuditLogEntry
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();

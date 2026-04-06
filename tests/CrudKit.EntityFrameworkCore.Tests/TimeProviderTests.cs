@@ -108,7 +108,7 @@ public class TimeProviderTests
         var fixedTime = new DateTimeOffset(2026, 6, 15, 12, 30, 0, TimeSpan.Zero);
         var fakeTime = new FakeTimeProvider(fixedTime);
 
-        using var db = DbHelper.CreateDb(timeProvider: fakeTime);
+        using var db = DbHelper.CreateDb(timeProvider: fakeTime, auditTrailEnabled: true);
         var entity = new AuditPersonEntity { Name = "Alice" };
         db.AuditPersons.Add(entity);
         await db.SaveChangesAsync();

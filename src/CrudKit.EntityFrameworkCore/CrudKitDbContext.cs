@@ -20,7 +20,7 @@ namespace CrudKit.EntityFrameworkCore;
 /// - ISoftDeletable    → DELETE intercepted → soft delete, global query filter
 /// - IMultiTenant      → global tenant filter, TenantId auto-set on Create
 /// - IConcurrent       → EF concurrency token
-/// - IAuditable        → audit log written on Create/Update/Delete
+/// - [Audited]         → audit log written on Create/Update/Delete (requires UseAuditTrail())
 /// - Enum properties   → stored as strings
 /// - [Unique]          → unique index (partial if ISoftDeletable)
 /// </summary>
@@ -28,16 +28,18 @@ public abstract class CrudKitDbContext : DbContext
 {
     private readonly ICurrentUser _currentUser;
     private readonly TimeProvider _timeProvider;
+    private readonly CrudKitEfOptions? _efOptions;
 
     public DbSet<AuditLogEntry> AuditLogs => Set<AuditLogEntry>();
     public DbSet<SequenceEntry> Sequences => Set<SequenceEntry>();
 
     protected CrudKitDbContext(DbContextOptions options, ICurrentUser currentUser,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null, CrudKitEfOptions? efOptions = null)
         : base(options)
     {
         _currentUser = currentUser;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _efOptions = efOptions;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -112,13 +114,16 @@ public abstract class CrudKitDbContext : DbContext
             }
         }
 
-        // CrudKit internal tables
-        modelBuilder.Entity<AuditLogEntry>(b =>
+        // CrudKit internal tables — audit log only when UseAuditTrail() is enabled
+        if (_efOptions?.AuditTrailEnabled == true)
         {
-            b.ToTable("__crud_audit_logs");
-            b.HasIndex(e => new { e.EntityType, e.EntityId });
-            b.HasIndex(e => e.Timestamp);
-        });
+            modelBuilder.Entity<AuditLogEntry>(b =>
+            {
+                b.ToTable("__crud_audit_logs");
+                b.HasIndex(e => new { e.EntityType, e.EntityId });
+                b.HasIndex(e => e.Timestamp);
+            });
+        }
 
         modelBuilder.Entity<SequenceEntry>(b =>
         {
@@ -268,8 +273,10 @@ public abstract class CrudKitDbContext : DbContext
 
     private void WriteAuditLogs(DateTime now)
     {
+        if (_efOptions?.AuditTrailEnabled != true) return;
+
         var entries = ChangeTracker.Entries()
-            .Where(e => e.Entity is IAuditable
+            .Where(e => e.Entity.GetType().GetCustomAttribute<AuditedAttribute>() != null
                 && e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
             .ToList();
 

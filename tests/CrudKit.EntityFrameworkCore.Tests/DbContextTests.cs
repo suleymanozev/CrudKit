@@ -133,7 +133,7 @@ public class DbContextTests
     [Fact]
     public async Task SaveChanges_WritesAuditLog_OnCreate()
     {
-        using var db = DbHelper.CreateDb();
+        using var db = DbHelper.CreateDb(auditTrailEnabled: true);
         var entity = new AuditPersonEntity { Name = "Alice" };
         db.AuditPersons.Add(entity);
         await db.SaveChangesAsync();
@@ -148,7 +148,7 @@ public class DbContextTests
     [Fact]
     public async Task SaveChanges_WritesAuditLog_OnUpdate_WithChangedFields()
     {
-        using var db = DbHelper.CreateDb();
+        using var db = DbHelper.CreateDb(auditTrailEnabled: true);
         var entity = new AuditPersonEntity { Name = "Alice" };
         db.AuditPersons.Add(entity);
         await db.SaveChangesAsync();
