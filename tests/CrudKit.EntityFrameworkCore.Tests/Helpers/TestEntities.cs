@@ -176,3 +176,37 @@ public class ChildItemEntity : IAuditableEntity, ISoftDeletable, ICascadeSoftDel
     public DateTime? DeletedAt { get; set; }
     public static string ParentForeignKey => nameof(ParentItemId);
 }
+
+// ---------------------------------------------------------------------------
+// Entities used by UserTracking tests
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Basic entity with user tracking fields (CreatedById, UpdatedById).
+/// </summary>
+public class TrackedEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
+    // User tracking fields — populated by TrySetUserField in BeforeSaveChanges
+    public Guid? CreatedById { get; set; }
+    public Guid? UpdatedById { get; set; }
+}
+
+/// <summary>
+/// Soft-deletable entity with user tracking fields including DeletedById.
+/// </summary>
+public class SoftDeleteTrackedEntity : IAuditableEntity, ISoftDeletable
+{
+    public Guid Id { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
+
+    // User tracking fields — populated by TrySetUserField in BeforeSaveChanges
+    public Guid? CreatedById { get; set; }
+    public Guid? UpdatedById { get; set; }
+    public Guid? DeletedById { get; set; }
+}
