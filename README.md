@@ -23,7 +23,7 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - `Optional<T>` for partial updates (distinguishes null from missing)
 - Property attributes: `[Hashed]`, `[SkipResponse]`, `[SkipUpdate]`, `[Protected]`, `[Unique]`, `[Searchable]`
 - Document numbering (e.g. `ORD-2026-00001`) with tenant-scoped sequences
-- Modular monolith support (`IModule` with assembly scan)
+- Modular monolith support (`IModule` with assembly scan, multi-DbContext auto-resolution)
 - Multi-database dialect (SQLite, PostgreSQL, SQL Server) — auto-detected
 - Entity base class hierarchy (`Entity`, `AuditableEntity`, `FullAuditableEntity` — with `<TUser>` variants)
 - Enum properties stored as strings automatically
@@ -677,6 +677,31 @@ builder.Services.AddCrudKitModule<OrderModule>();
 ```
 
 `UseCrudKit()` calls `MapEndpoints` on all discovered modules.
+
+**Multiple DbContexts** — each module can have its own DbContext. CrudKit automatically resolves the correct one per entity:
+
+```csharp
+// Each module owns its DbContext
+public class OrderDbContext : CrudKitDbContext
+{
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderLine> OrderLines => Set<OrderLine>();
+}
+
+public class InventoryDbContext : CrudKitDbContext
+{
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<Category> Categories => Set<Category>();
+}
+
+// Register both
+builder.Services.AddDbContext<OrderDbContext>(opts => opts.UseNpgsql("..."));
+builder.Services.AddDbContext<InventoryDbContext>(opts => opts.UseNpgsql("..."));
+builder.Services.AddCrudKit<OrderDbContext>();
+builder.Services.AddCrudKit<InventoryDbContext>();
+```
+
+`EfRepo<Order>` automatically resolves `OrderDbContext`, `EfRepo<Product>` resolves `InventoryDbContext`. No extra configuration needed — CrudKit scans `DbSet<>` properties to determine which entity belongs to which context.
 
 ---
 
