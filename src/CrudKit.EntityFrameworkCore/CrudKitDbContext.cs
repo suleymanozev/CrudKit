@@ -189,11 +189,18 @@ public abstract class CrudKitDbContext : DbContext
                     entry.Entity.UpdatedAt = now;
                     if (entry.Entity is IMultiTenant mt && _currentUser.TenantId != null)
                         mt.TenantId = _currentUser.TenantId;
+                    // User tracking — set CreatedBy and UpdatedBy
+                    TrySetUserField(entry, "CreatedById");
+                    TrySetUserField(entry, "UpdatedById");
                     break;
 
                 case EntityState.Modified:
                     entry.Entity.UpdatedAt = now;
                     entry.Property(nameof(IAuditableEntity.CreatedAt)).IsModified = false;
+                    // User tracking — set UpdatedBy only
+                    TrySetUserField(entry, "UpdatedById");
+                    // Prevent overwriting CreatedById on update
+                    TryPreserveField(entry, "CreatedById");
                     break;
 
                 case EntityState.Deleted:
@@ -202,6 +209,8 @@ public abstract class CrudKitDbContext : DbContext
                         entry.State = EntityState.Modified;
                         sd.DeletedAt = now;
                         entry.Entity.UpdatedAt = now;
+                        // User tracking — set DeletedBy
+                        TrySetUserField(entry, "DeletedById");
                     }
                     break;
             }
@@ -379,6 +388,49 @@ public abstract class CrudKitDbContext : DbContext
         if (prop.Metadata.PropertyInfo?.GetCustomAttribute<HashedAttribute>() != null)
             return "***";
         return value;
+    }
+
+    // ---- User tracking helpers ----
+
+    /// <summary>
+    /// Sets a user tracking field (CreatedById, UpdatedById, DeletedById) from ICurrentUser.Id.
+    /// Handles type conversion: if the property is Guid, parses the string; if string, assigns directly.
+    /// Silently skips if the property does not exist or the user is not authenticated.
+    /// </summary>
+    private void TrySetUserField(EntityEntry entry, string propertyName)
+    {
+        var userId = _currentUser.Id;
+        if (string.IsNullOrEmpty(userId)) return;
+
+        var prop = entry.Entity.GetType().GetProperty(propertyName,
+            BindingFlags.Public | BindingFlags.Instance);
+        if (prop == null || !prop.CanWrite) return;
+
+        var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+
+        if (targetType == typeof(string))
+        {
+            prop.SetValue(entry.Entity, userId);
+        }
+        else if (targetType == typeof(Guid) && Guid.TryParse(userId, out var guidValue))
+        {
+            prop.SetValue(entry.Entity, guidValue);
+        }
+        else
+        {
+            try { prop.SetValue(entry.Entity, Convert.ChangeType(userId, targetType)); }
+            catch { /* skip if conversion fails */ }
+        }
+    }
+
+    /// <summary>
+    /// Prevents a field from being overwritten on update (e.g. CreatedById should not change).
+    /// </summary>
+    private static void TryPreserveField(EntityEntry entry, string propertyName)
+    {
+        var efProp = entry.Properties.FirstOrDefault(p => p.Metadata.Name == propertyName);
+        if (efProp != null)
+            efProp.IsModified = false;
     }
 }
 
