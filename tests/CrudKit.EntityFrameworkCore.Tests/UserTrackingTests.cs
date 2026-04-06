@@ -1,6 +1,7 @@
 using CrudKit.Core.Auth;
 using CrudKit.EntityFrameworkCore.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Xunit;
 
 namespace CrudKit.EntityFrameworkCore.Tests;
 
