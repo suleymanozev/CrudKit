@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
 using CrudKit.Api.Configuration;
+using CrudKit.Api.Tenancy;
 using CrudKit.Api.Validation;
 using CrudKit.Core.Auth;
 using CrudKit.Core.Interfaces;
+using CrudKit.Core.Tenancy;
 using CrudKit.EntityFrameworkCore;
 using CrudKit.EntityFrameworkCore.Extensions;
 using Microsoft.AspNetCore.Builder;
@@ -34,6 +36,15 @@ public static class CrudKitAppExtensions
 
         services.TryAddScoped<ICurrentUser, AnonymousCurrentUser>();
 
+        // Register ITenantContext (always — even if no resolver, allows manual setting)
+        services.TryAddScoped<TenantContext>();
+        services.TryAddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+
+        if (opts.TenantResolver != null)
+        {
+            services.AddSingleton(new TenantResolverOptions { Resolver = opts.TenantResolver });
+        }
+
         services.Configure<JsonOptions>(jsonOpts =>
         {
             jsonOpts.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
@@ -59,6 +70,13 @@ public static class CrudKitAppExtensions
 
     public static WebApplication UseCrudKit(this WebApplication app)
     {
+        // Add tenant resolver middleware if configured
+        var resolverOptions = app.Services.GetService<TenantResolverOptions>();
+        if (resolverOptions != null)
+        {
+            app.UseMiddleware<TenantResolverMiddleware>();
+        }
+
         foreach (var module in app.Services.GetServices<IModule>())
             module.MapEndpoints(app);
         return app;

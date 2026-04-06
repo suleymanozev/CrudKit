@@ -29,17 +29,20 @@ public abstract class CrudKitDbContext : DbContext
     private readonly ICurrentUser _currentUser;
     private readonly TimeProvider _timeProvider;
     private readonly CrudKitEfOptions? _efOptions;
+    private readonly ITenantContext? _tenantContext;
 
     public DbSet<AuditLogEntry> AuditLogs => Set<AuditLogEntry>();
     public DbSet<SequenceEntry> Sequences => Set<SequenceEntry>();
 
     protected CrudKitDbContext(DbContextOptions options, ICurrentUser currentUser,
-        TimeProvider? timeProvider = null, CrudKitEfOptions? efOptions = null)
+        TimeProvider? timeProvider = null, CrudKitEfOptions? efOptions = null,
+        ITenantContext? tenantContext = null)
         : base(options)
     {
         _currentUser = currentUser;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _efOptions = efOptions;
+        _tenantContext = tenantContext;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -194,8 +197,8 @@ public abstract class CrudKitDbContext : DbContext
                     // Id already set in Step 1
                     entry.Entity.CreatedAt = now;
                     entry.Entity.UpdatedAt = now;
-                    if (entry.Entity is IMultiTenant mt && _currentUser.TenantId != null)
-                        mt.TenantId = _currentUser.TenantId;
+                    if (entry.Entity is IMultiTenant mt && _tenantContext?.TenantId != null)
+                        mt.TenantId = _tenantContext.TenantId;
                     // User tracking — set CreatedBy and UpdatedBy
                     TrySetUserField(entry, "CreatedById");
                     TrySetUserField(entry, "UpdatedById");
@@ -352,10 +355,13 @@ public abstract class CrudKitDbContext : DbContext
     }
 
     // ---- Runtime tenant value used by EF Core global filter ----
-    internal string? CurrentTenantId => _currentUser.TenantId;
+    internal string? CurrentTenantId => _tenantContext?.TenantId;
 
     // Exposed for EfRepo so it can build AppContext without taking ICurrentUser as a separate dependency.
     internal ICurrentUser CurrentUser => _currentUser;
+
+    // Exposed for EfRepo so it can build AppContext with tenant information.
+    internal ITenantContext? TenantCtx => _tenantContext;
 
     // ---- Filter expression builders ----
 

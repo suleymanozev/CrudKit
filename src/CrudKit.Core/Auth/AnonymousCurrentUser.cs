@@ -12,7 +12,6 @@ public class AnonymousCurrentUser : ICurrentUser
 {
     public string? Id => null;
     public string? Username => null;
-    public string? TenantId => null;
     public IReadOnlyList<string> Roles => Array.Empty<string>();
     public IReadOnlyList<Permission> Permissions => Array.Empty<Permission>();
     public bool IsAuthenticated => false;

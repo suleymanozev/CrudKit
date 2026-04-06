@@ -14,8 +14,8 @@ public class TestDbContext : CrudKitDbContext
 
     public TestDbContext(DbContextOptions<TestDbContext> options, ICurrentUser currentUser,
         SqliteConnection? connection = null, TimeProvider? timeProvider = null,
-        CrudKitEfOptions? efOptions = null)
-        : base(options, currentUser, timeProvider, efOptions)
+        CrudKitEfOptions? efOptions = null, ITenantContext? tenantContext = null)
+        : base(options, currentUser, timeProvider, efOptions, tenantContext)
     {
         _connection = connection;
     }

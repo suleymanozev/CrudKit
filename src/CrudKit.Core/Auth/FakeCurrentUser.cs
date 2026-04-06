@@ -10,20 +10,8 @@ namespace CrudKit.Core.Auth;
 /// </summary>
 public class FakeCurrentUser : ICurrentUser
 {
-    private readonly string? _tenantId;
-
-    /// <summary>
-    /// Creates a FakeCurrentUser. Defaults to "test-tenant" when no argument is supplied.
-    /// Pass null explicitly to simulate a user with no tenant.
-    /// </summary>
-    public FakeCurrentUser(string? tenantId = "test-tenant")
-    {
-        _tenantId = tenantId;
-    }
-
     public string? Id { get; set; } = "dev-user-1";
     public string? Username { get; set; } = "developer";
-    public string? TenantId => _tenantId;
     public IReadOnlyList<string> Roles { get; set; } = new List<string> { "admin" };
     public IReadOnlyList<Permission> Permissions { get; set; } = new List<Permission>();
     public bool IsAuthenticated => true;

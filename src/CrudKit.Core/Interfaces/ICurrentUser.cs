@@ -12,7 +12,6 @@ public interface ICurrentUser
 {
     string? Id { get; }
     string? Username { get; }
-    string? TenantId { get; }
     IReadOnlyList<string> Roles { get; }
     IReadOnlyList<Permission> Permissions { get; }
     bool IsAuthenticated { get; }

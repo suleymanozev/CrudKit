@@ -1,4 +1,5 @@
 using CrudKit.Core.Auth;
+using CrudKit.Core.Tenancy;
 using CrudKit.EntityFrameworkCore.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -84,10 +85,10 @@ public class DbContextTests
     // ---- Multi-tenant ----
 
     [Fact]
-    public async Task SaveChanges_SetsTenantId_FromCurrentUser()
+    public async Task SaveChanges_SetsTenantId_FromTenantContext()
     {
-        var user = new FakeCurrentUser("my-tenant");
-        using var db = DbHelper.CreateDb(user);
+        var tenant = new TenantContext { TenantId = "my-tenant" };
+        using var db = DbHelper.CreateDb(tenantContext: tenant);
 
         var entity = new TenantPersonEntity { Name = "Alice" };
         db.TenantPersons.Add(entity);
@@ -108,12 +109,12 @@ public class DbContextTests
         var options2 = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<TestDbContext>()
             .UseSqlite(connection).Options;
 
-        using var db1 = new TestDbContext(options1, new FakeCurrentUser("tenant-1"));
+        using var db1 = new TestDbContext(options1, new FakeCurrentUser(), tenantContext: new TenantContext { TenantId = "tenant-1" });
         db1.Database.EnsureCreated();
         db1.TenantPersons.Add(new TenantPersonEntity { Name = "Alice", TenantId = "tenant-1" });
         await db1.SaveChangesAsync();
 
-        using var db2 = new TestDbContext(options2, new FakeCurrentUser("tenant-2"));
+        using var db2 = new TestDbContext(options2, new FakeCurrentUser(), tenantContext: new TenantContext { TenantId = "tenant-2" });
         db2.Database.EnsureCreated(); // tables already exist; makes intent explicit
         db2.TenantPersons.Add(new TenantPersonEntity { Name = "Bob", TenantId = "tenant-2" });
         await db2.SaveChangesAsync();

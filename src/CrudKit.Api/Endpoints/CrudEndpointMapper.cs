@@ -918,7 +918,8 @@ public static class CrudEndpointMapper
         return new CrudKit.Core.Context.AppContext
         {
             Services = httpCtx.RequestServices,
-            CurrentUser = httpCtx.RequestServices.GetRequiredService<ICurrentUser>()
+            CurrentUser = httpCtx.RequestServices.GetRequiredService<ICurrentUser>(),
+            TenantContext = httpCtx.RequestServices.GetService<ITenantContext>()
         };
     }
 }

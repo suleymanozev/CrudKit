@@ -1,5 +1,6 @@
 using System.Reflection;
 using CrudKit.Core.Interfaces;
+using Microsoft.AspNetCore.Http;
 
 namespace CrudKit.Api.Configuration;
 
@@ -73,6 +74,49 @@ public class CrudKitApiOptions
     public CrudKitApiOptions UseEnumAsString()
     {
         EnumAsStringEnabled = true;
+        return this;
+    }
+
+    // Tenant resolution
+    internal Func<HttpContext, string?>? TenantResolver { get; set; }
+
+    /// <summary>Resolve tenant from HTTP header (e.g. "X-Tenant-Id").</summary>
+    public CrudKitApiOptions ResolveTenantFromHeader(string headerName)
+    {
+        TenantResolver = ctx => ctx.Request.Headers[headerName].FirstOrDefault();
+        return this;
+    }
+
+    /// <summary>Resolve tenant from JWT claim (e.g. "tenant_id").</summary>
+    public CrudKitApiOptions ResolveTenantFromClaim(string claimType)
+    {
+        TenantResolver = ctx => ctx.User?.FindFirst(claimType)?.Value;
+        return this;
+    }
+
+    /// <summary>Resolve tenant from first subdomain (e.g. "acme.app.com" -> "acme").</summary>
+    public CrudKitApiOptions ResolveTenantFromSubdomain()
+    {
+        TenantResolver = ctx =>
+        {
+            var host = ctx.Request.Host.Host;
+            var parts = host.Split('.');
+            return parts.Length >= 3 ? parts[0] : null;
+        };
+        return this;
+    }
+
+    /// <summary>Resolve tenant from route parameter (e.g. "{tenantId}" in route template).</summary>
+    public CrudKitApiOptions ResolveTenantFromRoute(string routeParameterName)
+    {
+        TenantResolver = ctx => ctx.Request.RouteValues.TryGetValue(routeParameterName, out var val) ? val?.ToString() : null;
+        return this;
+    }
+
+    /// <summary>Resolve tenant from query string parameter (e.g. "?tenant=acme").</summary>
+    public CrudKitApiOptions ResolveTenantFromQuery(string queryParameterName)
+    {
+        TenantResolver = ctx => ctx.Request.Query[queryParameterName].FirstOrDefault();
         return this;
     }
 

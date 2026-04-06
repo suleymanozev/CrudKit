@@ -1,5 +1,6 @@
 using CrudKit.Core.Auth;
 using CrudKit.Core.Interfaces;
+using CrudKit.Core.Tenancy;
 using CrudKit.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,8 @@ namespace CrudKit.EntityFrameworkCore.Tests.Helpers;
 public static class DbHelper
 {
     public static TestDbContext CreateDb(ICurrentUser? user = null, TimeProvider? timeProvider = null,
-        bool auditTrailEnabled = false, bool enumAsStringEnabled = false)
+        bool auditTrailEnabled = false, bool enumAsStringEnabled = false,
+        ITenantContext? tenantContext = null)
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -33,7 +35,7 @@ public static class DbHelper
             };
         }
 
-        var db = new TestDbContext(options, user ?? new FakeCurrentUser(), connection, timeProvider, efOptions);
+        var db = new TestDbContext(options, user ?? new FakeCurrentUser(), connection, timeProvider, efOptions, tenantContext);
         db.Database.EnsureCreated();
         return db;
     }

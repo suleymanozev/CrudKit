@@ -40,6 +40,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
         {
             Services = null!,
             CurrentUser = _db.CurrentUser,
+            TenantContext = _db.TenantCtx,
         };
     }
 

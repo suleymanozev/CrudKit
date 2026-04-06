@@ -50,8 +50,9 @@ public class IdempotencyFilter : IEndpointFilter
 
         var rawKey = keyValues.ToString();
         var currentUser = httpContext.RequestServices.GetRequiredService<ICurrentUser>();
+        var tenantContext = httpContext.RequestServices.GetService<ITenantContext>();
         var userId = currentUser.Id;
-        var tenantId = currentUser.TenantId;
+        var tenantId = tenantContext?.TenantId;
 
         // Build compound key so keys are scoped per user
         var compoundKey = $"{userId}:{rawKey}";
