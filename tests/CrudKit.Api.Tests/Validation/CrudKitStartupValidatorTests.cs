@@ -40,6 +40,56 @@ public class CrudKitStartupValidatorTests
             m => m.level == LogLevel.Warning && m.message.Contains("bulk update") && m.message.Contains("concurrent"));
     }
 
+    [Fact]
+    public void Validate_MultiTenantEntitiesWithoutResolver_LogsWarning()
+    {
+        // Arrange: DbContext has an IMultiTenant entity but no TenantResolverOptions registered
+        var services = BuildServiceProvider<MultiTenantDbContext>();
+        var testLogger = new TestLogger<CrudKitStartupValidator>();
+        var validator = new CrudKitStartupValidator(services, testLogger);
+
+        // Act: should not throw — only a warning
+        validator.Validate();
+
+        // Assert: warning about missing tenant resolver
+        Assert.Contains(testLogger.Messages,
+            m => m.level == LogLevel.Warning &&
+                 m.message.Contains("IMultiTenant") &&
+                 m.message.Contains("tenant resolver"));
+    }
+
+    [Fact]
+    public void Validate_MultiTenantEntitiesWithResolver_DoesNotLogWarning()
+    {
+        // Arrange: same DbContext but TenantResolverOptions is registered in DI
+        var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+
+        var svc = new ServiceCollection();
+        svc.AddDbContext<MultiTenantDbContext>(opts => opts.UseSqlite(connection));
+        svc.AddScoped<CrudKitDbContext>(sp => sp.GetRequiredService<MultiTenantDbContext>());
+        svc.AddScoped<ICurrentUser>(_ => new CrudKit.Core.Auth.AnonymousCurrentUser());
+        svc.AddLogging();
+        // Register a TenantResolverOptions so the validator sees it
+        svc.AddSingleton(new CrudKit.Api.Tenancy.TenantResolverOptions { Resolver = _ => "test" });
+        var services = svc.BuildServiceProvider();
+
+        using (var scope = services.CreateScope())
+            scope.ServiceProvider.GetRequiredService<MultiTenantDbContext>().Database.EnsureCreated();
+
+        var testLogger = new TestLogger<CrudKitStartupValidator>();
+        var validator = new CrudKitStartupValidator(services, testLogger);
+
+        // Act
+        validator.Validate();
+
+        // Assert: no warning about missing resolver
+        Assert.DoesNotContain(testLogger.Messages,
+            m => m.level == LogLevel.Warning &&
+                 m.message.Contains("IMultiTenant") &&
+                 m.message.Contains("tenant resolver"));
+    }
+
     // --- Helpers ---
 
     private static ServiceProvider BuildServiceProvider<TContext>() where TContext : CrudKitDbContext
@@ -97,6 +147,23 @@ public class ConcurrentBulkDbContext : CrudKitDbContext
         : base(options, currentUser) { }
 
     public DbSet<ConcurrentBulkEntity> ConcurrentBulks => Set<ConcurrentBulkEntity>();
+}
+
+public class MultiTenantEntity : IAuditableEntity, IMultiTenant
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string TenantId { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class MultiTenantDbContext : CrudKitDbContext
+{
+    public MultiTenantDbContext(DbContextOptions<MultiTenantDbContext> options, ICurrentUser currentUser)
+        : base(options, currentUser) { }
+
+    public DbSet<MultiTenantEntity> MultiTenantEntities => Set<MultiTenantEntity>();
 }
 
 /// <summary>

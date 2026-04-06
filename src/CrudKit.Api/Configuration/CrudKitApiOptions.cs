@@ -106,6 +106,12 @@ public class CrudKitApiOptions
     internal Func<HttpContext, string?>? TenantResolver { get; set; }
 
     /// <summary>
+    /// When true, requests where the tenant cannot be resolved return 400.
+    /// Set via UseMultiTenancy().RejectUnresolvedTenant().
+    /// </summary>
+    internal bool TenantRejectUnresolved { get; set; }
+
+    /// <summary>
     /// Enables multi-tenancy support. Returns <see cref="MultiTenancyOptions"/>
     /// to configure how the tenant ID is resolved from each request.
     /// </summary>

@@ -44,6 +44,20 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
     }
 
     /// <summary>
+    /// Throws a 400 BadRequest if the entity type implements IMultiTenant but no tenant
+    /// context is available. Called at the start of every public IRepo method.
+    /// </summary>
+    private void EnsureTenantContext()
+    {
+        if (typeof(IMultiTenant).IsAssignableFrom(typeof(T)))
+        {
+            var tenantId = _db.CurrentTenantId;
+            if (string.IsNullOrEmpty(tenantId))
+                throw AppError.BadRequest("Tenant context is required for multi-tenant operations.");
+        }
+    }
+
+    /// <summary>
     /// Builds a minimal AppContext for hook calls. Services is null because EfRepo
     /// does not hold a reference to IServiceProvider.
     /// </summary>
@@ -59,6 +73,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 
     public async Task<T> FindById(Guid id, CancellationToken ct = default)
     {
+        EnsureTenantContext();
         var query = _db.Set<T>().AsNoTracking();
         query = IncludeApplier.Apply(query, includeParam: null, isDetailQuery: true);
         if (_hooks != null)
@@ -69,6 +84,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 
     public async Task<T?> FindByIdOrDefault(Guid id, CancellationToken ct = default)
     {
+        EnsureTenantContext();
         var query = _db.Set<T>().AsNoTracking();
         query = IncludeApplier.Apply(query, includeParam: null, isDetailQuery: true);
         if (_hooks != null)
@@ -78,6 +94,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 
     public async Task<Paginated<T>> List(ListParams listParams, CancellationToken ct = default)
     {
+        EnsureTenantContext();
         var query = _db.Set<T>().AsNoTracking();
         if (_hooks != null)
             query = _hooks.ApplyScope(query, BuildAppContext());
@@ -86,6 +103,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 
     public async Task<List<T>> FindByField(string fieldName, object value, CancellationToken ct = default)
     {
+        EnsureTenantContext();
         var prop = typeof(T).GetProperty(fieldName,
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
         if (prop == null) return [];
@@ -115,6 +133,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 
     public async Task<T> Create(object createDto, CancellationToken ct = default)
     {
+        EnsureTenantContext();
         var entity = Activator.CreateInstance<T>();
         MapDtoToEntity(createDto, entity, isCreate: true);
 
@@ -138,6 +157,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 
     public async Task<T> Update(Guid id, object updateDto, CancellationToken ct = default)
     {
+        EnsureTenantContext();
         var entity = await _db.Set<T>().FirstOrDefaultAsync(e => e.Id == id, ct)
             ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
 
@@ -150,6 +170,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 
     public async Task Delete(Guid id, CancellationToken ct = default)
     {
+        EnsureTenantContext();
         var entity = await _db.Set<T>().FirstOrDefaultAsync(e => e.Id == id, ct)
             ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
 
@@ -160,6 +181,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 
     public async Task Restore(Guid id, CancellationToken ct = default)
     {
+        EnsureTenantContext();
         if (typeof(T).IsAssignableTo(typeof(ISoftDeletable)) == false)
             throw new InvalidOperationException($"{typeof(T).Name} does not implement ISoftDeletable.");
 
@@ -244,6 +266,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 
     public async Task<long> BulkCount(Dictionary<string, FilterOp> filters, CancellationToken ct = default)
     {
+        EnsureTenantContext();
         var query = _db.Set<T>().AsNoTracking();
         foreach (var (field, op) in filters)
             query = _filterApplier.Apply(query, field, op);
@@ -252,6 +275,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 
     public async Task<int> BulkDelete(Dictionary<string, FilterOp> filters, CancellationToken ct = default)
     {
+        EnsureTenantContext();
         var query = _db.Set<T>().AsQueryable();
         foreach (var (field, op) in filters)
             query = _filterApplier.Apply(query, field, op);
@@ -282,6 +306,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 
     public async Task<int> BulkUpdate(Dictionary<string, FilterOp> filters, Dictionary<string, object?> values, CancellationToken ct = default)
     {
+        EnsureTenantContext();
         var query = _db.Set<T>().AsQueryable();
         foreach (var (field, op) in filters)
             query = _filterApplier.Apply(query, field, op);

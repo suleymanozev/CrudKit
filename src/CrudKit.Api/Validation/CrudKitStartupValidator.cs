@@ -1,4 +1,5 @@
 using System.Reflection;
+using CrudKit.Api.Tenancy;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore;
@@ -42,6 +43,18 @@ public class CrudKitStartupValidator : IHostedService
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetService<CrudKitDbContext>();
         if (db is null) return;
+
+        // Warn if IMultiTenant entities exist but no tenant resolver is configured.
+        var tenantResolver = _services.GetService<TenantResolverOptions>();
+        var hasMultiTenantEntities = db.Model.GetEntityTypes()
+            .Any(et => typeof(IMultiTenant).IsAssignableFrom(et.ClrType));
+
+        if (hasMultiTenantEntities && tenantResolver == null)
+        {
+            _logger.LogWarning(
+                "One or more entities implement IMultiTenant but no tenant resolver is configured. " +
+                "Call UseMultiTenancy().ResolveTenantFrom*() to configure tenant resolution.");
+        }
 
         var entityTypes = db.Model.GetEntityTypes()
             .Where(t => t.ClrType != null && typeof(IAuditableEntity).IsAssignableFrom(t.ClrType))

@@ -52,4 +52,14 @@ public class MultiTenancyOptions
         _parent.TenantResolver = ctx => ctx.Request.Query[queryParameterName].FirstOrDefault();
         return this;
     }
+
+    /// <summary>
+    /// When enabled, requests where the tenant cannot be resolved will receive a 400 response
+    /// with code TENANT_REQUIRED instead of proceeding with a null tenant context.
+    /// </summary>
+    public MultiTenancyOptions RejectUnresolvedTenant()
+    {
+        _parent.TenantRejectUnresolved = true;
+        return this;
+    }
 }

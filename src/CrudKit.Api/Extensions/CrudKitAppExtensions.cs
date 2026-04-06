@@ -53,7 +53,11 @@ public static class CrudKitAppExtensions
 
         if (opts.TenantResolver != null)
         {
-            services.AddSingleton(new TenantResolverOptions { Resolver = opts.TenantResolver });
+            services.AddSingleton(new TenantResolverOptions
+            {
+                Resolver = opts.TenantResolver,
+                RejectUnresolved = opts.TenantRejectUnresolved
+            });
         }
 
         services.Configure<JsonOptions>(jsonOpts =>
