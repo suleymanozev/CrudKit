@@ -5,9 +5,7 @@ using CrudKit.Api.Configuration;
 using CrudKit.Api.Endpoints;
 using CrudKit.Api.Tests.Helpers;
 using CrudKit.Core.Auth;
-using CrudKit.Core.Enums;
 using CrudKit.Core.Interfaces;
-using CrudKit.Core.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -23,7 +21,6 @@ internal class ConfigurableCurrentUser : ICurrentUser
     public string? Id { get; set; } = "test-user";
     public string? Username { get; set; } = "tester";
     public IReadOnlyList<string> Roles { get; set; } = new List<string>();
-    public IReadOnlyList<Permission> Permissions { get; set; } = new List<Permission>();
     public bool IsAuthenticated => true;
     public IReadOnlyList<string>? AccessibleTenants { get; set; }
 
@@ -34,7 +31,6 @@ internal class ConfigurableCurrentUser : ICurrentUser
 
     public bool HasRole(string role) => Roles.Contains(role);
     public bool HasPermission(string entity, string action) => _permissionKeys.Contains($"{entity}:{action}");
-    public bool HasPermission(string entity, string action, PermScope scope) => HasPermission(entity, action);
 }
 
 public class EndpointAuthorizationTests

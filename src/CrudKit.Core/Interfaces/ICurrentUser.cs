@@ -1,6 +1,3 @@
-using CrudKit.Core.Enums;
-using CrudKit.Core.Models;
-
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>
@@ -13,11 +10,9 @@ public interface ICurrentUser
     string? Id { get; }
     string? Username { get; }
     IReadOnlyList<string> Roles { get; }
-    IReadOnlyList<Permission> Permissions { get; }
     bool IsAuthenticated { get; }
     bool HasRole(string role);
     bool HasPermission(string entity, string action);
-    bool HasPermission(string entity, string action, PermScope scope);
 
     /// <summary>
     /// Tenant IDs this user can access. null = all tenants (superadmin).

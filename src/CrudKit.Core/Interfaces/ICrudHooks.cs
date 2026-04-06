@@ -20,7 +20,7 @@ public interface ICrudHooks<T> where T : class, IAuditableEntity
 
     /// <summary>
     /// Applies additional filters to List and FindById queries.
-    /// Use for row-level security and PermScope.Own-style filtering.
+    /// Use for row-level security filtering.
     /// Default: returns the query unchanged.
     /// </summary>
     IQueryable<T> ApplyScope(IQueryable<T> query, CrudKit.Core.Context.AppContext ctx) => query;

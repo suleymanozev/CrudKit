@@ -14,7 +14,6 @@ public class AnonymousCurrentUserTests
         Assert.Null(anon.Username);
         Assert.False(anon.IsAuthenticated);
         Assert.Empty(anon.Roles);
-        Assert.Empty(anon.Permissions);
         Assert.False(anon.HasRole("admin"));
         Assert.False(anon.HasPermission("entity", "action"));
         Assert.NotNull(anon.AccessibleTenants);
@@ -39,15 +38,6 @@ public class AnonymousCurrentUserTests
         Assert.False(anon.HasPermission("Order", "Read"));
         Assert.False(anon.HasPermission("Order", "Delete"));
         Assert.False(anon.HasPermission("", ""));
-    }
-
-    [Fact]
-    public void HasPermission_WithScope_AlwaysReturnsFalse()
-    {
-        var anon = new AnonymousCurrentUser();
-
-        Assert.False(anon.HasPermission("Order", "Read", CrudKit.Core.Enums.PermScope.Own));
-        Assert.False(anon.HasPermission("Order", "Delete", CrudKit.Core.Enums.PermScope.All));
     }
 
     [Fact]

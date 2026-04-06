@@ -18,7 +18,7 @@ public class CrudEntityAttribute : Attribute
 
     /// <summary>
     /// Property name on the entity that holds the owner user ID.
-    /// Used with PermScope.Own to filter entities by owner.
+    /// Used for row-level security to filter entities by owner.
     /// </summary>
     public string? OwnerField { get; set; }
 
