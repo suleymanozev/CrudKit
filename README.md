@@ -8,7 +8,7 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 
 - Auto-mapped REST endpoints (List, Get, Create, Update, Delete)
 - Soft delete with cascade and restore
-- Multi-tenant isolation
+- Multi-tenant isolation (`ITenantContext` + 5 built-in resolvers: header, JWT claim, subdomain, route, query)
 - Audit trail (`[Audited]` + `UseAuditTrail()` opt-in, `[AuditIgnore]` per-property, `[Hashed]` auto-masked)
 - Optimistic concurrency
 - Lifecycle hooks (`ICrudHooks<T>`) + global hooks (`IGlobalCrudHook`) for cross-cutting concerns
@@ -115,7 +115,11 @@ public class LegacyProduct : AuditableEntity<long> { }
 public class LegacyOrder : FullAuditableEntityWithUser<long, AppUser, int> { }
 ```
 
-### Multi-tenant (interface — orthogonal to base class)
+### Multi-Tenant
+
+Tenant isolation is two parts: **entity marking** and **tenant resolution**.
+
+**1. Mark entities** — implement `IMultiTenant`:
 
 ```csharp
 public class Order : FullAuditableEntity, IMultiTenant
@@ -131,6 +135,27 @@ public class Order : FullAuditableEntity, IMultiTenant<Tenant>
     public Tenant? Tenant { get; set; }
 }
 ```
+
+`CrudKitDbContext` automatically applies a global query filter (`WHERE TenantId = X`) and sets `TenantId` on create.
+
+**2. Configure tenant resolution** — tell CrudKit where to find the tenant ID:
+
+```csharp
+builder.Services.AddCrudKit<AppDbContext>(opts =>
+{
+    opts.ResolveTenantFromHeader("X-Tenant-Id");      // HTTP header
+    // or
+    opts.ResolveTenantFromClaim("tenant_id");          // JWT claim
+    // or
+    opts.ResolveTenantFromSubdomain();                 // acme.app.com → "acme"
+    // or
+    opts.ResolveTenantFromRoute("tenantId");            // /api/{tenantId}/products
+    // or
+    opts.ResolveTenantFromQuery("tenant");              // ?tenant=acme
+});
+```
+
+Tenant resolution uses `ITenantContext` — separate from `ICurrentUser`. A request can be tenant-scoped without authentication (e.g. public API with subdomain-based tenancy).
 
 ### `[CrudEntity]` options
 
@@ -794,6 +819,9 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
     opts.UseAuditTrail();                // All entities audited (opt-out with [NotAudited])
     opts.UseExport();                    // All entities exportable (opt-out with [NotExportable])
     opts.UseImport();                    // All entities importable (opt-out with [NotImportable])
+
+    // Tenant resolution
+    opts.ResolveTenantFromHeader("X-Tenant-Id");  // or FromClaim, FromSubdomain, FromRoute, FromQuery
 
     // Module discovery
     opts.ScanModulesFromAssembly = typeof(Program).Assembly;
