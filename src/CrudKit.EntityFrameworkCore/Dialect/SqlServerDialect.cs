@@ -70,9 +70,6 @@ public class SqlServerDialect : IDbDialect
                $"WHEN NOT MATCHED THEN INSERT ({colList}) VALUES ({string.Join(", ", columns.Select(c => $"source.{c}"))});";
     }
 
-    public string GetSequenceNextValueSql(string sequenceName)
-        => $"SELECT NEXT VALUE FOR {sequenceName}";
-
     public void ConfigureConcurrencyToken(ModelBuilder modelBuilder, Type entityType)
     {
         // SQL Server: manual uint token with IsConcurrencyToken().

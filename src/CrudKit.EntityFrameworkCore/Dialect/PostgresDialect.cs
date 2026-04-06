@@ -81,9 +81,6 @@ public class PostgresDialect : IDbDialect
                $"ON CONFLICT ({keyList}) DO UPDATE SET {updateList}";
     }
 
-    public string GetSequenceNextValueSql(string sequenceName)
-        => $"SELECT nextval('{sequenceName}')";
-
     public void ConfigureConcurrencyToken(ModelBuilder modelBuilder, Type entityType)
     {
         // PostgreSQL: manual uint token — works with all PostgreSQL setups.

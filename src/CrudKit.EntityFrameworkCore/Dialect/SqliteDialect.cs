@@ -55,9 +55,6 @@ public class SqliteDialect : IDbDialect
                $"ON CONFLICT ({keyList}) DO UPDATE SET {updateList}";
     }
 
-    public string GetSequenceNextValueSql(string sequenceName)
-        => throw new NotSupportedException("SQLite does not support sequences. Use SequenceGenerator.");
-
     public void ConfigureConcurrencyToken(ModelBuilder modelBuilder, Type entityType)
     {
         // SQLite: manual uint token — app increments RowVersion on each save

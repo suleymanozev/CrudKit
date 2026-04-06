@@ -20,9 +20,6 @@ public interface IDbDialect
     /// <summary>Generates a concurrent-safe upsert SQL statement.</summary>
     string GetUpsertSql(string table, string[] columns, string[] keyColumns);
 
-    /// <summary>Generates SQL to fetch the next sequence value.</summary>
-    string GetSequenceNextValueSql(string sequenceName);
-
     /// <summary>
     /// Configures the concurrency token strategy for IConcurrent entities.
     /// SQL Server uses IsRowVersion(), others use IsConcurrencyToken().

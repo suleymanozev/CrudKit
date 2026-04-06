@@ -54,10 +54,6 @@ public class GenericDialect : IDbDialect
                $"ON CONFLICT ({keyList}) DO UPDATE SET {updateList}";
     }
 
-    public string GetSequenceNextValueSql(string sequenceName)
-        => throw new NotSupportedException(
-            $"Provider does not support sequences. Use SequenceGenerator with table-based approach.");
-
     public void ConfigureConcurrencyToken(ModelBuilder modelBuilder, Type entityType)
     {
         // Generic fallback: manual uint token — app increments RowVersion on each save

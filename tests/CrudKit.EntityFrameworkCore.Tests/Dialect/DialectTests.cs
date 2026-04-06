@@ -113,14 +113,6 @@ public class DialectTests
     }
 
     [Fact]
-    public void SqliteDialect_GetSequenceNextValueSql_ThrowsNotSupported()
-    {
-        var dialect = new SqliteDialect();
-        Assert.Throws<NotSupportedException>(() =>
-            dialect.GetSequenceNextValueSql("my_sequence"));
-    }
-
-    [Fact]
     public void SqliteDialect_ConfigureConcurrencyToken_ConfiguresToken()
     {
         // Verify via an integration test using the DbHelper which uses SQLite
