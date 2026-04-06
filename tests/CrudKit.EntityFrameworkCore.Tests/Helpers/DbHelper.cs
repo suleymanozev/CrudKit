@@ -65,6 +65,7 @@ public static class DbHelper
         var services = new ServiceCollection();
         services.AddSingleton(db);
         services.AddSingleton<CrudKitDbContext>(db);
+        services.AddSingleton<ICrudKitDbContext>(db);
         return services.BuildServiceProvider();
     }
 }

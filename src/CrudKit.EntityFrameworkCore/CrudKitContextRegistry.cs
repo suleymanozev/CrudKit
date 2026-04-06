@@ -5,16 +5,25 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CrudKit.EntityFrameworkCore;
 
 /// <summary>
-/// Tracks registered CrudKitDbContext types and resolves the correct context for a given entity type.
+/// Tracks registered CrudKit DbContext types and resolves the correct context for a given entity type.
 /// Enables multi-DbContext scenarios (modular monolith) where different entities belong to different contexts.
+/// Supports both CrudKitDbContext and CrudKitIdentityDbContext hierarchies via ICrudKitDbContext.
 /// </summary>
 public class CrudKitContextRegistry
 {
     private readonly List<Type> _contextTypes = new();
     private readonly ConcurrentDictionary<Type, Type?> _entityToContext = new();
 
-    /// <summary>Register a DbContext type so its entities can be resolved at runtime.</summary>
+    /// <summary>Register a CrudKitDbContext-derived type so its entities can be resolved at runtime.</summary>
     public void Add<TContext>() where TContext : CrudKitDbContext
+    {
+        var contextType = typeof(TContext);
+        if (!_contextTypes.Contains(contextType))
+            _contextTypes.Add(contextType);
+    }
+
+    /// <summary>Register any ICrudKitDbContext-implementing type (e.g. CrudKitIdentityDbContext) so its entities can be resolved at runtime.</summary>
+    public void AddContext<TContext>() where TContext : class, ICrudKitDbContext
     {
         var contextType = typeof(TContext);
         if (!_contextTypes.Contains(contextType))
@@ -46,14 +55,14 @@ public class CrudKitContextRegistry
     }
 
     /// <summary>
-    /// Resolve the correct CrudKitDbContext instance for entity type <typeparamref name="T"/>.
-    /// Falls back to <see cref="CrudKitDbContext"/> if no specific context is found.
+    /// Resolve the correct ICrudKitDbContext instance for entity type <typeparamref name="T"/>.
+    /// Falls back to <see cref="ICrudKitDbContext"/> if no specific context is found.
     /// </summary>
-    public CrudKitDbContext ResolveFor<T>(IServiceProvider services) where T : class
+    public ICrudKitDbContext ResolveFor<T>(IServiceProvider services) where T : class
     {
         var contextType = FindContextForEntity(typeof(T));
         if (contextType != null)
-            return (CrudKitDbContext)services.GetRequiredService(contextType);
-        return services.GetRequiredService<CrudKitDbContext>();
+            return (ICrudKitDbContext)services.GetRequiredService(contextType);
+        return services.GetRequiredService<ICrudKitDbContext>();
     }
 }

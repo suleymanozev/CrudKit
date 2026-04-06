@@ -16,7 +16,7 @@ namespace CrudKit.EntityFrameworkCore.Repository;
 /// </summary>
 public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 {
-    private readonly CrudKitDbContext _db;
+    private readonly ICrudKitDbContext _db;
     private readonly QueryBuilder<T> _queryBuilder;
     private readonly FilterApplier _filterApplier;
     private readonly ICrudHooks<T>? _hooks;
@@ -32,15 +32,15 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
     }
 
     /// <summary>
-    /// Resolve the correct DbContext for entity type T using the context registry.
-    /// Falls back to CrudKitDbContext when no registry is available (backward compat).
+    /// Resolve the correct ICrudKitDbContext for entity type T using the context registry.
+    /// Falls back to ICrudKitDbContext when no registry is available (backward compat).
     /// </summary>
-    private static CrudKitDbContext ResolveContext(IServiceProvider services)
+    private static ICrudKitDbContext ResolveContext(IServiceProvider services)
     {
         var registry = services.GetService<CrudKitContextRegistry>();
         if (registry != null)
             return registry.ResolveFor<T>(services);
-        return services.GetRequiredService<CrudKitDbContext>();
+        return services.GetRequiredService<ICrudKitDbContext>();
     }
 
     /// <summary>

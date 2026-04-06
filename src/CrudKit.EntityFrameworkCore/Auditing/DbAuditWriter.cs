@@ -21,7 +21,7 @@ public class DbAuditWriter : IAuditWriter
     {
         if (entries.Count == 0) return;
 
-        var db = _services.GetRequiredService<CrudKitDbContext>();
+        var db = _services.GetRequiredService<ICrudKitDbContext>();
 
         foreach (var entry in entries)
         {

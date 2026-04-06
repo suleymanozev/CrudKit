@@ -1049,15 +1049,15 @@ public static class CrudEndpointMapper
     }
 
     /// <summary>
-    /// Resolve the correct CrudKitDbContext for entity type <typeparamref name="TEntity"/>
-    /// using the context registry when available, falling back to the default CrudKitDbContext.
+    /// Resolve the correct ICrudKitDbContext for entity type <typeparamref name="TEntity"/>
+    /// using the context registry when available, falling back to the default ICrudKitDbContext.
     /// </summary>
-    internal static CrudKitDbContext ResolveDbContextFor<TEntity>(IServiceProvider services) where TEntity : class
+    internal static ICrudKitDbContext ResolveDbContextFor<TEntity>(IServiceProvider services) where TEntity : class
     {
         var registry = services.GetService<CrudKitContextRegistry>();
         if (registry != null)
             return registry.ResolveFor<TEntity>(services);
-        return services.GetRequiredService<CrudKitDbContext>();
+        return services.GetRequiredService<ICrudKitDbContext>();
     }
 }
 

@@ -1,3 +1,4 @@
+using CrudKit.EntityFrameworkCore;
 using CrudKit.EntityFrameworkCore.Dialect;
 using CrudKit.EntityFrameworkCore.Numbering;
 using CrudKit.EntityFrameworkCore.Query;
@@ -5,24 +6,22 @@ using CrudKit.EntityFrameworkCore.Repository;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace CrudKit.EntityFrameworkCore.Extensions;
+namespace CrudKit.Identity;
 
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers the CrudKit EF Core infrastructure.
+    /// Registers CrudKit EF Core infrastructure for an Identity-based DbContext.
     /// Call after AddDbContext&lt;TContext&gt;.
     /// </summary>
     /// <example>
-    /// services.AddDbContext&lt;AppDbContext&gt;(...);
-    /// services.AddCrudKitEf&lt;AppDbContext&gt;();
+    /// services.AddDbContext&lt;AppIdentityDbContext&gt;(...);
+    /// services.AddCrudKitIdentityEf&lt;AppIdentityDbContext&gt;();
     /// </example>
-    public static IServiceCollection AddCrudKitEf<TContext>(this IServiceCollection services)
-        where TContext : CrudKitDbContext
+    public static IServiceCollection AddCrudKitIdentityEf<TContext>(this IServiceCollection services)
+        where TContext : class, ICrudKitDbContext
     {
-        // Context registry for multi-DbContext support (modular monolith).
-        // Retrieve or create a shared instance so multiple AddCrudKitEf calls
-        // populate the same registry without BuildServiceProvider anti-pattern.
+        // Context registry for multi-DbContext support.
         var registryDescriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(CrudKitContextRegistry));
         CrudKitContextRegistry registry;
@@ -35,16 +34,16 @@ public static class ServiceCollectionExtensions
             registry = new CrudKitContextRegistry();
             services.AddSingleton(registry);
         }
-        registry.Add<TContext>();
+        registry.AddContext<TContext>();
 
-        // Register TContext also as CrudKitDbContext and ICrudKitDbContext for fallback resolution.
-        services.TryAddScoped<CrudKitDbContext>(sp => sp.GetRequiredService<TContext>());
+        // Register TContext also as ICrudKitDbContext for EfRepo fallback resolution.
         services.TryAddScoped<ICrudKitDbContext>(sp => sp.GetRequiredService<TContext>());
 
         // Dialect — auto-detected from TContext's provider.
+        // ICrudKitDbContext implementations are always DbContext subclasses; the cast is safe.
         services.TryAddScoped<IDbDialect>(sp =>
         {
-            var db = sp.GetRequiredService<TContext>();
+            var db = (Microsoft.EntityFrameworkCore.DbContext)(object)sp.GetRequiredService<TContext>();
             return DialectDetector.Detect(db);
         });
 
