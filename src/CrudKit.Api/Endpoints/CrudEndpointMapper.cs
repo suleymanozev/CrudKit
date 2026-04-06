@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using CrudKit.Api.Configuration;
 using CrudKit.Api.Filters;
 using CrudKit.Api.Helpers;
 using CrudKit.Api.Models;
@@ -37,6 +38,28 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
         Group = group;
         App = app;
         Route = route;
+    }
+
+    /// <summary>
+    /// Configures per-operation authorization for the CRUD endpoint group.
+    /// Supports global roles, per-operation roles/permissions, and convention-based permissions.
+    /// </summary>
+    public CrudEndpointGroup<TMaster> Authorize(Action<EndpointAuthorizationBuilder> configure)
+    {
+        var auth = new EndpointAuthorizationBuilder();
+        configure(auth);
+        Group.AddEndpointFilter(new CrudAuthorizationFilter(auth, Route));
+        return this;
+    }
+
+    /// <summary>
+    /// Adds custom endpoints under the same route group (/api/{route}).
+    /// Custom endpoints share the same AppErrorFilter and route prefix.
+    /// </summary>
+    public CrudEndpointGroup<TMaster> WithCustomEndpoints(Action<RouteGroupBuilder> configure)
+    {
+        configure(Group);
+        return this;
     }
 
     /// <summary>
