@@ -9,7 +9,7 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Auto-mapped REST endpoints (List, Get, Create, Update, Delete)
 - Soft delete with cascade and restore
 - Multi-tenant isolation
-- Audit logging
+- Audit trail (`[Audited]` + `UseAuditTrail()` opt-in, `[AuditIgnore]` per-property, `[Hashed]` auto-masked)
 - Optimistic concurrency
 - Lifecycle hooks (`ICrudHooks<T>`)
 - Validation (FluentValidation priority, DataAnnotation fallback)
@@ -24,6 +24,7 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Document numbering (e.g. `ORD-2026-00001`) with tenant-scoped sequences
 - Modular monolith support (`IModule` with assembly scan)
 - Multi-database dialect (SQLite, PostgreSQL, SQL Server) — auto-detected
+- Entity base class hierarchy (`Entity`, `AuditableEntity`, `FullAuditableEntity` — with `<TUser>` variants)
 - Enum properties stored as strings automatically
 - Domain events (`IEventBus`) — publish from hooks
 - Structured error responses (409 concurrency, dev/prod stack trace toggle)
@@ -56,38 +57,84 @@ app.Run();
 
 ## Entity Definition
 
-```csharp
-[CrudEntity(Table = "products")]
-public class Product : IEntity
-{
-    public string Id { get; set; } = string.Empty;
+Use base classes to get automatic behavior — pick the level you need:
 
+```csharp
+// Lookup table — only Id (Guid)
+public class Currency : Entity { }
+
+// Timestamps — Id + CreatedAt/UpdatedAt
+[CrudEntity(Table = "products")]
+public class Product : AuditableEntity
+{
     [Required, MaxLength(200), Searchable]
     public string Name { get; set; } = string.Empty;
 
     [Range(0.01, 999_999.99)]
     public decimal Price { get; set; }
 
-    public string? Description { get; set; }
-
     [Unique]
     public string Sku { get; set; } = string.Empty;
+}
 
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
+// Full — timestamps + soft delete
+[CrudEntity(Table = "orders")]
+public class Order : FullAuditableEntity
+{
+    [Required]
+    public string CustomerName { get; set; } = string.Empty;
+    public decimal Total { get; set; }
+}
+
+// Full + user tracking (CreatedBy, UpdatedBy, DeletedBy navigation properties)
+[CrudEntity(Table = "invoices")]
+public class Invoice : FullAuditableEntityWithUser<AppUser>
+{
+    public string InvoiceNumber { get; set; } = string.Empty;
+    public decimal Total { get; set; }
 }
 ```
 
-All entities must implement `IEntity` (`Id`, `CreatedAt`, `UpdatedAt`). `CrudKitDbContext` sets `CreatedAt`/`UpdatedAt` automatically on save.
+### Base class hierarchy
+
+| Class | Provides |
+|---|---|
+| `Entity` | `Guid Id` |
+| `Entity<TKey>` | Custom key type (e.g. `long`, `int`) |
+| `AuditableEntity` | `Id` + `CreatedAt`, `UpdatedAt` |
+| `AuditableEntityWithUser<TUser>` | + `CreatedBy`, `UpdatedBy` navigation properties |
+| `FullAuditableEntity` | `AuditableEntity` + `DeletedAt` (implements `ISoftDeletable`) |
+| `FullAuditableEntityWithUser<TUser>` | + `CreatedBy`, `UpdatedBy`, `DeletedBy` navigations |
+
+All base classes default to `Guid` keys. For custom keys use the `<TKey>` variants:
+
+```csharp
+public class LegacyProduct : AuditableEntity<long> { }
+public class LegacyOrder : FullAuditableEntityWithUser<long, AppUser, int> { }
+```
+
+### Multi-tenant (interface — orthogonal to base class)
+
+```csharp
+public class Order : FullAuditableEntity, IMultiTenant
+{
+    public string TenantId { get; set; } = string.Empty;
+    // ...
+}
+
+// With tenant navigation property
+public class Order : FullAuditableEntity, IMultiTenant<Tenant>
+{
+    public string TenantId { get; set; } = string.Empty;
+    public Tenant? Tenant { get; set; }
+}
+```
 
 ### `[CrudEntity]` options
 
 | Property | Type | Description |
 |---|---|---|
 | `Table` | `string` | Database table name |
-| `SoftDelete` | `bool` | Set `DeletedAt` instead of deleting rows |
-| `Audit` | `bool` | Write all changes to the AuditLog table |
-| `MultiTenant` | `bool` | Filter queries by tenant from `ICurrentUser` |
 | `ReadOnly` | `bool` | Generate List + Get only, no write endpoints |
 | `EnableCreate/Update/Delete` | `bool` | Fine-grained endpoint control (default: true) |
 | `EnableBulkDelete/Update` | `bool` | Enable bulk operation endpoints |
@@ -451,13 +498,14 @@ The global default bulk limit is set via `CrudKitApiOptions.BulkLimit` (default:
 | `[Unique]` | Property | Creates a partial unique index (soft-delete compatible) |
 | `[Searchable]` | Property | Included in global search queries |
 | `[DefaultInclude]` | Class | Auto-includes navigation property in queries (with `IncludeScope.All` or `DetailOnly`) |
+| `[Audited]` | Class | Changes to this entity are logged to audit trail (requires `UseAuditTrail()`) |
+| `[AuditIgnore]` | Property | Excluded from audit trail — field does not appear in change logs |
 
 ```csharp
-[CrudEntity(Table = "users", SoftDelete = true)]
-public class User : IEntity, ISoftDeletable
+[CrudEntity(Table = "users")]
+[Audited]
+public class User : FullAuditableEntity
 {
-    public string Id { get; set; } = string.Empty;
-
     [Required, MaxLength(50), Searchable, Unique]
     public string Username { get; set; } = string.Empty;
 
@@ -470,13 +518,14 @@ public class User : IEntity, ISoftDeletable
     [Protected]
     public string Role { get; set; } = "user";
 
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-    public DateTime? DeletedAt { get; set; }
+    [AuditIgnore]
+    public string SecurityStamp { get; set; } = string.Empty;
 }
 ```
 
-`[Hashed]` applies BCrypt on both Create and Update — if the user sends a new password, it gets hashed. `[SkipResponse]` ensures `PasswordHash` never appears in API responses.
+- `[Hashed]` — BCrypt-hashes on Create and Update. In audit trail, value is masked as `"***"` (change is recorded, value is hidden).
+- `[SkipResponse]` — excluded from API responses but still appears in audit trail (unless also `[AuditIgnore]`).
+- `[AuditIgnore]` — completely excluded from audit trail (field never appears in old/new values).
 
 ---
 
@@ -568,6 +617,39 @@ All enum properties on any entity are automatically stored as strings in the dat
 public OrderStatus Status { get; set; } = OrderStatus.Pending;
 // Stored in DB as "Pending", not 0
 ```
+
+---
+
+### Audit Trail
+
+Enable full change history for entities. Each Create, Update, and Delete is recorded in `__crud_audit_logs` with old/new values.
+
+**1. Enable the feature:**
+
+```csharp
+builder.Services.AddCrudKit<AppDbContext>(opts =>
+{
+    opts.UseAuditTrail();
+});
+```
+
+**2. Mark entities:**
+
+```csharp
+[CrudEntity(Table = "orders")]
+[Audited]  // changes to this entity are logged
+public class Order : FullAuditableEntity { }
+```
+
+**3. Control property visibility:**
+
+| Attribute | Audit trail behavior |
+|---|---|
+| Normal property | Value logged in old/new values |
+| `[Hashed]` | Masked as `"***"` — change recorded, value hidden |
+| `[AuditIgnore]` | Completely excluded — field never appears |
+
+If `UseAuditTrail()` is not called, `[Audited]` is silently ignored and `__crud_audit_logs` table is not created.
 
 ---
 
@@ -667,6 +749,23 @@ fakeTime.Advance(TimeSpan.FromHours(5));
 ```
 
 The constructor signature: `CrudKitDbContext(DbContextOptions, ICurrentUser, TimeProvider? timeProvider = null)`. A single timestamp is captured per `SaveChanges` call — `CreatedAt` and `UpdatedAt` on the same entity are always identical.
+
+---
+
+### Configuration Options
+
+```csharp
+builder.Services.AddCrudKit<AppDbContext>(opts =>
+{
+    opts.DefaultPageSize = 25;           // Default: 20
+    opts.MaxPageSize = 100;              // Default: 100
+    opts.ApiPrefix = "/api";             // Default: "/api"
+    opts.BulkLimit = 10_000;             // Default: 10,000
+    opts.EnableIdempotency = true;       // Default: false
+    opts.UseAuditTrail();                // Enable [Audited] entity change logging
+    opts.ScanModulesFromAssembly = typeof(Program).Assembly;
+});
+```
 
 ---
 
