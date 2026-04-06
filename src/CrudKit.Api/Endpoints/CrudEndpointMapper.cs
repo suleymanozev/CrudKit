@@ -35,7 +35,8 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
 
     /// <summary>
     /// Tracks child entity types already registered via <see cref="WithDetail{TDetail,TCreateDetail}"/>.
-    /// Used by <see cref="MapChildEndpoints"/> to skip duplicates.
+    /// Auto-discovery in <see cref="CrudEndpointMapper.MapCrudEndpoints{TEntity}(WebApplication,string)"/>
+    /// skips types present in this set to avoid duplicate route registration.
     /// </summary>
     internal HashSet<Type> RegisteredDetailTypes { get; } = new();
 
@@ -65,55 +66,6 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
     public CrudEndpointGroup<TMaster> WithCustomEndpoints(Action<RouteGroupBuilder> configure)
     {
         configure(Group);
-        return this;
-    }
-
-    /// <summary>
-    /// Scans all loaded assemblies for entities decorated with <c>[ChildOf(typeof(TMaster))]</c>
-    /// and registers detail endpoints (List, Get, Delete) for each one.
-    /// Child types already registered via <see cref="WithDetail{TDetail,TCreateDetail}"/> are skipped.
-    /// Call this AFTER all explicit <see cref="WithDetail{TDetail,TCreateDetail}"/> calls so that
-    /// the skip-deduplication set is fully populated before scanning.
-    /// </summary>
-    public CrudEndpointGroup<TMaster> MapChildEndpoints()
-    {
-        var parentType = typeof(TMaster);
-
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            Type[] types;
-            try { types = assembly.GetTypes(); }
-            catch { continue; }
-
-            foreach (var childType in types)
-            {
-                var childOfAttr = childType.GetCustomAttributes<ChildOfAttribute>()
-                    .FirstOrDefault(a => a.ParentType == parentType);
-
-                if (childOfAttr is null) continue;
-                if (!typeof(IAuditableEntity).IsAssignableFrom(childType)) continue;
-
-                // Skip types already registered via WithDetail
-                if (RegisteredDetailTypes.Contains(childType)) continue;
-
-                RegisteredDetailTypes.Add(childType);
-
-                var detailRoute = childOfAttr.Route
-                    ?? CrudEndpointMapper.ToKebabCase(childType.Name) + "s";
-
-                var foreignKey = childOfAttr.ForeignKey
-                    ?? parentType.Name + "Id";
-
-                // Invoke the generic helper via reflection since TDetail is only known at runtime
-                var method = typeof(CrudEndpointMapper)
-                    .GetMethod(nameof(CrudEndpointMapper.RegisterChildEndpoints),
-                        BindingFlags.NonPublic | BindingFlags.Static)!
-                    .MakeGenericMethod(parentType, childType);
-
-                method.Invoke(null, [App, Route, detailRoute, foreignKey]);
-            }
-        }
-
         return this;
     }
 
@@ -380,7 +332,10 @@ public static class CrudEndpointMapper
         // Apply entity-level auth attributes (default — can be overridden by fluent Authorize())
         ApplyEntityAuth<TEntity>(group, route);
 
-        return new CrudEndpointGroup<TEntity>(group, app, route);
+        // Auto-discover [ChildOf] children and register their detail endpoints
+        var endpointGroupRo = new CrudEndpointGroup<TEntity>(group, app, route);
+        AutoRegisterChildEndpoints<TEntity>(app, route, endpointGroupRo);
+        return endpointGroupRo;
     }
 
     /// <summary>
@@ -829,7 +784,10 @@ public static class CrudEndpointMapper
         // Apply entity-level auth attributes (default — can be overridden by fluent Authorize())
         ApplyEntityAuth<TEntity>(group, route);
 
-        return new CrudEndpointGroup<TEntity>(group, app, route);
+        // Auto-discover [ChildOf] children and register their detail endpoints
+        var endpointGroup = new CrudEndpointGroup<TEntity>(group, app, route);
+        AutoRegisterChildEndpoints<TEntity>(app, route, endpointGroup);
+        return endpointGroup;
     }
 
     /// <summary>
@@ -878,7 +836,9 @@ public static class CrudEndpointMapper
 
     /// <summary>
     /// Registers List, Get, and Delete endpoints for a child (detail) entity discovered via
-    /// <c>[ChildOf]</c>. Called via reflection from <see cref="CrudEndpointGroup{TMaster}.MapChildEndpoints"/>.
+    /// <c>[ChildOf]</c>. Auto-discovered at startup inside <see cref="MapCrudEndpoints{TEntity}(WebApplication,string)"/>.
+    /// Endpoint names use an <c>__auto</c> suffix so they never collide with names registered
+    /// by an explicit <c>WithDetail</c> call on the same pair of types.
     /// A POST (create) endpoint is NOT registered here; use <c>WithDetail</c> for that.
     /// </summary>
     internal static void RegisterChildEndpoints<TMaster, TDetail>(
@@ -908,7 +868,7 @@ public static class CrudEndpointMapper
             var details = await detailRepo.FindByField(foreignKey, masterId, ct);
             return Results.Ok(details);
         })
-        .WithName($"List{tag}")
+        .WithName($"List{tag}__auto")
         .Produces<List<TDetail>>(200)
         .ProducesProblem(404)
         .ProducesProblem(500);
@@ -931,7 +891,7 @@ public static class CrudEndpointMapper
 
             return Results.Ok(entity);
         })
-        .WithName($"Get{tag}")
+        .WithName($"Get{tag}__auto")
         .Produces<TDetail>(200)
         .ProducesProblem(404)
         .ProducesProblem(500);
@@ -955,10 +915,57 @@ public static class CrudEndpointMapper
             await detailRepo.Delete(detailGuid, ct);
             return Results.NoContent();
         })
-        .WithName($"Delete{tag}")
+        .WithName($"Delete{tag}__auto")
         .Produces(204)
         .ProducesProblem(404)
         .ProducesProblem(500);
+    }
+
+    /// <summary>
+    /// Scans all loaded assemblies for types decorated with <c>[ChildOf(typeof(TEntity))]</c>
+    /// and calls <see cref="RegisterChildEndpoints{TMaster,TDetail}"/> for each discovered child.
+    /// Types already present in <paramref name="group"/>.RegisteredDetailTypes (registered via
+    /// an explicit <c>WithDetail</c> call) are skipped to avoid duplicate route registration.
+    /// </summary>
+    private static void AutoRegisterChildEndpoints<TEntity>(WebApplication app, string route, CrudEndpointGroup<TEntity> group)
+        where TEntity : class, IAuditableEntity
+    {
+        var parentType = typeof(TEntity);
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            Type[] types;
+            try { types = assembly.GetTypes(); }
+            catch { continue; }
+
+            foreach (var childType in types)
+            {
+                var childOfAttr = childType.GetCustomAttributes<ChildOfAttribute>()
+                    .FirstOrDefault(a => a.ParentType == parentType);
+
+                if (childOfAttr is null) continue;
+                if (!typeof(IAuditableEntity).IsAssignableFrom(childType)) continue;
+
+                // Skip types already registered explicitly via WithDetail
+                if (group.RegisteredDetailTypes.Contains(childType)) continue;
+
+                group.RegisteredDetailTypes.Add(childType);
+
+                var detailRoute = childOfAttr.Route
+                    ?? ToKebabCase(childType.Name) + "s";
+
+                var foreignKey = childOfAttr.ForeignKey
+                    ?? parentType.Name + "Id";
+
+                // Invoke the generic helper via reflection since TDetail is only known at runtime
+                var method = typeof(CrudEndpointMapper)
+                    .GetMethod(nameof(RegisterChildEndpoints),
+                        BindingFlags.NonPublic | BindingFlags.Static)!
+                    .MakeGenericMethod(parentType, childType);
+
+                method.Invoke(null, [app, route, detailRoute, foreignKey]);
+            }
+        }
     }
 
     /// <summary>

@@ -2,8 +2,8 @@ namespace CrudKit.Core.Attributes;
 
 /// <summary>
 /// Declares this entity as a child (detail) of the specified parent entity.
-/// Framework automatically generates detail endpoints under the parent route
-/// when <c>.MapChildEndpoints()</c> is called on the parent's endpoint group.
+/// The framework automatically generates List, Get, and Delete detail endpoints under the parent
+/// route when <c>MapCrudEndpoints</c> is called for the parent — no additional configuration needed.
 /// Route defaults to entity name pluralized in kebab-case (e.g. OrderLine → "order-lines").
 /// ForeignKey defaults to {ParentTypeName}Id convention (e.g. Order → "OrderId").
 /// </summary>

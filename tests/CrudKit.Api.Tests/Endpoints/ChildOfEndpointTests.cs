@@ -8,7 +8,8 @@ using Xunit;
 namespace CrudKit.Api.Tests.Endpoints;
 
 /// <summary>
-/// Tests for [ChildOf] attribute auto-discovery via MapChildEndpoints().
+/// Tests for [ChildOf] attribute auto-discovery. Children are registered automatically
+/// inside MapCrudEndpoints — no explicit call required.
 /// </summary>
 public class ChildOfEndpointTests
 {
@@ -17,12 +18,11 @@ public class ChildOfEndpointTests
         PropertyNameCaseInsensitive = true
     };
 
-    // App that uses MapChildEndpoints() — ProjectTaskEntity and ProjectMilestoneEntity
-    // are auto-discovered via [ChildOf(typeof(ProjectEntity))].
+    // ProjectTaskEntity and ProjectMilestoneEntity are auto-discovered via [ChildOf(typeof(ProjectEntity))].
+    // MapCrudEndpoints triggers auto-discovery internally.
     private static Task<TestWebApp> CreateApp() => TestWebApp.CreateAsync(configureEndpoints: web =>
     {
-        web.MapCrudEndpoints<ProjectEntity, CreateProjectDto, UpdateProjectDto>("projects")
-            .MapChildEndpoints();
+        web.MapCrudEndpoints<ProjectEntity, CreateProjectDto, UpdateProjectDto>("projects");
     });
 
     private static async Task<string> CreateProject(TestWebApp app, string title = "My Project")
@@ -110,17 +110,16 @@ public class ChildOfEndpointTests
     }
 
     [Fact]
-    public async Task ChildOf_SkipsAlreadyRegisteredWithDetail()
+    public async Task ChildOf_WithDetail_CoexistsWithAutoDiscovery()
     {
-        // When WithDetail is called before MapChildEndpoints(), the same child type
-        // should NOT be double-registered (no duplicate route name exception).
+        // When WithDetail is chained after MapCrudEndpoints, auto-discovery has already
+        // registered List/Get/Delete for ProjectMilestoneEntity via [ChildOf] (using __auto
+        // endpoint names). WithDetail adds Create and Batch on top using standard names.
+        // Both sets of endpoints use the same URL path — no name collision, no startup error.
         await using var app = await TestWebApp.CreateAsync(configureEndpoints: web =>
         {
-            // WithDetail registers ProjectMilestoneEntity explicitly first,
-            // then MapChildEndpoints should skip it.
             web.MapCrudEndpoints<ProjectEntity, CreateProjectDto, UpdateProjectDto>("projects2")
-                .WithDetail<ProjectMilestoneEntity, CreateProjectMilestoneDto>("milestones", "ParentProjectId")
-                .MapChildEndpoints();
+                .WithDetail<ProjectMilestoneEntity, CreateProjectMilestoneDto>("milestones", "ParentProjectId");
         });
 
         var projectResponse = await app.Client.PostAsJsonAsync("/api/projects2", new { Title = "P2" });
@@ -128,11 +127,11 @@ public class ChildOfEndpointTests
         var doc = JsonDocument.Parse(await projectResponse.Content.ReadAsStringAsync());
         var projectId = doc.RootElement.GetProperty("id").GetString()!;
 
-        // Explicit WithDetail route still works
+        // List route works (served by auto-discovered endpoint)
         var listResponse = await app.Client.GetAsync($"/api/projects2/{projectId}/milestones");
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
 
-        // POST should also work (registered by WithDetail, not [ChildOf])
+        // POST works (registered only by WithDetail — auto-discovery does not register Create)
         var createResponse = await app.Client.PostAsJsonAsync(
             $"/api/projects2/{projectId}/milestones",
             new { Label = "M1" });
