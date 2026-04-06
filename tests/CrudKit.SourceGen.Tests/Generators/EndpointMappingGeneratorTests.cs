@@ -39,7 +39,7 @@ public class EndpointMappingGeneratorTests
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CrudKitEndpoints.g.cs");
 
         Assert.Contains("MapAllCrudEndpoints", source);
-        Assert.Contains("IEndpointRouteBuilder", source);
+        Assert.Contains("WebApplication", source);
     }
 
     [Fact]
