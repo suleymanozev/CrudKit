@@ -8,6 +8,7 @@
   <Project Path="src/CrudKit.SourceGen/CrudKit.SourceGen.csproj" />
   <Project Path="src/CrudKit.Identity/CrudKit.Identity.csproj" />
   <Project Path="tests/CrudKit.SourceGen.Tests/CrudKit.SourceGen.Tests.csproj" />
+  <Project Path="tests/CrudKit.Identity.Tests/CrudKit.Identity.Tests.csproj" />
   <Folder Name="/samples/" />
   <Folder Name="/src/" />
   <Folder Name="/tests/" />
