@@ -1,20 +1,14 @@
 using System.ComponentModel.DataAnnotations;
 using CrudKit.Core.Attributes;
-using CrudKit.Core.Interfaces;
+using CrudKit.Core.Entities;
 
 namespace CrudKit.Sample.Api.Entities;
 
-[CrudEntity(Table = "categories", SoftDelete = true)]
-public class Category : IAuditableEntity, ISoftDeletable
+[CrudEntity(Table = "categories")]
+public class Category : FullAuditableEntity
 {
-    public Guid Id { get; set; }
-
     [Required, MaxLength(100), Unique]
     public string Name { get; set; } = string.Empty;
 
     public int SortOrder { get; set; }
-
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-    public DateTime? DeletedAt { get; set; }
 }

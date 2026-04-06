@@ -1,16 +1,15 @@
 using System.ComponentModel.DataAnnotations;
 using CrudKit.Core.Attributes;
+using CrudKit.Core.Entities;
 using CrudKit.Core.Interfaces;
 
 namespace CrudKit.Sample.Api.Entities;
 
 public enum OrderStatus { Pending, Processing, Completed, Cancelled }
 
-[CrudEntity(Table = "orders", SoftDelete = true)]
-public class Order : IAuditableEntity, ISoftDeletable, IStateMachine<OrderStatus>
+[CrudEntity(Table = "orders")]
+public class Order : FullAuditableEntity, IStateMachine<OrderStatus>
 {
-    public Guid Id { get; set; }
-
     [Required]
     public string CustomerName { get; set; } = string.Empty;
 
@@ -18,10 +17,6 @@ public class Order : IAuditableEntity, ISoftDeletable, IStateMachine<OrderStatus
 
     [Protected]
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
-
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-    public DateTime? DeletedAt { get; set; }
 
     public static IReadOnlyList<(OrderStatus From, OrderStatus To, string Action)> Transitions =>
     [

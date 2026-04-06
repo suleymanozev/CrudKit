@@ -1,5 +1,5 @@
 using CrudKit.Core.Attributes;
-using CrudKit.Core.Interfaces;
+using CrudKit.Core.Entities;
 
 namespace CrudKit.Sample.Api.Entities;
 
@@ -8,15 +8,10 @@ namespace CrudKit.Sample.Api.Entities;
 /// No create/update/delete endpoints — managed via seed data or migration.
 /// </summary>
 [CrudEntity(Table = "units", ReadOnly = true)]
-public class Unit : IAuditableEntity
+public class Unit : AuditableEntity
 {
-    public Guid Id { get; set; }
-
     [Unique]
     public string Code { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;
-
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
 }

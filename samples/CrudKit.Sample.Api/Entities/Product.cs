@@ -1,14 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using CrudKit.Core.Attributes;
-using CrudKit.Core.Interfaces;
+using CrudKit.Core.Entities;
 
 namespace CrudKit.Sample.Api.Entities;
 
 [CrudEntity(Table = "products")]
-public class Product : IAuditableEntity
+public class Product : AuditableEntity
 {
-    public Guid Id { get; set; }
-
     [Required, MaxLength(200), Searchable]
     public string Name { get; set; } = string.Empty;
 
@@ -19,7 +17,4 @@ public class Product : IAuditableEntity
 
     [Unique]
     public string Sku { get; set; } = string.Empty;
-
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
 }
