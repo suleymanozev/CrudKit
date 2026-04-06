@@ -18,4 +18,9 @@ public class FakeCurrentUser : ICurrentUser
     public bool HasRole(string role) => Roles.Contains(role);
     public bool HasPermission(string entity, string action) => true;
     public bool HasPermission(string entity, string action, PermScope scope) => true;
+
+    /// <summary>
+    /// null = all tenants accessible (superadmin-level, for testing).
+    /// </summary>
+    public IReadOnlyList<string>? AccessibleTenants { get; set; }
 }

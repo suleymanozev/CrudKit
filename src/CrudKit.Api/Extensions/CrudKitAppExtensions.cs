@@ -56,7 +56,8 @@ public static class CrudKitAppExtensions
             services.AddSingleton(new TenantResolverOptions
             {
                 Resolver = opts.TenantResolver,
-                RejectUnresolved = opts.TenantRejectUnresolved
+                RejectUnresolved = opts.TenantRejectUnresolved,
+                Policy = opts.CrossTenantPolicyInstance
             });
         }
 

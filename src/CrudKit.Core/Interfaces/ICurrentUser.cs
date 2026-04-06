@@ -18,4 +18,10 @@ public interface ICurrentUser
     bool HasRole(string role);
     bool HasPermission(string entity, string action);
     bool HasPermission(string entity, string action, PermScope scope);
+
+    /// <summary>
+    /// Tenant IDs this user can access. null = all tenants (superadmin).
+    /// Empty list = no cross-tenant access. Only relevant when cross-tenant policy allows the user's role.
+    /// </summary>
+    IReadOnlyList<string>? AccessibleTenants { get; }
 }

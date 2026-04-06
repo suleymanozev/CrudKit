@@ -18,4 +18,9 @@ public class AnonymousCurrentUser : ICurrentUser
     public bool HasRole(string role) => false;
     public bool HasPermission(string entity, string action) => false;
     public bool HasPermission(string entity, string action, PermScope scope) => false;
+
+    /// <summary>
+    /// Empty list = no cross-tenant access for anonymous users.
+    /// </summary>
+    public IReadOnlyList<string>? AccessibleTenants => new List<string>();
 }

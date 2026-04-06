@@ -1,3 +1,4 @@
+using CrudKit.Api.Tenancy;
 using Microsoft.AspNetCore.Http;
 
 namespace CrudKit.Api.Configuration;
@@ -60,6 +61,18 @@ public class MultiTenancyOptions
     public MultiTenancyOptions RejectUnresolvedTenant()
     {
         _parent.TenantRejectUnresolved = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Configures which roles can access data across tenants.
+    /// By default, no cross-tenant access is allowed.
+    /// </summary>
+    public MultiTenancyOptions CrossTenantPolicy(Action<CrossTenantPolicy> configure)
+    {
+        var policy = new CrossTenantPolicy();
+        configure(policy);
+        _parent.CrossTenantPolicyInstance = policy;
         return this;
     }
 }

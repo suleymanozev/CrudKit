@@ -1,4 +1,5 @@
 using System.Reflection;
+using CrudKit.Api.Tenancy;
 using CrudKit.Core.Interfaces;
 using Microsoft.AspNetCore.Http;
 
@@ -110,6 +111,12 @@ public class CrudKitApiOptions
     /// Set via UseMultiTenancy().RejectUnresolvedTenant().
     /// </summary>
     internal bool TenantRejectUnresolved { get; set; }
+
+    /// <summary>
+    /// Cross-tenant access policy. null = no cross-tenant access allowed.
+    /// Set via UseMultiTenancy().CrossTenantPolicy().
+    /// </summary>
+    internal CrossTenantPolicy? CrossTenantPolicyInstance { get; set; }
 
     /// <summary>
     /// Enables multi-tenancy support. Returns <see cref="MultiTenancyOptions"/>
