@@ -22,20 +22,9 @@ public class CrudKitApiOptions
     /// <summary>
     /// When true, failed SaveChanges operations are also logged to the audit trail
     /// with action prefixed as "Failed" (e.g. "FailedCreate"). Default: false.
-    /// Requires UseAuditTrail() to be enabled.
+    /// Set via UseAuditTrail().EnableAuditFailedOperations().
     /// </summary>
-    public bool AuditFailedOperations { get; set; }
-
-    /// <summary>
-    /// Enables logging of failed SaveChanges operations to the audit trail.
-    /// Failed operations are logged with action "FailedCreate", "FailedUpdate", "FailedDelete".
-    /// Useful for security auditing and compliance.
-    /// </summary>
-    public CrudKitApiOptions EnableAuditFailedOperations()
-    {
-        AuditFailedOperations = true;
-        return this;
-    }
+    internal bool AuditFailedOperations { get; set; }
 
     /// <summary>
     /// Custom <see cref="CrudKit.Core.Interfaces.IAuditWriter"/> implementation type.
@@ -63,26 +52,24 @@ public class CrudKitApiOptions
 
     /// <summary>
     /// Enables audit trail logging for entities decorated with [Audited].
-    /// Changes are written to the __crud_audit_logs table on Create, Update, and Delete
-    /// using the default <c>DbAuditWriter</c>.
+    /// Returns <see cref="AuditTrailOptions"/> for further audit-specific configuration.
     /// </summary>
-    public CrudKitApiOptions UseAuditTrail()
+    public AuditTrailOptions UseAuditTrail()
     {
         AuditTrailEnabled = true;
-        return this;
+        return new AuditTrailOptions(this);
     }
 
     /// <summary>
-    /// Enables audit trail logging with a custom <see cref="CrudKit.Core.Interfaces.IAuditWriter"/>
-    /// implementation. Use this overload to write audit entries to Elasticsearch,
-    /// a separate database, file storage, etc.
+    /// Enables audit trail logging with a custom <see cref="CrudKit.Core.Interfaces.IAuditWriter"/>.
+    /// Returns <see cref="AuditTrailOptions"/> for further audit-specific configuration.
     /// </summary>
-    public CrudKitApiOptions UseAuditTrail<TAuditWriter>()
+    public AuditTrailOptions UseAuditTrail<TAuditWriter>()
         where TAuditWriter : class, CrudKit.Core.Interfaces.IAuditWriter
     {
         AuditTrailEnabled = true;
         CustomAuditWriterType = typeof(TAuditWriter);
-        return this;
+        return new AuditTrailOptions(this);
     }
 
     /// <summary>
