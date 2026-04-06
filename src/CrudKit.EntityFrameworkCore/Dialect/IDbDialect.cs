@@ -25,4 +25,10 @@ public interface IDbDialect
     /// SQL Server uses IsRowVersion(), others use IsConcurrencyToken().
     /// </summary>
     void ConfigureConcurrencyToken(Microsoft.EntityFrameworkCore.ModelBuilder modelBuilder, Type entityType);
+
+    /// <summary>
+    /// Returns SQL that atomically increments a sequence value and returns the new value.
+    /// Used by SequenceGenerator for performant document numbering.
+    /// </summary>
+    string GetAtomicIncrementSql(string table, string valueColumn, string[] whereColumns);
 }

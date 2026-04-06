@@ -79,4 +79,11 @@ public class SqlServerDialect : IDbDialect
             .Property(nameof(IConcurrent.RowVersion))
             .IsConcurrencyToken();
     }
+
+    public string GetAtomicIncrementSql(string table, string valueColumn, string[] whereColumns)
+    {
+        // SQL Server uses OUTPUT INSERTED instead of RETURNING.
+        var where = string.Join(" AND ", whereColumns.Select((c, i) => $"[{c}] = @p{i}"));
+        return $"UPDATE [{table}] SET [{valueColumn}] = [{valueColumn}] + 1 OUTPUT INSERTED.[{valueColumn}] WHERE {where}";
+    }
 }

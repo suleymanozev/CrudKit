@@ -89,4 +89,10 @@ public class PostgresDialect : IDbDialect
             .Property(nameof(IConcurrent.RowVersion))
             .IsConcurrencyToken();
     }
+
+    public string GetAtomicIncrementSql(string table, string valueColumn, string[] whereColumns)
+    {
+        var where = string.Join(" AND ", whereColumns.Select((c, i) => $"\"{c}\" = @p{i}"));
+        return $"UPDATE \"{table}\" SET \"{valueColumn}\" = \"{valueColumn}\" + 1 WHERE {where} RETURNING \"{valueColumn}\"";
+    }
 }
