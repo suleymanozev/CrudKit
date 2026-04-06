@@ -144,6 +144,40 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
         await app.DisposeAsync();
     }
 
+    // ---- AuditTrailOptions ----
+
+    [Fact]
+    public void UseAuditTrail_SetsAuditTrailEnabled()
+    {
+        var opts = new CrudKitApiOptions();
+        opts.UseAuditTrail();
+        Assert.True(opts.AuditTrailEnabled);
+    }
+
+    [Fact]
+    public void EnableAuditFailedOperations_ReturnsCrudKitApiOptions_AndAuditTrailEnabled()
+    {
+        var opts = new CrudKitApiOptions();
+        // EnableAuditFailedOperations returns the parent CrudKitApiOptions (fluent chain)
+        var result = opts.UseAuditTrail().EnableAuditFailedOperations();
+        Assert.IsType<CrudKitApiOptions>(result);
+        Assert.True(opts.AuditTrailEnabled);
+    }
+
+    [Fact]
+    public void EnableAuditFailedOperations_PropagatesFlag_ToCrudKitEfOptions()
+    {
+        var builder = CreateBuilder();
+        builder.Services.AddCrudKit<ApiTestDbContext>(o =>
+            o.UseAuditTrail().EnableAuditFailedOperations());
+
+        using var app = builder.Build();
+        var efOptions = app.Services.GetRequiredService<CrudKit.EntityFrameworkCore.CrudKitEfOptions>();
+
+        Assert.True(efOptions.AuditTrailEnabled);
+        Assert.True(efOptions.AuditFailedOperations);
+    }
+
     // --- Test helpers ---
 
     private class TestModule : IModule
