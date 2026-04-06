@@ -293,15 +293,20 @@ public abstract class CrudKitDbContext : DbContext
                 Timestamp = now,
             };
 
+            // Filter out [AuditIgnore] properties
+            var auditableProps = entry.Properties
+                .Where(p => p.Metadata.PropertyInfo?.GetCustomAttribute<AuditIgnoreAttribute>() == null)
+                .ToList();
+
             switch (entry.State)
             {
                 case EntityState.Added:
                     log.Action = "Create";
-                    log.NewValues = SerializeCurrentValues(entry.Properties);
+                    log.NewValues = SerializeCurrentValues(auditableProps);
                     break;
 
                 case EntityState.Modified:
-                    var modified = entry.Properties.Where(p => p.IsModified).ToList();
+                    var modified = auditableProps.Where(p => p.IsModified).ToList();
                     log.Action = "Update";
                     log.OldValues = SerializeOriginalValues(modified);
                     log.NewValues = SerializeCurrentValues(modified);
@@ -311,7 +316,7 @@ public abstract class CrudKitDbContext : DbContext
 
                 case EntityState.Deleted:
                     log.Action = "Delete";
-                    log.OldValues = SerializeCurrentValues(entry.Properties);
+                    log.OldValues = SerializeCurrentValues(auditableProps);
                     break;
             }
 
