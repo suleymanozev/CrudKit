@@ -48,7 +48,8 @@ public class EndpointMappingGeneratorTests
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(TwoEntities);
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CrudKitEndpoints.g.cs");
 
-        Assert.Contains("MapCrudEndpoints<Product, CreateProduct, UpdateProduct,", source);
+        // Route-less overload with 3 type params using fully-qualified names
+        Assert.Contains("MapCrudEndpoints<App.Entities.Product, App.Entities.Dtos.CreateProduct, App.Entities.Dtos.UpdateProduct>()", source);
     }
 
     [Fact]
@@ -57,7 +58,8 @@ public class EndpointMappingGeneratorTests
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(TwoEntities);
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CrudKitEndpoints.g.cs");
 
-        Assert.Contains("MapCrudEndpoints<Catalog,", source);
+        // Route-less overload with 1 type param using fully-qualified name
+        Assert.Contains("MapCrudEndpoints<App.Entities.Catalog>()", source);
     }
 
     [Fact]

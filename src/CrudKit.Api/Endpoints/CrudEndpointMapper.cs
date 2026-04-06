@@ -327,6 +327,18 @@ public static class CrudEndpointMapper
     }
 
     /// <summary>
+    /// Maps read-only endpoints without an explicit route.
+    /// Route is derived from [CrudEntity(Table=...)] or falls back to entity name + "s".
+    /// </summary>
+    public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity>(
+        this WebApplication app)
+        where TEntity : class, IAuditableEntity
+    {
+        var route = ResolveRoute<TEntity>();
+        return app.MapCrudEndpoints<TEntity>(route);
+    }
+
+    /// <summary>
     /// Maps GET (list), GET (by id), POST, PUT, DELETE endpoints for the entity.
     /// Conditionally maps restore (ISoftDeletable) and transition (IStateMachine) endpoints.
     /// </summary>
@@ -728,6 +740,34 @@ public static class CrudEndpointMapper
         ApplyEntityAuth<TEntity>(group, route);
 
         return new CrudEndpointGroup<TEntity>(group, app, route);
+    }
+
+    /// <summary>
+    /// Maps full CRUD endpoints without an explicit route.
+    /// Route is derived from [CrudEntity(Table=...)] or falls back to entity name + "s".
+    /// </summary>
+    public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity, TCreate, TUpdate>(
+        this WebApplication app)
+        where TEntity : class, IAuditableEntity
+        where TCreate : class
+        where TUpdate : class
+    {
+        var route = ResolveRoute<TEntity>();
+        return app.MapCrudEndpoints<TEntity, TCreate, TUpdate>(route);
+    }
+
+    /// <summary>
+    /// Resolves the route from [CrudEntity(Table=...)] or falls back to entity name + "s".
+    /// Converts underscores to dashes for URL convention.
+    /// </summary>
+    private static string ResolveRoute<TEntity>()
+    {
+        var attr = typeof(TEntity).GetCustomAttribute<CrudEntityAttribute>();
+        var table = attr?.Table;
+        if (string.IsNullOrEmpty(table))
+            table = typeof(TEntity).Name.ToLowerInvariant() + "s";
+        // Convert underscores to dashes for URL convention
+        return table.Replace('_', '-');
     }
 
     /// <summary>

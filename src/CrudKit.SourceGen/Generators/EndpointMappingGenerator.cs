@@ -54,21 +54,13 @@ internal static class EndpointMappingGenerator
             // Determine which mapper overload to call
             if (entity.ReadOnly || (!entity.IsCreateEnabled && !entity.IsUpdateEnabled))
             {
-                // Read-only: only GET endpoints
-                sb.AppendLine($"        app.MapCrudEndpoints<{entity.Name}, {entity.Name}Response, {entity.Name}Mapper, {entity.Name}Hooks>();");
-            }
-            else if (entity.IsCreateEnabled && entity.IsUpdateEnabled)
-            {
-                sb.AppendLine($"        app.MapCrudEndpoints<{entity.Name}, Create{entity.Name}, Update{entity.Name}, {entity.Name}Response, {entity.Name}Mapper, {entity.Name}Hooks>();");
-            }
-            else if (entity.IsCreateEnabled && !entity.IsUpdateEnabled)
-            {
-                sb.AppendLine($"        app.MapCreateOnlyEndpoints<{entity.Name}, Create{entity.Name}, {entity.Name}Response, {entity.Name}Mapper, {entity.Name}Hooks>();");
+                // Read-only: 1 type param, no route (derived from [CrudEntity(Table=...)])
+                sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}>();");
             }
             else
             {
-                // EnableUpdate only (no create)
-                sb.AppendLine($"        app.MapUpdateOnlyEndpoints<{entity.Name}, Update{entity.Name}, {entity.Name}Response, {entity.Name}Mapper, {entity.Name}Hooks>();");
+                // Full CRUD: 3 type params, no route (derived from [CrudEntity(Table=...)])
+                sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}, {entity.Namespace}.Dtos.Create{entity.Name}, {entity.Namespace}.Dtos.Update{entity.Name}>();");
             }
         }
 

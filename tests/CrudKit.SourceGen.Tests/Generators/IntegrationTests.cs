@@ -143,7 +143,7 @@ public class IntegrationTests
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(FullEntity);
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CrudKitEndpoints.g.cs");
 
-        Assert.Contains("MapCrudEndpoints<Product, CreateProduct, UpdateProduct,", source);
+        Assert.Contains("MapCrudEndpoints<Acme.Domain.Entities.Product, Acme.Domain.Entities.Dtos.CreateProduct, Acme.Domain.Entities.Dtos.UpdateProduct>()", source);
     }
 
     [Fact]
