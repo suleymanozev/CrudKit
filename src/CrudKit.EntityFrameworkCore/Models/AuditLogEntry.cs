@@ -3,7 +3,7 @@ namespace CrudKit.EntityFrameworkCore.Models;
 /// <summary>One row per entity change, written by CrudKitDbContext for [Audited] entities.</summary>
 public class AuditLogEntry
 {
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public Guid Id { get; set; } = Guid.NewGuid();
     public string EntityType { get; set; } = string.Empty;
     public string EntityId { get; set; } = string.Empty;
     public string Action { get; set; } = string.Empty;   // Create | Update | Delete

@@ -22,7 +22,7 @@ public class InfraModelsTests
         Assert.Equal("Order", entry.EntityType);
         Assert.Equal("123", entry.EntityId);
         Assert.Equal("Create", entry.Action);
-        Assert.NotNull(entry.Id);
+        Assert.NotEqual(Guid.Empty, entry.Id);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class InfraModelsTests
 
         Assert.Equal("Invoice", seq.EntityType);
         Assert.Equal(42, seq.CurrentVal);
-        Assert.NotNull(seq.Id);
+        Assert.NotEqual(Guid.Empty, seq.Id);
     }
 
     [Fact]
