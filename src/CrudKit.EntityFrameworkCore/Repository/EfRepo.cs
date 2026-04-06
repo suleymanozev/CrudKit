@@ -6,6 +6,7 @@ using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Numbering;
 using CrudKit.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrudKit.EntityFrameworkCore.Repository;
 
@@ -21,13 +22,25 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
     private readonly ICrudHooks<T>? _hooks;
     private readonly SequenceGenerator? _sequenceGenerator;
 
-    public EfRepo(CrudKitDbContext db, QueryBuilder<T> queryBuilder, FilterApplier filterApplier, ICrudHooks<T>? hooks = null, SequenceGenerator? sequenceGenerator = null)
+    public EfRepo(IServiceProvider services, QueryBuilder<T> queryBuilder, FilterApplier filterApplier, ICrudHooks<T>? hooks = null, SequenceGenerator? sequenceGenerator = null)
     {
-        _db = db;
+        _db = ResolveContext(services);
         _queryBuilder = queryBuilder;
         _filterApplier = filterApplier;
         _hooks = hooks;
         _sequenceGenerator = sequenceGenerator;
+    }
+
+    /// <summary>
+    /// Resolve the correct DbContext for entity type T using the context registry.
+    /// Falls back to CrudKitDbContext when no registry is available (backward compat).
+    /// </summary>
+    private static CrudKitDbContext ResolveContext(IServiceProvider services)
+    {
+        var registry = services.GetService<CrudKitContextRegistry>();
+        if (registry != null)
+            return registry.ResolveFor<T>(services);
+        return services.GetRequiredService<CrudKitDbContext>();
     }
 
     /// <summary>

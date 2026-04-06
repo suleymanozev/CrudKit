@@ -16,7 +16,7 @@ public class CascadeSoftDeleteTests
         var dialect = DialectDetector.Detect(db);
         var filterApplier = new FilterApplier(dialect);
         var queryBuilder = new QueryBuilder<ParentItemEntity>(filterApplier);
-        var repo = new EfRepo<ParentItemEntity>(db, queryBuilder, filterApplier);
+        var repo = new EfRepo<ParentItemEntity>(DbHelper.WrapAsServiceProvider(db), queryBuilder, filterApplier);
         return (db, repo);
     }
 

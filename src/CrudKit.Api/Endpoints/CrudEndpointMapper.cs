@@ -113,7 +113,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
             if (dtoFkProp != null)
                 dtoFkProp.SetValue(dto, CrudEndpointMapper.ConvertFkValue(masterId, dtoFkProp.PropertyType));
 
-            var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
+            var db = CrudEndpointMapper.ResolveDbContextFor<TDetail>(httpCtx.RequestServices);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             try
             {
@@ -172,7 +172,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
             if (!await masterRepo.Exists(masterGuid, ct))
                 throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
 
-            var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
+            var db = CrudEndpointMapper.ResolveDbContextFor<TDetail>(httpCtx.RequestServices);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             try
             {
@@ -346,7 +346,7 @@ public static class CrudEndpointMapper
         // POST /api/{route} — Create
         group.MapPost("/", async (TCreate dto, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
-            var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
+            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             try
             {
@@ -394,7 +394,7 @@ public static class CrudEndpointMapper
         group.MapPut("/{id}", async (string id, TUpdate dto, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var guid = ParseGuid(id, typeof(TEntity).Name);
-            var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
+            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             try
             {
@@ -443,7 +443,7 @@ public static class CrudEndpointMapper
         group.MapDelete("/{id}", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var guid = ParseGuid(id, typeof(TEntity).Name);
-            var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
+            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             try
             {
@@ -503,7 +503,7 @@ public static class CrudEndpointMapper
             group.MapPost("/{id}/restore", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
             {
                 var guid = ParseGuid(id, typeof(TEntity).Name);
-                var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
+                var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
                 await using var tx = await db.Database.BeginTransactionAsync(ct);
                 try
                 {
@@ -622,8 +622,9 @@ public static class CrudEndpointMapper
         var importOpts = app.Services.GetService<Configuration.CrudKitApiOptions>();
         if (FeatureResolver.IsImportEnabled<TEntity>(importOpts?.ImportEnabled ?? false))
         {
-            group.MapPost("/import", async (HttpContext httpCtx, CrudKitDbContext db, CancellationToken ct) =>
+            group.MapPost("/import", async (HttpContext httpCtx, CancellationToken ct) =>
             {
+                var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
                 var form = await httpCtx.Request.ReadFormAsync(ct);
                 var file = form.Files.FirstOrDefault();
                 if (file == null || file.Length == 0)
@@ -726,7 +727,7 @@ public static class CrudEndpointMapper
         group.MapPost("/{id}/transition/{action}", async (string id, string action, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var guid = ParseGuid(id, typeof(TEntity).Name);
-            var db = httpCtx.RequestServices.GetRequiredService<CrudKitDbContext>();
+            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             try
             {
@@ -921,6 +922,18 @@ public static class CrudEndpointMapper
             CurrentUser = httpCtx.RequestServices.GetRequiredService<ICurrentUser>(),
             TenantContext = httpCtx.RequestServices.GetService<ITenantContext>()
         };
+    }
+
+    /// <summary>
+    /// Resolve the correct CrudKitDbContext for entity type <typeparamref name="TEntity"/>
+    /// using the context registry when available, falling back to the default CrudKitDbContext.
+    /// </summary>
+    internal static CrudKitDbContext ResolveDbContextFor<TEntity>(IServiceProvider services) where TEntity : class
+    {
+        var registry = services.GetService<CrudKitContextRegistry>();
+        if (registry != null)
+            return registry.ResolveFor<TEntity>(services);
+        return services.GetRequiredService<CrudKitDbContext>();
     }
 }
 

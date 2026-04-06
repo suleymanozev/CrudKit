@@ -4,6 +4,7 @@ using CrudKit.Core.Tenancy;
 using CrudKit.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrudKit.EntityFrameworkCore.Tests.Helpers;
 
@@ -38,5 +39,17 @@ public static class DbHelper
         var db = new TestDbContext(options, user ?? new FakeCurrentUser(), connection, timeProvider, efOptions, tenantContext);
         db.Database.EnsureCreated();
         return db;
+    }
+
+    /// <summary>
+    /// Build a minimal IServiceProvider that resolves the given CrudKitDbContext.
+    /// Used by tests that construct EfRepo manually.
+    /// </summary>
+    public static IServiceProvider WrapAsServiceProvider(CrudKitDbContext db)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(db);
+        services.AddSingleton<CrudKitDbContext>(db);
+        return services.BuildServiceProvider();
     }
 }

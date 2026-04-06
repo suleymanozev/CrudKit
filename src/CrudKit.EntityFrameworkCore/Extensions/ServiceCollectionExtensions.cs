@@ -20,7 +20,24 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddCrudKitEf<TContext>(this IServiceCollection services)
         where TContext : CrudKitDbContext
     {
-        // Register TContext also as CrudKitDbContext so EfRepo<T> can receive it.
+        // Context registry for multi-DbContext support (modular monolith).
+        // Retrieve or create a shared instance so multiple AddCrudKitEf calls
+        // populate the same registry without BuildServiceProvider anti-pattern.
+        var registryDescriptor = services.FirstOrDefault(
+            d => d.ServiceType == typeof(CrudKitContextRegistry));
+        CrudKitContextRegistry registry;
+        if (registryDescriptor?.ImplementationInstance is CrudKitContextRegistry existing)
+        {
+            registry = existing;
+        }
+        else
+        {
+            registry = new CrudKitContextRegistry();
+            services.AddSingleton(registry);
+        }
+        registry.Add<TContext>();
+
+        // Register TContext also as CrudKitDbContext so EfRepo<T> can receive it (single-context fallback).
         services.TryAddScoped<CrudKitDbContext>(sp => sp.GetRequiredService<TContext>());
 
         // Dialect — auto-detected from TContext's provider.

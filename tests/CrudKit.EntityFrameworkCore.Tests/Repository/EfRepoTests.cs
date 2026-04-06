@@ -20,7 +20,7 @@ public class EfRepoTests
         var dialect = DialectDetector.Detect(db);
         var filterApplier = new FilterApplier(dialect);
         var queryBuilder = new QueryBuilder<PersonEntity>(filterApplier);
-        var repo = new EfRepo<PersonEntity>(db, queryBuilder, filterApplier);
+        var repo = new EfRepo<PersonEntity>(DbHelper.WrapAsServiceProvider(db), queryBuilder, filterApplier);
         return (db, repo);
     }
 
@@ -30,7 +30,7 @@ public class EfRepoTests
         var dialect = DialectDetector.Detect(db);
         var filterApplier = new FilterApplier(dialect);
         var queryBuilder = new QueryBuilder<SoftPersonEntity>(filterApplier);
-        var repo = new EfRepo<SoftPersonEntity>(db, queryBuilder, filterApplier);
+        var repo = new EfRepo<SoftPersonEntity>(DbHelper.WrapAsServiceProvider(db), queryBuilder, filterApplier);
         return (db, repo);
     }
 
@@ -40,7 +40,7 @@ public class EfRepoTests
         var dialect = DialectDetector.Detect(db);
         var filterApplier = new FilterApplier(dialect);
         var queryBuilder = new QueryBuilder<UserEntity>(filterApplier);
-        var repo = new EfRepo<UserEntity>(db, queryBuilder, filterApplier);
+        var repo = new EfRepo<UserEntity>(DbHelper.WrapAsServiceProvider(db), queryBuilder, filterApplier);
         return (db, repo);
     }
 
@@ -234,7 +234,7 @@ public class EfRepoTests
         var dialect = DialectDetector.Detect(db);
         var filterApplier = new FilterApplier(dialect);
         var queryBuilder = new QueryBuilder<UniqueCodeEntity>(filterApplier);
-        var repo = new EfRepo<UniqueCodeEntity>(db, queryBuilder, filterApplier);
+        var repo = new EfRepo<UniqueCodeEntity>(DbHelper.WrapAsServiceProvider(db), queryBuilder, filterApplier);
         return (db, repo);
     }
 
@@ -311,7 +311,7 @@ public class EfRepoTests
         var dialect = DialectDetector.Detect(db);
         var filterApplier = new FilterApplier(dialect);
         var queryBuilder = new QueryBuilder<PersonEntity>(filterApplier);
-        var repo = new EfRepo<PersonEntity>(db, queryBuilder, filterApplier, hooks);
+        var repo = new EfRepo<PersonEntity>(DbHelper.WrapAsServiceProvider(db), queryBuilder, filterApplier, hooks);
         return (db, repo);
     }
 
