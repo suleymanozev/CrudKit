@@ -1,6 +1,9 @@
 using System.Reflection;
 using System.Text.Json;
 using CrudKit.Api.Filters;
+using CrudKit.Api.Models;
+using CrudKit.Api.Services;
+using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore;
@@ -262,6 +265,36 @@ public static class CrudEndpointMapper
         .ProducesProblem(404)
         .ProducesProblem(500);
 
+        // GET /api/{route}/export — Export (read-only, Exportable only)
+        if (typeof(TEntity).GetCustomAttribute<ExportableAttribute>() != null)
+        {
+            group.MapGet("/export", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
+            {
+                var listParams = ListParams.FromQuery(httpCtx.Request.Query);
+                var format = httpCtx.Request.Query["format"].FirstOrDefault() ?? "csv";
+
+                // Fetch all matching records (no pagination for export)
+                listParams.Page = 1;
+                listParams.PerPage = int.MaxValue;
+                var result = await repo.List(listParams, ct);
+
+                if (format == "csv")
+                {
+                    var csv = CsvExportService.Export(result.Data);
+                    return Results.File(
+                        System.Text.Encoding.UTF8.GetBytes(csv),
+                        "text/csv",
+                        $"{route}-export.csv");
+                }
+
+                return Results.BadRequest(new { message = "Unsupported format. Use 'csv'." });
+            })
+            .WithName($"Export{tag}")
+            .WithTags(tag)
+            .Produces(200)
+            .ProducesProblem(400);
+        }
+
         return new CrudEndpointGroup<TEntity>(group, app, route);
     }
 
@@ -514,6 +547,102 @@ public static class CrudEndpointMapper
         .Produces<object>(200)
         .ProducesProblem(400)
         .ProducesProblem(500);
+
+        // GET /api/{route}/export — Export (Exportable only)
+        if (typeof(TEntity).GetCustomAttribute<ExportableAttribute>() != null)
+        {
+            group.MapGet("/export", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
+            {
+                var listParams = ListParams.FromQuery(httpCtx.Request.Query);
+                var format = httpCtx.Request.Query["format"].FirstOrDefault() ?? "csv";
+
+                // Fetch all matching records (no pagination for export)
+                listParams.Page = 1;
+                listParams.PerPage = int.MaxValue;
+                var result = await repo.List(listParams, ct);
+
+                if (format == "csv")
+                {
+                    var csv = CsvExportService.Export(result.Data);
+                    return Results.File(
+                        System.Text.Encoding.UTF8.GetBytes(csv),
+                        "text/csv",
+                        $"{route}-export.csv");
+                }
+
+                return Results.BadRequest(new { message = "Unsupported format. Use 'csv'." });
+            })
+            .WithName($"Export{tag}")
+            .WithTags(tag)
+            .Produces(200)
+            .ProducesProblem(400);
+        }
+
+        // POST /api/{route}/import — Import (Importable only)
+        if (typeof(TEntity).GetCustomAttribute<ImportableAttribute>() != null)
+        {
+            group.MapPost("/import", async (HttpContext httpCtx, CrudKitDbContext db, CancellationToken ct) =>
+            {
+                var form = await httpCtx.Request.ReadFormAsync(ct);
+                var file = form.Files.FirstOrDefault();
+                if (file == null || file.Length == 0)
+                    throw AppError.BadRequest("No file uploaded.");
+
+                using var reader = new StreamReader(file.OpenReadStream());
+                var content = await reader.ReadToEndAsync(ct);
+
+                var (rows, parseErrors) = CsvImportService.Parse<TEntity>(content);
+
+                var importResult = new ImportResult { Total = rows.Count + parseErrors.Count };
+                importResult.Errors.AddRange(parseErrors);
+
+                // Create each valid row via direct entity creation
+                await using var tx = await db.Database.BeginTransactionAsync(ct);
+                try
+                {
+                    foreach (var (row, rowIndex) in rows.Select((r, i) => (r, i + 2))) // +2: header=1, first data=2
+                    {
+                        try
+                        {
+                            var entity = Activator.CreateInstance<TEntity>();
+                            foreach (var (key, value) in row)
+                            {
+                                var prop = typeof(TEntity).GetProperty(key,
+                                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                                if (prop != null && prop.CanWrite && value != null)
+                                    prop.SetValue(entity, value);
+                            }
+                            db.Set<TEntity>().Add(entity);
+                            await db.SaveChangesAsync(ct);
+                            importResult.Created++;
+                        }
+                        catch (Exception ex)
+                        {
+                            importResult.Failed++;
+                            importResult.Errors.Add(new ImportError
+                            {
+                                Row = rowIndex,
+                                Message = ex is AppError appErr ? appErr.Message : ex.Message
+                            });
+                        }
+                    }
+
+                    await tx.CommitAsync(ct);
+                }
+                catch
+                {
+                    await tx.RollbackAsync(ct);
+                    throw;
+                }
+
+                return Results.Ok(importResult);
+            })
+            .WithName($"Import{tag}")
+            .WithTags(tag)
+            .Produces<ImportResult>(200)
+            .ProducesProblem(400)
+            .DisableAntiforgery();
+        }
 
         return new CrudEndpointGroup<TEntity>(group, app, route);
     }

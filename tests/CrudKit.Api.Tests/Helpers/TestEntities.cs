@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Concurrency;
@@ -6,11 +7,15 @@ using CrudKit.EntityFrameworkCore.Concurrency;
 namespace CrudKit.Api.Tests.Helpers;
 
 // ---- Basic entity ----
+[Exportable]
+[Importable]
 public class ProductEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
+    [NotExportable]
+    public string? InternalNotes { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
