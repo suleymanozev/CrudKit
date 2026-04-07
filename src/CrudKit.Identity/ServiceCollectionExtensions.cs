@@ -1,6 +1,5 @@
 using CrudKit.EntityFrameworkCore;
 using CrudKit.EntityFrameworkCore.Dialect;
-using CrudKit.EntityFrameworkCore.Numbering;
 using CrudKit.EntityFrameworkCore.Query;
 using CrudKit.EntityFrameworkCore.Repository;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,9 +52,6 @@ public static class ServiceCollectionExtensions
 
         // Open generic repository: IRepo<T> → EfRepo<T>
         services.TryAdd(ServiceDescriptor.Scoped(typeof(IRepo<>), typeof(EfRepo<>)));
-
-        // Document numbering
-        services.TryAddScoped<SequenceGenerator>();
 
         return services;
     }

@@ -26,22 +26,6 @@ public class InfraModelsTests
     }
 
     [Fact]
-    public void SequenceEntry_HasRequiredProperties()
-    {
-        var seq = new SequenceEntry
-        {
-            EntityType = "Invoice",
-            TenantId = "t1",
-            Year = "2026",
-            CurrentVal = 42,
-        };
-
-        Assert.Equal("Invoice", seq.EntityType);
-        Assert.Equal(42, seq.CurrentVal);
-        Assert.NotEqual(Guid.Empty, seq.Id);
-    }
-
-    [Fact]
     public void IConcurrent_RowVersion_IsUint()
     {
         var entity = new ConcurrentEntity { RowVersion = 7 };

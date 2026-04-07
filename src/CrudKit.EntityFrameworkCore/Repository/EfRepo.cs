@@ -3,7 +3,6 @@ using System.Reflection;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
-using CrudKit.EntityFrameworkCore.Numbering;
 using CrudKit.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,15 +19,13 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
     private readonly QueryBuilder<T> _queryBuilder;
     private readonly FilterApplier _filterApplier;
     private readonly ICrudHooks<T>? _hooks;
-    private readonly SequenceGenerator? _sequenceGenerator;
 
-    public EfRepo(IServiceProvider services, QueryBuilder<T> queryBuilder, FilterApplier filterApplier, ICrudHooks<T>? hooks = null, SequenceGenerator? sequenceGenerator = null)
+    public EfRepo(IServiceProvider services, QueryBuilder<T> queryBuilder, FilterApplier filterApplier, ICrudHooks<T>? hooks = null)
     {
         _db = ResolveContext(services);
         _queryBuilder = queryBuilder;
         _filterApplier = filterApplier;
         _hooks = hooks;
-        _sequenceGenerator = sequenceGenerator;
     }
 
     /// <summary>
@@ -136,17 +133,6 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
         EnsureTenantContext();
         var entity = Activator.CreateInstance<T>();
         MapDtoToEntity(createDto, entity, isCreate: true);
-
-        // Auto-assign document number for IDocumentNumbering entities
-        if (entity is IDocumentNumbering numbering && _sequenceGenerator != null)
-        {
-            var tenantId = _db.TenantCtx?.TenantId ?? "__global__";
-            var nextMethod = typeof(SequenceGenerator)
-                .GetMethod(nameof(SequenceGenerator.Next))!
-                .MakeGenericMethod(typeof(T));
-            var number = await (Task<string>)nextMethod.Invoke(_sequenceGenerator, [tenantId, ct])!;
-            numbering.DocumentNumber = number;
-        }
 
         _db.Set<T>().Add(entity);
         await _db.SaveChangesAsync(ct);

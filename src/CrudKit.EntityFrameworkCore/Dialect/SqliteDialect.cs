@@ -63,10 +63,4 @@ public class SqliteDialect : IDbDialect
             .IsConcurrencyToken();
     }
 
-    public string GetAtomicIncrementSql(string table, string valueColumn, string[] whereColumns)
-    {
-        // SQLite 3.35+ supports RETURNING; in-memory SQLite used by tests ships a recent version.
-        var where = string.Join(" AND ", whereColumns.Select((c, i) => $"\"{c}\" = @p{i}"));
-        return $"UPDATE \"{table}\" SET \"{valueColumn}\" = \"{valueColumn}\" + 1 WHERE {where} RETURNING \"{valueColumn}\"";
-    }
 }

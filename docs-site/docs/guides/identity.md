@@ -137,7 +137,7 @@ public class Invoice : FullAuditableEntityWithUser<AppUser>
 
 ## Migrations
 
-Run migrations as usual — Identity tables and CrudKit internal tables (`__crud_audit_logs`, `__crud_sequences`) are all included automatically:
+Run migrations as usual — Identity tables and CrudKit internal tables (`__crud_audit_logs`) are all included automatically:
 
 ```bash
 dotnet ef migrations add InitialCreate -c AppDbContext

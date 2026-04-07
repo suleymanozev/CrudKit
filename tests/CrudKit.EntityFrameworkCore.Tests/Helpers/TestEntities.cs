@@ -55,17 +55,13 @@ public class ConcurrentEntity : IAuditableEntity, IConcurrent
     public DateTime UpdatedAt { get; set; }
 }
 
-/// <summary>IDocumentNumbering entity — auto document number generation.</summary>
-public class InvoiceEntity : IAuditableEntity, IDocumentNumbering
+/// <summary>Simple entity used by DbContext configuration tests.</summary>
+public class InvoiceEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
-    public string DocumentNumber { get; set; } = string.Empty;
     public string CustomerName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-
-    public static string Prefix => "INV";
-    public static bool YearlyReset => true;
 }
 
 /// <summary>Entity with [Hashed] + [SkipResponse] attributes for EfRepo tests.</summary>

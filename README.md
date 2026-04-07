@@ -25,7 +25,6 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - `[CreateDtoFor]` / `[UpdateDtoFor]` — manual DTOs that suppress SourceGen for those types
 - `Optional<T>` for partial updates (distinguishes null from missing)
 - Property attributes: `[Hashed]`, `[SkipResponse]`, `[SkipUpdate]`, `[Protected]`, `[Unique]`, `[Searchable]`
-- Document numbering (e.g. `ORD-2026-00001`) with tenant-scoped sequences
 - Modular monolith support (`IModule` with assembly scan, multi-DbContext auto-resolution)
 - Multi-database dialect (SQLite, PostgreSQL, SQL Server) — auto-detected
 - Entity base class hierarchy (`Entity`, `AuditableEntity`, `FullAuditableEntity` — with `<TUser>` variants)

@@ -34,7 +34,6 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
     public bool IsAuditSave { get; set; }
 
     public DbSet<AuditLogEntry> AuditLogs => Set<AuditLogEntry>();
-    public DbSet<SequenceEntry> Sequences => Set<SequenceEntry>();
 
     protected CrudKitDbContext(DbContextOptions options, ICurrentUser currentUser,
         TimeProvider? timeProvider = null, CrudKitEfOptions? efOptions = null,

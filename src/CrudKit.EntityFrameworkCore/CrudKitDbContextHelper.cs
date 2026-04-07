@@ -124,12 +124,6 @@ public static class CrudKitDbContextHelper
             });
         }
 
-        modelBuilder.Entity<SequenceEntry>(b =>
-        {
-            b.ToTable("__crud_sequences");
-            b.HasIndex(e => new { e.EntityType, e.TenantId, e.Year }).IsUnique();
-            b.Property(e => e.CurrentVal).IsConcurrencyToken();
-        });
     }
 
     /// <summary>

@@ -22,16 +22,12 @@ Required on every entity managed by CrudKit. Controls route generation, endpoint
 | `EnableBulkUpdate` | `bool` | `false` | Generate POST `/bulk-update` endpoint |
 | `BulkLimit` | `int` | global | Override global `BulkLimit` for this entity |
 | `OwnerField` | `string` | — | Property holding the owner user ID for row-level security |
-| `NumberingPrefix` | `string` | — | Auto-generate document numbers (e.g. `"ORD"` → `ORD-2026-0001`) |
-| `NumberingYearlyReset` | `bool` | `true` | Reset sequence counter each calendar year |
 
 ```csharp
 [CrudEntity(
     Table = "orders",
     EnableBulkDelete = true,
-    BulkLimit = 500,
-    NumberingPrefix = "ORD",
-    NumberingYearlyReset = true)]
+    BulkLimit = 500)]
 public class Order : FullAuditableEntity { }
 ```
 

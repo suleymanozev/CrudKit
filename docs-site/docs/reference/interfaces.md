@@ -65,19 +65,6 @@ public interface IStateMachine<TState> where TState : struct, Enum
 }
 ```
 
-## IDocumentNumbering
-
-Auto-assigns sequential document numbers on Create. Sequences are scoped per entity type, tenant, and optionally year.
-
-```csharp
-public interface IDocumentNumbering
-{
-    string DocumentNumber { get; set; }
-    static abstract string Prefix { get; }
-    static abstract bool YearlyReset { get; }
-}
-```
-
 ## ICrudHooks\<T\>
 
 Per-entity lifecycle hooks. All methods have empty default implementations — override only what you need.

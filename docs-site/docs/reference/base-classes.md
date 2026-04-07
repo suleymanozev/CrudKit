@@ -56,5 +56,5 @@ Constructor signature: `CrudKitDbContext(DbContextOptions, ICurrentUser, TimePro
 - Applies global query filters for `ISoftDeletable` and `IMultiTenant` entities
 - Sets audit fields in `SaveChanges`
 - Configures `IConcurrent.RowVersion` as a concurrency token
-- Defines internal tables: `__crud_audit_logs`, `__crud_sequences`
+- Defines internal tables: `__crud_audit_logs`
 - Uses `TimeProvider` for all timestamps (defaults to `TimeProvider.System`)

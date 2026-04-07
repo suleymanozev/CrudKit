@@ -29,7 +29,6 @@ public interface ICrudKitDbContext
     bool IsAuditSave { get; set; }
 
     DbSet<AuditLogEntry> AuditLogs { get; }
-    DbSet<SequenceEntry> Sequences { get; }
 
     DatabaseFacade Database { get; }
     DbSet<TEntity> Set<TEntity>() where TEntity : class;

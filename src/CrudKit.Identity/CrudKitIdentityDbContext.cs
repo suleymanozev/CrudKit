@@ -38,7 +38,6 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
     public bool IsAuditSave { get; set; }
 
     public DbSet<AuditLogEntry> AuditLogs => Set<AuditLogEntry>();
-    public DbSet<SequenceEntry> Sequences => Set<SequenceEntry>();
 
     protected CrudKitIdentityDbContext(
         DbContextOptions options,

@@ -18,8 +18,7 @@
 12. [Import / Export](#import--export)
 13. [Bulk Operations](#bulk-operations)
 14. [State Machine](#state-machine)
-15. [Document Numbering](#document-numbering)
-16. [Optimistic Concurrency](#optimistic-concurrency)
+15. [Optimistic Concurrency](#optimistic-concurrency)
 17. [Modular Monolith](#modular-monolith)
 18. [Source Generation](#source-generation)
 19. [Configuration Reference](#configuration-reference)
@@ -84,16 +83,12 @@ Required on every entity managed by CrudKit. Controls route generation, endpoint
 | `EnableBulkUpdate` | `bool` | `false` | Generate POST `/bulk-update` endpoint |
 | `BulkLimit` | `int` | global | Override global `BulkLimit` for this entity |
 | `OwnerField` | `string` | — | Property holding the owner user ID for row-level security |
-| `NumberingPrefix` | `string` | — | Auto-generate document numbers (e.g. `"ORD"` → `ORD-2026-0001`) |
-| `NumberingYearlyReset` | `bool` | `true` | Reset sequence counter each calendar year |
 
 ```csharp
 [CrudEntity(
     Table = "orders",
     EnableBulkDelete = true,
-    BulkLimit = 500,
-    NumberingPrefix = "ORD",
-    NumberingYearlyReset = true)]
+    BulkLimit = 500)]
 public class Order : FullAuditableEntity { }
 ```
 
@@ -306,19 +301,6 @@ public interface IStateMachine<TState> where TState : struct, Enum
 {
     TState Status { get; set; }
     static abstract IReadOnlyList<(TState From, TState To, string Action)> Transitions { get; }
-}
-```
-
-### `IDocumentNumbering`
-
-Auto-assigns sequential document numbers on Create. Sequences are scoped per entity type, tenant, and optionally year.
-
-```csharp
-public interface IDocumentNumbering
-{
-    string DocumentNumber { get; set; }
-    static abstract string Prefix { get; }
-    static abstract bool YearlyReset { get; }
 }
 ```
 
@@ -1046,26 +1028,6 @@ Invalid transitions return `400`. Use `[Protected]` on the `Status` field to pre
 
 ---
 
-## Document Numbering
-
-Auto-generate sequential document numbers scoped by entity type, tenant, and optionally year.
-
-```csharp
-[CrudEntity(Table = "invoices", NumberingPrefix = "INV", NumberingYearlyReset = true)]
-public class Invoice : AuditableEntity, IDocumentNumbering
-{
-    public string DocumentNumber { get; set; } = string.Empty; // INV-2026-00001
-    public string CustomerName { get; set; } = string.Empty;
-
-    public static string Prefix => "INV";
-    public static bool YearlyReset => true;
-}
-```
-
-`SequenceGenerator` uses optimistic concurrency with retry to handle concurrent numbering safely. Sequences are stored in `__crud_sequences` and are tenant-scoped in multi-tenant applications.
-
----
-
 ## Optimistic Concurrency
 
 Implement `IConcurrent` to enable automatic concurrency conflict detection.
@@ -1450,7 +1412,7 @@ All overloads share the same constructor. Optional parameters are resolved via D
 
 ## Migrations
 
-CrudKit uses standard EF Core migrations. `CrudKitDbContext` defines internal tables (`__crud_audit_logs`, `__crud_sequences`) in `OnModelCreating` — they are included automatically when you run migrations.
+CrudKit uses standard EF Core migrations. `CrudKitDbContext` defines internal tables (`__crud_audit_logs`) in `OnModelCreating` — they are included automatically when you run migrations.
 
 ```bash
 # Initial migration includes CrudKit internal tables + your entities

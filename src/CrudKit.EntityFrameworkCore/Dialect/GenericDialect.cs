@@ -62,10 +62,4 @@ public class GenericDialect : IDbDialect
             .IsConcurrencyToken();
     }
 
-    public string GetAtomicIncrementSql(string table, string valueColumn, string[] whereColumns)
-    {
-        // RETURNING is standard SQL:2003 and supported by most modern databases.
-        var where = string.Join(" AND ", whereColumns.Select((c, i) => $"\"{c}\" = @p{i}"));
-        return $"UPDATE \"{table}\" SET \"{valueColumn}\" = \"{valueColumn}\" + 1 WHERE {where} RETURNING \"{valueColumn}\"";
-    }
 }

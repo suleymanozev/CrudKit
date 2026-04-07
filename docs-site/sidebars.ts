@@ -27,7 +27,6 @@ const sidebars: SidebarsConfig = {
         'features/bulk-operations',
         'features/idempotency',
         'features/concurrency',
-        'features/document-numbering',
         'features/query-features',
       ],
     },

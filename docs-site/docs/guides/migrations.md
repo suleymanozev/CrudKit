@@ -5,7 +5,7 @@ title: Migrations
 
 # Migrations
 
-CrudKit uses standard EF Core migrations. `CrudKitDbContext` defines internal tables (`__crud_audit_logs`, `__crud_sequences`) in `OnModelCreating` — they are included automatically when you run migrations.
+CrudKit uses standard EF Core migrations. `CrudKitDbContext` defines internal tables (`__crud_audit_logs`) in `OnModelCreating` — they are included automatically when you run migrations.
 
 ## Initial Setup
 
@@ -44,7 +44,6 @@ dotnet ef database update -c InventoryDbContext
 | Table | Purpose |
 |-------|---------|
 | `__crud_audit_logs` | Audit trail entries (created when `UseAuditTrail()` is enabled) |
-| `__crud_sequences` | Document number sequences for `IDocumentNumbering` entities |
 
 These tables are defined in `OnModelCreating` and included in the initial migration automatically.
 

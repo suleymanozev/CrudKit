@@ -2,7 +2,6 @@ using CrudKit.Core.Auth;
 using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore.Dialect;
 using CrudKit.EntityFrameworkCore.Extensions;
-using CrudKit.EntityFrameworkCore.Numbering;
 using CrudKit.EntityFrameworkCore.Query;
 using CrudKit.EntityFrameworkCore.Repository;
 using CrudKit.EntityFrameworkCore.Tests.Helpers;
@@ -62,12 +61,4 @@ public class ServiceCollectionExtensionsTests
         Assert.IsType<EfRepo<PersonEntity>>(repo);
     }
 
-    [Fact]
-    public void AddCrudKitEf_RegistersSequenceGenerator()
-    {
-        using var sp = BuildProvider() as ServiceProvider;
-        using var scope = sp!.CreateScope();
-        var gen = scope.ServiceProvider.GetRequiredService<SequenceGenerator>();
-        Assert.NotNull(gen);
-    }
 }
