@@ -14,6 +14,9 @@ public interface IRepo<T> where T : class, IAuditableEntity
     Task<T> Update(Guid id, object updateDto, CancellationToken ct = default);
     Task Delete(Guid id, CancellationToken ct = default);
     Task Restore(Guid id, CancellationToken ct = default);
+
+    /// <summary>Permanently deletes a soft-deleted entity. Only works on ISoftDeletable entities where DeletedAt is not null.</summary>
+    Task HardDelete(Guid id, CancellationToken ct = default);
     Task<bool> Exists(Guid id, CancellationToken ct = default);
     Task<long> Count(CancellationToken ct = default);
 

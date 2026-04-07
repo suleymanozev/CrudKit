@@ -611,6 +611,19 @@ public static class CrudEndpointMapper
             .ProducesProblem(404)
             .ProducesProblem(500);
 
+            // DELETE /api/{route}/{id}/purge — Permanently delete a single soft-deleted record
+            group.MapDelete("/{id}/purge", async (string id, IRepo<TEntity> repo, CancellationToken ct) =>
+            {
+                var guid = ParseGuid(id, typeof(TEntity).Name);
+                await repo.HardDelete(guid, ct);
+                return Results.NoContent();
+            })
+            .WithName($"PurgeSingle{tag}")
+            .WithTags(tag)
+            .Produces(204)
+            .ProducesProblem(400)
+            .ProducesProblem(404);
+
             // DELETE /api/{route}/purge?olderThan=N — Permanently delete old soft-deleted records
             group.MapDelete("/purge", async (HttpContext httpCtx, int olderThan, CancellationToken ct) =>
             {

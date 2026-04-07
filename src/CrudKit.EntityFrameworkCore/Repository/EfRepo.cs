@@ -242,6 +242,34 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
         }
     }
 
+    public async Task HardDelete(Guid id, CancellationToken ct = default)
+    {
+        EnsureTenantContext();
+        if (!typeof(ISoftDeletable).IsAssignableFrom(typeof(T)))
+            throw new InvalidOperationException($"{typeof(T).Name} does not implement ISoftDeletable.");
+
+        var entity = await _db.Set<T>().IgnoreQueryFilters()
+            .FirstOrDefaultAsync(e => e.Id == id, ct)
+            ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
+
+        // Must be soft-deleted already
+        if (((ISoftDeletable)entity).DeletedAt == null)
+            throw AppError.BadRequest($"{typeof(T).Name} with id '{id}' is not soft-deleted. Delete it first.");
+
+        // Re-enforce tenant isolation
+        if (entity is IMultiTenant multiTenant)
+        {
+            var currentTenantId = _db.CurrentTenantId;
+            if (currentTenantId != null && multiTenant.TenantId != currentTenantId)
+                throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
+        }
+
+        // Hard delete — ExecuteDeleteAsync bypasses SaveChanges interception (no soft-delete conversion)
+        await _db.Set<T>().IgnoreQueryFilters()
+            .Where(e => e.Id == id)
+            .ExecuteDeleteAsync(ct);
+    }
+
     public Task<bool> Exists(Guid id, CancellationToken ct = default)
         => _db.Set<T>().AnyAsync(e => e.Id == id, ct);
 
