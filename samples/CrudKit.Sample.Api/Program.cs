@@ -3,6 +3,8 @@ using CrudKit.Api.Extensions;
 using CrudKit.Sample.Api.Data;
 using CrudKit.Sample.Api.Dtos;
 using CrudKit.Sample.Api.Entities;
+using CrudKit.Sample.Api.Validators;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -21,6 +23,10 @@ builder.Services.AddCrudKit<SampleDbContext>(opts =>
     opts.UseExport();
     opts.UseEnumAsString();
 });
+
+// FluentValidation — takes precedence over DataAnnotation attributes
+builder.Services.AddScoped<IValidator<CreateProduct>, CreateProductValidator>();
+builder.Services.AddScoped<IValidator<CreateOrder>, CreateOrderValidator>();
 
 // OpenAPI — set decimal format to "decimal" instead of "double"
 builder.Services.AddOpenApi(opts =>
