@@ -292,3 +292,14 @@ public class CreateProjectMilestoneDto
     public Guid ParentProjectId { get; set; }
     [Required] public string Label { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Create DTO for ProjectTaskEntity — decorated with [CreateDtoFor] so auto-discovery
+/// registers a POST endpoint under /api/projects/{masterId}/project-task-entitys.
+/// </summary>
+[CreateDtoFor(typeof(ProjectTaskEntity))]
+public class CreateProjectTaskDto
+{
+    public Guid ProjectId { get; set; }
+    [Required] public string Name { get; set; } = string.Empty;
+}

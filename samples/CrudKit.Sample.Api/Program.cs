@@ -47,8 +47,8 @@ app.UseCrudKit();
 // Route-less — route derived from [CrudEntity(Table = ...)]
 app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
 app.MapCrudEndpoints<Category, CreateCategory, UpdateCategory>();
-app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
-    .WithDetail<OrderLine, CreateOrderLine>("lines", "OrderId");
+// [ChildOf] + [CreateDtoFor] on OrderLine/CreateOrderLine handles List/Get/Delete/POST automatically
+app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>();
 app.MapCrudEndpoints<Unit>();
 
 // OpenAPI + Scalar UI

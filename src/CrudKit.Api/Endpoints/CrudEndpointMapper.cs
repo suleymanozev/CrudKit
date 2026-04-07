@@ -40,6 +40,13 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
     /// </summary>
     internal HashSet<Type> RegisteredDetailTypes { get; } = new();
 
+    /// <summary>
+    /// Stores the <see cref="RouteGroupBuilder"/> created by auto-discovery for each child type
+    /// so that a subsequent <see cref="WithDetail{TDetail,TCreateDetail}"/> call can reuse the
+    /// same group instead of creating a duplicate route registration.
+    /// </summary>
+    internal Dictionary<Type, RouteGroupBuilder> AutoDiscoveredGroups { get; } = new();
+
     internal CrudEndpointGroup(RouteGroupBuilder group, WebApplication app, string route)
     {
         Group = group;
@@ -85,8 +92,21 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
         var detailTag = typeof(TDetail).Name.Replace("Entity", "");
         var tag = $"{masterTag}{detailTag}";
 
-        var group = App.MapGroup($"/api/{Route}/{{masterId}}/{detailRoute}").WithTags(tag);
-        group.AddEndpointFilter<AppErrorFilter>();
+        // Reuse the auto-discovered group when one exists to avoid duplicate route registration
+        // (two MapGroup calls with the same pattern cause AmbiguousMatchException at runtime).
+        // When reusing, List/Get/Delete are already registered by auto-discovery, so only
+        // POST and BatchUpsert need to be added.
+        var autoGroupExists = AutoDiscoveredGroups.TryGetValue(typeof(TDetail), out var existingGroup);
+        RouteGroupBuilder group;
+        if (autoGroupExists)
+        {
+            group = existingGroup!;
+        }
+        else
+        {
+            group = App.MapGroup($"/api/{Route}/{{masterId}}/{detailRoute}").WithTags(tag);
+            group.AddEndpointFilter<AppErrorFilter>();
+        }
 
         var fkProp = typeof(TDetail).GetProperty(foreignKeyProperty,
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
@@ -95,6 +115,8 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
 
         var masterRoute = Route;
 
+        if (!autoGroupExists)
+        {
         // GET /api/{masterRoute}/{masterId}/{detailRoute} — List details by master
         group.MapGet("/", async (string masterId, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
         {
@@ -132,6 +154,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
         .Produces<TDetail>(200)
         .ProducesProblem(404)
         .ProducesProblem(500);
+        } // end if (!autoGroupExists) for List/Get
 
         // POST /api/{masterRoute}/{masterId}/{detailRoute} — Create detail
         group.MapPost("/", async (string masterId, TCreateDetail dto, HttpContext httpCtx, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
@@ -173,6 +196,8 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
         .ProducesProblem(404)
         .ProducesProblem(500);
 
+        if (!autoGroupExists)
+        {
         // DELETE /api/{masterRoute}/{masterId}/{detailRoute}/{id} — Delete detail
         group.MapDelete("/{id}", async (string masterId, string id, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
         {
@@ -196,6 +221,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
         .Produces(204)
         .ProducesProblem(404)
         .ProducesProblem(500);
+        } // end if (!autoGroupExists) for Delete
 
         // PUT /api/{masterRoute}/{masterId}/{detailRoute}/batch — Batch upsert (replace all)
         group.MapPut("/batch", async (string masterId, List<TCreateDetail> dtos, HttpContext httpCtx, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
@@ -835,14 +861,15 @@ public static class CrudEndpointMapper
     }
 
     /// <summary>
-    /// Registers List, Get, and Delete endpoints for a child (detail) entity discovered via
-    /// <c>[ChildOf]</c>. Auto-discovered at startup inside <see cref="MapCrudEndpoints{TEntity}(WebApplication,string)"/>.
+    /// Registers List, Get, Delete, and (when a matching <c>[CreateDtoFor]</c> is found) POST
+    /// endpoints for a child (detail) entity discovered via <c>[ChildOf]</c>.
+    /// Auto-discovered at startup inside <see cref="MapCrudEndpoints{TEntity}(WebApplication,string)"/>.
     /// Endpoint names use an <c>__auto</c> suffix so they never collide with names registered
     /// by an explicit <c>WithDetail</c> call on the same pair of types.
-    /// A POST (create) endpoint is NOT registered here; use <c>WithDetail</c> for that.
     /// </summary>
     internal static void RegisterChildEndpoints<TMaster, TDetail>(
-        WebApplication app, string masterRoute, string detailRoute, string foreignKey)
+        WebApplication app, string masterRoute, string detailRoute, string foreignKey,
+        CrudEndpointGroup<TMaster>? endpointGroup = null)
         where TMaster : class, IAuditableEntity
         where TDetail : class, IAuditableEntity
     {
@@ -852,6 +879,9 @@ public static class CrudEndpointMapper
 
         var group = app.MapGroup($"/api/{masterRoute}/{{masterId}}/{detailRoute}").WithTags(tag);
         group.AddEndpointFilter<AppErrorFilter>();
+
+        // Store group reference so WithDetail can reuse it instead of creating a duplicate
+        endpointGroup?.AutoDiscoveredGroups.TryAdd(typeof(TDetail), group);
 
         var fkProp = typeof(TDetail).GetProperty(foreignKey,
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
@@ -919,6 +949,96 @@ public static class CrudEndpointMapper
         .Produces(204)
         .ProducesProblem(404)
         .ProducesProblem(500);
+
+        // Auto-discover [CreateDtoFor(typeof(TDetail))] and register POST if found
+        var createDtoType = FindCreateDtoFor(typeof(TDetail));
+        if (createDtoType != null)
+        {
+            var registerCreateMethod = typeof(CrudEndpointMapper)
+                .GetMethod(nameof(RegisterChildCreateEndpoint), BindingFlags.NonPublic | BindingFlags.Static)!
+                .MakeGenericMethod(typeof(TMaster), typeof(TDetail), createDtoType);
+            registerCreateMethod.Invoke(null, [group, masterRoute, detailRoute, foreignKey]);
+        }
+    }
+
+    /// <summary>
+    /// Scans all loaded assemblies for a type decorated with <c>[CreateDtoFor(typeof(childType))]</c>.
+    /// Returns the first match, or null if none is found.
+    /// Assembly load exceptions are swallowed to allow partial-trust environments.
+    /// </summary>
+    private static Type? FindCreateDtoFor(Type childType)
+    {
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            Type[] types;
+            try { types = assembly.GetTypes(); }
+            catch { continue; }
+
+            foreach (var type in types)
+            {
+                var attr = type.GetCustomAttribute<CreateDtoForAttribute>();
+                if (attr?.EntityType == childType) return type;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Registers a POST (create) endpoint for a child entity using the discovered <typeparamref name="TCreateDto"/>.
+    /// Called via reflection from <see cref="RegisterChildEndpoints{TMaster,TDetail}"/> when a
+    /// <c>[CreateDtoFor(typeof(TDetail))]</c>-decorated DTO is found at startup.
+    /// The FK on the DTO is auto-set from the URL <c>masterId</c> segment before creation.
+    /// </summary>
+    private static void RegisterChildCreateEndpoint<TMaster, TDetail, TCreateDto>(
+        RouteGroupBuilder group, string masterRoute, string detailRoute, string foreignKey)
+        where TMaster : class, IAuditableEntity
+        where TDetail : class, IAuditableEntity
+        where TCreateDto : class
+    {
+        var masterTag = typeof(TMaster).Name.Replace("Entity", "");
+        var detailTag = typeof(TDetail).Name.Replace("Entity", "");
+        var tag = $"{masterTag}{detailTag}";
+
+        // Resolve the FK property on the DTO once at registration time (may be null — handled at runtime)
+        var fkProp = typeof(TCreateDto).GetProperty(foreignKey,
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
+        // POST /api/{masterRoute}/{masterId}/{detailRoute} — Create detail via auto-discovered DTO
+        group.MapPost("/", async (string masterId, TCreateDto dto, HttpContext httpCtx,
+            IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
+        {
+            var masterGuid = ParseGuid(masterId, typeof(TMaster).Name);
+            if (!await masterRepo.Exists(masterGuid, ct))
+                throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
+
+            // Auto-set FK on DTO from the URL segment
+            if (fkProp != null)
+            {
+                var fkValue = ConvertFkValue(masterId, fkProp.PropertyType);
+                fkProp.SetValue(dto, fkValue);
+            }
+
+            var db = ResolveDbContextFor<TDetail>(httpCtx.RequestServices);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                var entity = await detailRepo.Create(dto, ct);
+                await tx.CommitAsync(ct);
+                return Results.Created($"/api/{masterRoute}/{masterId}/{detailRoute}/{entity.Id}", entity);
+            }
+            catch
+            {
+                await tx.RollbackAsync(ct);
+                throw;
+            }
+        })
+        .AddEndpointFilter<ValidationFilter<TCreateDto>>()
+        .WithName($"Create{tag}__auto")
+        .Accepts<TCreateDto>("application/json")
+        .Produces<TDetail>(201)
+        .ProducesProblem(400)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
     }
 
     /// <summary>
@@ -957,13 +1077,14 @@ public static class CrudEndpointMapper
                 var foreignKey = childOfAttr.ForeignKey
                     ?? parentType.Name + "Id";
 
-                // Invoke the generic helper via reflection since TDetail is only known at runtime
+                // Invoke the generic helper via reflection since TDetail is only known at runtime.
+                // Pass the endpointGroup so the route group reference can be stored for WithDetail reuse.
                 var method = typeof(CrudEndpointMapper)
                     .GetMethod(nameof(RegisterChildEndpoints),
                         BindingFlags.NonPublic | BindingFlags.Static)!
                     .MakeGenericMethod(parentType, childType);
 
-                method.Invoke(null, [app, route, detailRoute, foreignKey]);
+                method.Invoke(null, [app, route, detailRoute, foreignKey, group]);
             }
         }
     }

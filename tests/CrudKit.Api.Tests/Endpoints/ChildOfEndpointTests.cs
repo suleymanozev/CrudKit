@@ -139,6 +139,62 @@ public class ChildOfEndpointTests
     }
 
     [Fact]
+    public async Task ChildOf_WithCreateDtoFor_RegistersPostEndpoint()
+    {
+        // ProjectTaskEntity has [ChildOf(typeof(ProjectEntity), ForeignKey = "ProjectId")]
+        // CreateProjectTaskDto has [CreateDtoFor(typeof(ProjectTaskEntity))]
+        // Auto-discovery should register POST under /api/projects/{masterId}/project-task-entitys
+        await using var app = await CreateApp();
+        var projectId = await CreateProject(app, "Task Project");
+
+        var createResponse = await app.Client.PostAsJsonAsync(
+            $"/api/projects/{projectId}/project-task-entitys",
+            new { Name = "First Task" });
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var doc = JsonDocument.Parse(await createResponse.Content.ReadAsStringAsync());
+        Assert.Equal("First Task", doc.RootElement.GetProperty("name").GetString());
+
+        // FK should be auto-set to the master id
+        var fk = doc.RootElement.GetProperty("projectId").GetString();
+        Assert.Equal(projectId, fk);
+
+        // Verify the item is retrievable via List
+        var listResponse = await app.Client.GetAsync($"/api/projects/{projectId}/project-task-entitys");
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        var listDoc = JsonDocument.Parse(await listResponse.Content.ReadAsStringAsync());
+        Assert.Equal(1, listDoc.RootElement.GetArrayLength());
+    }
+
+    [Fact]
+    public async Task ChildOf_WithCreateDtoFor_MasterNotFound_Returns404()
+    {
+        await using var app = await CreateApp();
+        var fakeMasterId = Guid.NewGuid().ToString();
+
+        var response = await app.Client.PostAsJsonAsync(
+            $"/api/projects/{fakeMasterId}/project-task-entitys",
+            new { Name = "Task" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChildOf_WithCreateDtoFor_ValidationFails_Returns400()
+    {
+        await using var app = await CreateApp();
+        var projectId = await CreateProject(app, "Validation Project");
+
+        // Name is [Required] — send empty string to trigger validation
+        var response = await app.Client.PostAsJsonAsync(
+            $"/api/projects/{projectId}/project-task-entitys",
+            new { Name = "" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task ToKebabCase_ConvertsCorrectly()
     {
         Assert.Equal("order-line", CrudEndpointMapper.ToKebabCase("OrderLine"));
