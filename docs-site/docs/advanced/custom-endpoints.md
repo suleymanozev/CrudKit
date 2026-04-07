@@ -5,7 +5,7 @@ title: Custom Endpoints
 
 # Custom Endpoints
 
-Add custom endpoints under the same route group as an entity using `.WithCustomEndpoints()` or define master-detail relationships with `.WithDetail()`.
+Add custom endpoints under the same route group as an entity using `.WithCustomEndpoints()` or define master-child relationships with `.WithChild()`.
 
 ## WithCustomEndpoints
 
@@ -20,13 +20,13 @@ app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
 
 Custom endpoints inherit the route prefix from the entity (e.g. `/api/orders/{id}/approve`).
 
-## WithDetail — Master-Detail Endpoints
+## WithChild — Master-Child Endpoints
 
 Chain nested endpoints under a parent resource:
 
 ```csharp
 app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
-    .WithDetail<OrderLine, CreateOrderLine>("lines", "OrderId");
+    .WithChild<OrderLine, CreateOrderLine>("lines", "OrderId");
 ```
 
 | Method | Route |
@@ -37,7 +37,7 @@ app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
 | DELETE | `/api/orders/{masterId}/lines/{id}` |
 | PUT | `/api/orders/{masterId}/lines/batch` |
 
-The `batch` endpoint replaces all detail records for a master in a single transaction.
+The `batch` endpoint replaces all child records for a master in a single transaction.
 
 ## Endpoint Mapping Overloads
 

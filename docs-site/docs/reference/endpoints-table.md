@@ -29,9 +29,9 @@ For an entity with `[CrudEntity(Table = "products")]`:
 | POST | `/api/products/bulk-delete` | Delete multiple by IDs | `EnableBulkDelete = true` |
 | POST | `/api/products/bulk-update` | Update multiple by IDs | `EnableBulkUpdate = true` |
 
-## Master-Detail Endpoints
+## Master-Child Endpoints
 
-For `.WithDetail<OrderLine, CreateOrderLine>("lines", "OrderId")`:
+For `.WithChild<OrderLine, CreateOrderLine>("lines", "OrderId")`:
 
 | Method | Route | Description |
 |--------|-------|-------------|

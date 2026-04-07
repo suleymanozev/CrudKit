@@ -112,14 +112,14 @@ public class ChildOfEndpointTests
     [Fact]
     public async Task ChildOf_WithDetail_CoexistsWithAutoDiscovery()
     {
-        // When WithDetail is chained after MapCrudEndpoints, auto-discovery has already
+        // When WithChild is chained after MapCrudEndpoints, auto-discovery has already
         // registered List/Get/Delete for ProjectMilestoneEntity via [ChildOf] (using __auto
-        // endpoint names). WithDetail adds Create and Batch on top using standard names.
+        // endpoint names). WithChild adds Create and Batch on top using standard names.
         // Both sets of endpoints use the same URL path — no name collision, no startup error.
         await using var app = await TestWebApp.CreateAsync(configureEndpoints: web =>
         {
             web.MapCrudEndpoints<ProjectEntity, CreateProjectDto, UpdateProjectDto>("projects2")
-                .WithDetail<ProjectMilestoneEntity, CreateProjectMilestoneDto>("milestones", "ParentProjectId");
+                .WithChild<ProjectMilestoneEntity, CreateProjectMilestoneDto>("milestones", "ParentProjectId");
         });
 
         var projectResponse = await app.Client.PostAsJsonAsync("/api/projects2", new { Title = "P2" });

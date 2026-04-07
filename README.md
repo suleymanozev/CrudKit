@@ -16,7 +16,7 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Lifecycle hooks (`ICrudHooks<T>`) + global hooks (`IGlobalCrudHook`) for cross-cutting concerns
 - Validation (FluentValidation priority, DataAnnotation fallback)
 - State machine transitions (`IStateMachine<TState>`)
-- Master-detail relationships (fluent `.WithDetail()`)
+- Master-child relationships (fluent `.WithChild()`)
 - Idempotency via request header
 - Bulk operations (`/bulk-count`, `/bulk-delete`, `/bulk-update`)
 - ReadOnly entities (List + Get only)

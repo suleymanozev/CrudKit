@@ -22,7 +22,7 @@ public class OrderModule : IModule
     public void MapEndpoints(WebApplication app)
     {
         app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
-           .WithDetail<OrderLine, CreateOrderLine>("lines", "OrderId");
+           .WithChild<OrderLine, CreateOrderLine>("lines", "OrderId");
     }
 }
 ```

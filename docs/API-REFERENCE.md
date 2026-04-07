@@ -413,13 +413,13 @@ For an entity with `[CrudEntity(Table = "products")]`:
 | POST | `/api/products/bulk-delete` | Delete by IDs (`EnableBulkDelete = true`) |
 | POST | `/api/products/bulk-update` | Update by IDs (`EnableBulkUpdate = true`) |
 
-### `.WithDetail<TDetail, TCreate>()`
+### `.WithChild<TDetail, TCreate>()`
 
-Chain master-detail nested endpoints under a parent resource.
+Chain master-child nested endpoints under a parent resource.
 
 ```csharp
 app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
-    .WithDetail<OrderLine, CreateOrderLine>("lines", "OrderId");
+    .WithChild<OrderLine, CreateOrderLine>("lines", "OrderId");
 ```
 
 | Method | Route |
@@ -430,7 +430,7 @@ app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
 | DELETE | `/api/orders/{masterId}/lines/{id}` |
 | PUT | `/api/orders/{masterId}/lines/batch` |
 
-The `batch` endpoint replaces all detail records for a master in a single transaction.
+The `batch` endpoint replaces all child records for a master in a single transaction.
 
 ### `.WithCustomEndpoints()`
 
@@ -1037,7 +1037,7 @@ public class OrderModule : IModule
     public void MapEndpoints(WebApplication app)
     {
         app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
-           .WithDetail<OrderLine, CreateOrderLine>("lines", "OrderId");
+           .WithChild<OrderLine, CreateOrderLine>("lines", "OrderId");
     }
 }
 ```
