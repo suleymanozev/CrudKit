@@ -99,7 +99,8 @@ public class Product : FullAuditableEntity
 | POST | `/api/products` | Create |
 | PUT | `/api/products/{id}` | Update (partial via `Optional<T>`) |
 | DELETE | `/api/products/{id}` | Soft-delete (`ISoftDeletable`) |
-| DELETE | `/api/products/purge?olderThan=30` | Permanently delete soft-deleted records (`ISoftDeletable` only) |
+| DELETE | `/api/products/{id}/purge` | Permanently delete a single soft-deleted record |
+| DELETE | `/api/products/purge?olderThan=30` | Bulk purge soft-deleted records older than N days |
 | POST | `/api/products/{id}/restore` | Restore soft-deleted record |
 | POST | `/api/products/{id}/transition/{action}` | State transition (`IStateMachine<TState>` only) |
 
@@ -262,18 +263,36 @@ public record UpdateOrder
 }
 ```
 
+## Naming Templates
+
+Customize SourceGen naming conventions at assembly level:
+
+```csharp
+[assembly: CrudKit(
+    CreateDtoNamingTemplate = "{Name}CreateRequest",   // default: "Create{Name}"
+    UpdateDtoNamingTemplate = "{Name}UpdateRequest",   // default: "Update{Name}"
+    ResponseDtoNamingTemplate = "{Name}Dto")]          // default: "{Name}Response"
+```
+
+`{Name}` placeholder is required — empty or missing placeholder causes a compile error.
+
 ---
 
-## Purge Endpoint
+## Purge Endpoints
 
-For `ISoftDeletable` entities, CrudKit exposes a purge endpoint that permanently deletes soft-deleted records older than N days:
+For `ISoftDeletable` entities, CrudKit exposes two purge endpoints for permanent (hard) deletion:
 
 ```
+// Single item — must be soft-deleted first
+DELETE /api/products/{id}/purge
+// Response: 204 No Content
+
+// Bulk — deletes all soft-deleted records older than N days
 DELETE /api/products/purge?olderThan=30
 // Response: { "purged": 15 }
 ```
 
-`olderThan` is required (minimum 1 day). Uses `ExecuteDeleteAsync` — bypasses soft-delete interception. Respects tenant isolation for `IMultiTenant` entities.
+Single purge requires the record to be soft-deleted already (returns 400 if active). Bulk purge requires `olderThan` (minimum 1 day). Both use `ExecuteDeleteAsync` — bypasses soft-delete interception. Respects tenant isolation for `IMultiTenant` entities.
 
 ---
 
