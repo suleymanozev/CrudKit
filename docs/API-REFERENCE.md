@@ -165,6 +165,44 @@ When the parent is soft-deleted, all matching child records are soft-deleted in 
 public class Order : FullAuditableEntity { }
 ```
 
+#### `[ChildOf(typeof(TParent))]`
+
+Declares a child entity and its parent. CrudKit generates nested REST endpoints under the parent route automatically — no manual `.WithChild()` call needed. The foreign key is resolved by convention (`{ParentType}Id`), or specified explicitly.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ParentType` | `Type` | — | The parent entity type |
+| `Route` | `string` | pluralized child name | Route segment under the parent (e.g. `"items"`) |
+| `ForeignKey` | `string` | `"{ParentType}Id"` | Name of the FK property on the child entity |
+
+```csharp
+[ChildOf(typeof(Order))]
+public class OrderLine : AuditableEntity
+{
+    public Guid OrderId { get; set; }           // FK convention
+    public string ProductName { get; set; } = string.Empty;
+}
+
+// Custom route + FK
+[ChildOf(typeof(Order), Route = "items", ForeignKey = "ParentOrderId")]
+public class OrderItem : AuditableEntity { }
+```
+
+#### `[CreateDtoFor(typeof(TEntity))]` / `[UpdateDtoFor(typeof(TEntity))]`
+
+Applied to a manually written DTO record or class. Signals SourceGen to skip generating the corresponding DTO for the target entity. `ResponseDto` and mapper are still generated.
+
+```csharp
+[CreateDtoFor(typeof(Order))]
+public record CreateOrder([Required] string CustomerName, decimal Total = 0);
+
+[UpdateDtoFor(typeof(Order))]
+public record UpdateOrder
+{
+    public Optional<string?> CustomerName { get; init; }
+}
+```
+
 ---
 
 ### Property-Level Attributes
@@ -406,6 +444,7 @@ For an entity with `[CrudEntity(Table = "products")]`:
 | PUT | `/api/products/{id}` | Update (partial via `Optional<T>`) |
 | DELETE | `/api/products/{id}` | Delete (soft-delete if `ISoftDeletable`) |
 | POST | `/api/products/{id}/restore` | Restore (`ISoftDeletable` only) |
+| DELETE | `/api/products/purge?olderThan=N` | Permanent hard-delete of soft-deleted records (`ISoftDeletable` only) |
 | POST | `/api/products/{id}/transition/{action}` | State transition (`IStateMachine<TState>` only) |
 | GET | `/api/products/export` | CSV export (`[Exportable]` or `UseExport()`) |
 | POST | `/api/products/import` | CSV import (`[Importable]` or `UseImport()`) |
@@ -413,9 +452,28 @@ For an entity with `[CrudEntity(Table = "products")]`:
 | POST | `/api/products/bulk-delete` | Delete by IDs (`EnableBulkDelete = true`) |
 | POST | `/api/products/bulk-update` | Update by IDs (`EnableBulkUpdate = true`) |
 
+### `[ChildOf]` — Declarative Child Endpoints
+
+Annotate a child entity with `[ChildOf(typeof(TParent))]` to generate nested endpoints automatically when the parent is registered. No fluent call required.
+
+```csharp
+[ChildOf(typeof(Order))]
+public class OrderLine : AuditableEntity
+{
+    public Guid OrderId { get; set; }
+    public string ProductName { get; set; } = string.Empty;
+}
+
+// Auto-generated when Order is mapped:
+// GET    /api/orders/{id}/order-lines
+// GET    /api/orders/{id}/order-lines/{id}
+// DELETE /api/orders/{id}/order-lines/{id}
+// POST   /api/orders/{id}/order-lines  (if [CreateDtoFor(typeof(OrderLine))] exists)
+```
+
 ### `.WithChild<TDetail, TCreate>()`
 
-Chain master-child nested endpoints under a parent resource.
+Fluent alternative for explicit child endpoint registration. Overrides or supplements `[ChildOf]`.
 
 ```csharp
 app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
@@ -600,6 +658,19 @@ Uses raw SQL `UPDATE` — no N+1 queries. Restore also cascades to all children.
 ### Restore with Unique Constraint Check
 
 When restoring a soft-deleted entity, CrudKit checks all `[Unique]` properties against currently active records. If a conflict exists, the restore fails with `409 Conflict`.
+
+### Purge Endpoint
+
+`DELETE /api/{entity}/purge?olderThan=30` permanently removes all soft-deleted records for an `ISoftDeletable` entity that were deleted more than N days ago. Returns `{ "purged": <count> }`.
+
+- `olderThan` is required (minimum 1).
+- Uses `ExecuteDeleteAsync` — bypasses EF change tracking and soft-delete interception (real hard delete).
+- Respects tenant isolation for `IMultiTenant` entities.
+
+```http
+DELETE /api/products/purge?olderThan=30
+→ 200 { "purged": 15 }
+```
 
 ---
 
@@ -1120,6 +1191,36 @@ public partial class ProductHooks
         entity.Sku = entity.Sku.ToUpperInvariant();
         return Task.CompletedTask;
     }
+}
+```
+
+### Naming Templates (`[assembly: CrudKit(...)]`)
+
+Override the naming convention for all generated types at the assembly level. Add to any `.cs` file (typically `GlobalUsings.cs` or `AssemblyInfo.cs`):
+
+```csharp
+[assembly: CrudKit(
+    CreateDtoNamingTemplate   = "{Name}CreateRequest",   // default: "Create{Name}"
+    UpdateDtoNamingTemplate   = "{Name}UpdateRequest",   // default: "Update{Name}"
+    ResponseDtoNamingTemplate = "{Name}Dto",             // default: "{Name}Response"
+    MapperNamingTemplate      = "{Name}Mapper",          // default: "{Name}Mapper"
+    HooksNamingTemplate       = "{Name}Hooks")]          // default: "{Name}Hooks"
+```
+
+The `{Name}` placeholder is required in every template. An empty template or a template missing `{Name}` is a compile-time error.
+
+### Manual DTOs — Suppressing SourceGen
+
+Annotate a manually written DTO with `[CreateDtoFor(typeof(TEntity))]` or `[UpdateDtoFor(typeof(TEntity))]`. SourceGen detects these attributes and skips generating the corresponding DTO for that entity; `ResponseDto` and mapper are still generated.
+
+```csharp
+[CreateDtoFor(typeof(Order))]
+public record CreateOrder([Required] string CustomerName, decimal Total = 0);
+
+[UpdateDtoFor(typeof(Order))]
+public record UpdateOrder
+{
+    public Optional<string?> CustomerName { get; init; }
 }
 ```
 

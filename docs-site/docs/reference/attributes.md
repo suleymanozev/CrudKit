@@ -103,6 +103,55 @@ When the parent is soft-deleted, all matching child records are soft-deleted in 
 public class Order : FullAuditableEntity { }
 ```
 
+### [ChildOf(typeof(TParent))]
+
+Declares a child entity and its parent. CrudKit generates nested REST endpoints automatically under the parent route when the parent is registered — no manual `.WithChild()` call required.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ParentType` | `Type` | — | The parent entity type |
+| `Route` | `string` | pluralized child name | URL segment appended to the parent route |
+| `ForeignKey` | `string` | `"{ParentType}Id"` | FK property name on the child entity |
+
+```csharp
+[ChildOf(typeof(Order))]
+public class OrderLine : AuditableEntity
+{
+    public Guid OrderId { get; set; }           // resolved by convention
+    public string ProductName { get; set; } = string.Empty;
+}
+
+// Explicit route and FK
+[ChildOf(typeof(Order), Route = "items", ForeignKey = "ParentOrderId")]
+public class OrderItem : AuditableEntity { }
+```
+
+Auto-generated endpoints (assuming `[CrudEntity(Table = "orders")]` on parent):
+
+| Method | Route |
+|--------|-------|
+| GET | `/api/orders/{id}/order-lines` |
+| GET | `/api/orders/{id}/order-lines/{lineId}` |
+| DELETE | `/api/orders/{id}/order-lines/{lineId}` |
+| POST | `/api/orders/{id}/order-lines` (when `[CreateDtoFor]` exists for the child) |
+
+### [CreateDtoFor(typeof(TEntity))] / [UpdateDtoFor(typeof(TEntity))]
+
+Applied to a manually written DTO. Tells SourceGen to skip generating the corresponding DTO for `TEntity`. `ResponseDto` and mapper are still generated automatically.
+
+```csharp
+[CreateDtoFor(typeof(Order))]
+public record CreateOrder([Required] string CustomerName, decimal Total = 0);
+
+[UpdateDtoFor(typeof(Order))]
+public record UpdateOrder
+{
+    public Optional<string?> CustomerName { get; init; }
+}
+```
+
+Use this when the default generated DTO doesn't match your API contract — you retain full control without giving up the generated mapper and response type.
+
 ## Property-Level Attributes
 
 | Attribute | Target | Effect |

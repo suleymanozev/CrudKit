@@ -44,9 +44,24 @@ public interface ISoftDeletable
 
 You can implement `ISoftDeletable` directly on any entity without using `FullAuditableEntity`, though the base class is the recommended approach.
 
+## Purge Endpoint
+
+`DELETE /api/{entity}/purge?olderThan=N` permanently hard-deletes all soft-deleted records for an `ISoftDeletable` entity that were deleted more than N days ago.
+
+```http
+DELETE /api/products/purge?olderThan=30
+→ 200 OK
+{ "purged": 15 }
+```
+
+- `olderThan` is required (minimum 1 day). Missing or invalid values return `400`.
+- Uses `ExecuteDeleteAsync` — bypasses EF change tracking and soft-delete interception (real hard delete, no hooks fired).
+- Respects tenant isolation: only records in the current tenant are purged for `IMultiTenant` entities.
+
 ## Endpoints
 
 | Method | Route | Description |
 |--------|-------|-------------|
 | DELETE | `/api/{entity}/{id}` | Sets `DeletedAt`, record remains in DB |
 | POST | `/api/{entity}/{id}/restore` | Clears `DeletedAt`, record visible again |
+| DELETE | `/api/{entity}/purge?olderThan=N` | Permanently deletes soft-deleted records older than N days |

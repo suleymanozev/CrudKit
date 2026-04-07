@@ -16,12 +16,13 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Lifecycle hooks (`ICrudHooks<T>`) + global hooks (`IGlobalCrudHook`) for cross-cutting concerns
 - Validation (FluentValidation priority, DataAnnotation fallback)
 - State machine transitions (`IStateMachine<TState>`)
-- Master-child relationships (fluent `.WithChild()`)
+- Master-child relationships (fluent `.WithChild()` or declarative `[ChildOf]`)
 - Idempotency via request header
 - Bulk operations (`/bulk-count`, `/bulk-delete`, `/bulk-update`)
 - ReadOnly entities (List + Get only)
 - CSV import/export (`[Exportable]`, `[Importable]`, per-property control)
-- Source generation — DTOs, mappers, endpoint mapping, hook stubs
+- Source generation — DTOs, mappers, endpoint mapping, hook stubs (naming templates via `[assembly: CrudKit(...)]`)
+- `[CreateDtoFor]` / `[UpdateDtoFor]` — manual DTOs that suppress SourceGen for those types
 - `Optional<T>` for partial updates (distinguishes null from missing)
 - Property attributes: `[Hashed]`, `[SkipResponse]`, `[SkipUpdate]`, `[Protected]`, `[Unique]`, `[Searchable]`
 - Document numbering (e.g. `ORD-2026-00001`) with tenant-scoped sequences
@@ -98,6 +99,7 @@ public class Product : FullAuditableEntity
 | POST | `/api/products` | Create |
 | PUT | `/api/products/{id}` | Update (partial via `Optional<T>`) |
 | DELETE | `/api/products/{id}` | Soft-delete (`ISoftDeletable`) |
+| DELETE | `/api/products/purge?olderThan=30` | Permanently delete soft-deleted records (`ISoftDeletable` only) |
 | POST | `/api/products/{id}/restore` | Restore soft-deleted record |
 | POST | `/api/products/{id}/transition/{action}` | State transition (`IStateMachine<TState>` only) |
 
@@ -221,6 +223,57 @@ docs/
 ├── API-REFERENCE.md             # Full feature reference
 └── specs/                       # Internal design specifications
 ```
+
+---
+
+## Master-Child Relationships
+
+Declare child entities with `[ChildOf]` and CrudKit generates nested endpoints automatically under the parent route.
+
+```csharp
+[ChildOf(typeof(Order))]
+public class OrderLine : AuditableEntity
+{
+    public Guid OrderId { get; set; }           // FK convention: {ParentType}Id
+    public string ProductName { get; set; } = string.Empty;
+}
+
+// Auto-generated: GET/DELETE /api/orders/{id}/order-lines, GET/POST /api/orders/{id}/order-lines/{id}
+// Custom route + FK:
+[ChildOf(typeof(Order), Route = "items", ForeignKey = "ParentOrderId")]
+```
+
+For explicit control use the fluent API: `app.MapCrudEndpoints<Order, ...>().WithChild<OrderLine, CreateOrderLine>("items", "OrderId");`
+
+---
+
+## Manual DTOs with [CreateDtoFor] / [UpdateDtoFor]
+
+When a DTO is annotated with `[CreateDtoFor(typeof(T))]` or `[UpdateDtoFor(typeof(T))]`, SourceGen skips generating the corresponding DTO for that entity. The `ResponseDto` and mapper are still generated.
+
+```csharp
+[CreateDtoFor(typeof(Order))]
+public record CreateOrder([Required] string CustomerName, decimal Total = 0);
+
+[UpdateDtoFor(typeof(Order))]
+public record UpdateOrder
+{
+    public Optional<string?> CustomerName { get; init; }
+}
+```
+
+---
+
+## Purge Endpoint
+
+For `ISoftDeletable` entities, CrudKit exposes a purge endpoint that permanently deletes soft-deleted records older than N days:
+
+```
+DELETE /api/products/purge?olderThan=30
+// Response: { "purged": 15 }
+```
+
+`olderThan` is required (minimum 1 day). Uses `ExecuteDeleteAsync` — bypasses soft-delete interception. Respects tenant isolation for `IMultiTenant` entities.
 
 ---
 

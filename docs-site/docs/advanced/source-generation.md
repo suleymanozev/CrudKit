@@ -51,6 +51,37 @@ public partial class ProductHooks
 }
 ```
 
+## Naming Templates
+
+By default, SourceGen uses the naming convention `Create{Name}`, `Update{Name}`, `{Name}Response`, etc. Override these project-wide with an assembly-level attribute — add it to any `.cs` file (e.g. `GlobalUsings.cs`):
+
+```csharp
+[assembly: CrudKit(
+    CreateDtoNamingTemplate   = "{Name}CreateRequest",   // default: "Create{Name}"
+    UpdateDtoNamingTemplate   = "{Name}UpdateRequest",   // default: "Update{Name}"
+    ResponseDtoNamingTemplate = "{Name}Dto",             // default: "{Name}Response"
+    MapperNamingTemplate      = "{Name}Mapper",          // default: "{Name}Mapper"
+    HooksNamingTemplate       = "{Name}Hooks")]          // default: "{Name}Hooks"
+```
+
+The `{Name}` placeholder is required in every template. An empty template or a template missing `{Name}` produces a compile-time error.
+
+## Manual DTOs — [CreateDtoFor] / [UpdateDtoFor]
+
+When you want full control over the shape of a create or update DTO, annotate your hand-written record or class with `[CreateDtoFor(typeof(TEntity))]` or `[UpdateDtoFor(typeof(TEntity))]`. SourceGen detects these attributes and skips generating that DTO for the entity. The `ResponseDto` and mapper are still generated.
+
+```csharp
+[CreateDtoFor(typeof(Order))]
+public record CreateOrder([Required] string CustomerName, decimal Total = 0);
+
+[UpdateDtoFor(typeof(Order))]
+public record UpdateOrder
+{
+    public Optional<string?> CustomerName { get; init; }
+}
+// ResponseDto and Mapper for Order are still auto-generated.
+```
+
 ## Notes
 
 - Generated files are in the `obj/` folder and are not committed to source control.
