@@ -76,4 +76,58 @@ public class SortApplierTests
         var result = SortApplier.Apply(source, "created_at").ToList();
         Assert.Equal("A", result[0].Name); // oldest first (ASC)
     }
+
+    // ---- [Sortable] / [NotSortable] attribute tests ----
+
+    [Fact]
+    public void NotSortable_Property_SkipsSort()
+    {
+        // PartiallySortableEntity.Rank has [NotSortable] — sort on Rank must be ignored,
+        // resulting in the default CreatedAt DESC fallback.
+        var source = new[]
+        {
+            new PartiallySortableEntity { Id = Guid.NewGuid(), Name = "Alice", Rank = 3, CreatedAt = new DateTime(2025, 1, 1) },
+            new PartiallySortableEntity { Id = Guid.NewGuid(), Name = "Bob",   Rank = 1, CreatedAt = new DateTime(2026, 1, 1) },
+            new PartiallySortableEntity { Id = Guid.NewGuid(), Name = "Carol", Rank = 2, CreatedAt = new DateTime(2024, 1, 1) },
+        }.AsQueryable();
+
+        // Sorting by Rank should be silently ignored; result falls back to CreatedAt DESC
+        var result = SortApplier.Apply(source, "rank").ToList();
+        Assert.Equal("Bob", result[0].Name);   // newest CreatedAt first
+        Assert.Equal("Alice", result[1].Name);
+        Assert.Equal("Carol", result[2].Name);
+    }
+
+    [Fact]
+    public void NotSortable_Entity_SkipsAllSorts()
+    {
+        // EntityLevelNotSortableEntity has [NotSortable] on the class —
+        // sorting by Rank (no override) must be silently ignored.
+        var source = new[]
+        {
+            new EntityLevelNotSortableEntity { Id = Guid.NewGuid(), Name = "Alice", Rank = 3, CreatedAt = new DateTime(2025, 1, 1) },
+            new EntityLevelNotSortableEntity { Id = Guid.NewGuid(), Name = "Bob",   Rank = 1, CreatedAt = new DateTime(2026, 1, 1) },
+            new EntityLevelNotSortableEntity { Id = Guid.NewGuid(), Name = "Carol", Rank = 2, CreatedAt = new DateTime(2024, 1, 1) },
+        }.AsQueryable();
+
+        // Rank sort is ignored; CreatedAt DESC is the fallback
+        var result = SortApplier.Apply(source, "rank").ToList();
+        Assert.Equal("Bob", result[0].Name);
+    }
+
+    [Fact]
+    public void Sortable_Property_OverridesEntityNotSortable()
+    {
+        // EntityLevelNotSortableEntity has [NotSortable] on the class,
+        // but Name has [Sortable] — sorting by Name must work.
+        var source = new[]
+        {
+            new EntityLevelNotSortableEntity { Id = Guid.NewGuid(), Name = "Charlie", Rank = 3 },
+            new EntityLevelNotSortableEntity { Id = Guid.NewGuid(), Name = "Alice",   Rank = 1 },
+            new EntityLevelNotSortableEntity { Id = Guid.NewGuid(), Name = "Bob",     Rank = 2 },
+        }.AsQueryable();
+
+        var result = SortApplier.Apply(source, "name").ToList();
+        Assert.Equal(new[] { "Alice", "Bob", "Charlie" }, result.Select(e => e.Name));
+    }
 }

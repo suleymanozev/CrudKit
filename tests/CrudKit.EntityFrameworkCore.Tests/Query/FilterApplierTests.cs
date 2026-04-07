@@ -186,4 +186,60 @@ public class FilterApplierTests
         Assert.Single(result);
         Assert.Equal("Bob", result.First().Name);
     }
+
+    // ---- [Filterable] / [NotFilterable] attribute tests ----
+
+    [Fact]
+    public void NotFilterable_Property_SkipsFilter()
+    {
+        // PartiallyFilterableEntity.Secret has [NotFilterable] — filter must be ignored
+        var source = new[]
+        {
+            new PartiallyFilterableEntity { Id = Guid.NewGuid(), Name = "Alice", Secret = "s3cr3t" },
+            new PartiallyFilterableEntity { Id = Guid.NewGuid(), Name = "Bob",   Secret = "other"  },
+        }.AsQueryable();
+
+        var result = Applier().Apply(source, "Secret", FilterOp.Parse("s3cr3t"));
+        Assert.Equal(2, result.Count()); // filter was silently ignored
+    }
+
+    [Fact]
+    public void NotFilterable_Entity_SkipsAllFilters()
+    {
+        // EntityLevelNotFilterableEntity has [NotFilterable] on the class —
+        // filtering by Internal (no override) must be silently ignored.
+        var source = new[]
+        {
+            new EntityLevelNotFilterableEntity { Id = Guid.NewGuid(), Name = "Alice", Internal = "X" },
+            new EntityLevelNotFilterableEntity { Id = Guid.NewGuid(), Name = "Bob",   Internal = "Y" },
+        }.AsQueryable();
+
+        var result = Applier().Apply(source, "Internal", FilterOp.Parse("X"));
+        Assert.Equal(2, result.Count()); // filter was silently ignored
+    }
+
+    [Fact]
+    public void Filterable_Property_OverridesEntityNotFilterable()
+    {
+        // EntityLevelNotFilterableEntity has [NotFilterable] on the class,
+        // but Name has [Filterable] — filtering by Name must work.
+        var source = new[]
+        {
+            new EntityLevelNotFilterableEntity { Id = Guid.NewGuid(), Name = "Alice", Internal = "X" },
+            new EntityLevelNotFilterableEntity { Id = Guid.NewGuid(), Name = "Bob",   Internal = "Y" },
+        }.AsQueryable();
+
+        var result = Applier().Apply(source, "Name", FilterOp.Parse("Alice"));
+        Assert.Single(result);
+        Assert.Equal("Alice", result.First().Name);
+    }
+
+    [Fact]
+    public void Default_AllFilterable()
+    {
+        // PersonEntity has no filterable attributes — all properties must be filterable by default
+        var result = Applier().Apply(Source(), "Age", FilterOp.Parse("eq:30"));
+        Assert.Equal(2, result.Count());
+        Assert.All(result, e => Assert.Equal(30, e.Age));
+    }
 }

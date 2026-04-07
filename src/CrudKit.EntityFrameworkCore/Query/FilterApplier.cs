@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using System.Reflection;
+using CrudKit.Core.Attributes;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Dialect;
 
@@ -22,6 +23,8 @@ public class FilterApplier
         var prop = FindProperty(typeof(T), propertyName);
         if (prop == null) return query; // unknown field — skip silently
 
+        if (!IsFilterable<T>(prop)) return query; // field is not filterable — skip silently
+
         return op.Operator switch
         {
             "like"    => ApplyLikeFilter(query, prop, op.Value),
@@ -31,6 +34,28 @@ public class FilterApplier
             "notnull" => ApplyNotNull(query, prop),
             _         => ApplyComparison(query, prop, op),
         };
+    }
+
+    // ---- Filterability check ----
+
+    /// <summary>
+    /// Resolves whether a property is filterable using 3-level precedence:
+    /// 1. Property-level [NotFilterable] / [Filterable]
+    /// 2. Entity-level [NotFilterable] / [Filterable]
+    /// 3. Default: filterable
+    /// </summary>
+    private static bool IsFilterable<T>(PropertyInfo prop)
+    {
+        // Property level takes precedence over entity level
+        if (prop.GetCustomAttribute<NotFilterableAttribute>() != null) return false;
+        if (prop.GetCustomAttribute<FilterableAttribute>() != null) return true;
+
+        // Entity level
+        if (typeof(T).GetCustomAttribute<NotFilterableAttribute>() != null) return false;
+        if (typeof(T).GetCustomAttribute<FilterableAttribute>() != null) return true;
+
+        // Default: all properties are filterable
+        return true;
     }
 
     // ---- Property resolution ----

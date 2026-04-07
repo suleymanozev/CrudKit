@@ -173,6 +173,72 @@ public class ChildItemEntity : IAuditableEntity, ISoftDeletable
 }
 
 // ---------------------------------------------------------------------------
+// Entities used by Filterable/Sortable attribute tests
+// ---------------------------------------------------------------------------
+
+/// <summary>Entity where one property is explicitly blocked from filtering.</summary>
+public class PartiallyFilterableEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+
+    [NotFilterable]
+    public string Secret { get; set; } = string.Empty;
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Entity where all properties are blocked from filtering at class level,
+/// except <see cref="Name"/> which re-enables filtering via [Filterable].
+/// </summary>
+[NotFilterable]
+public class EntityLevelNotFilterableEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+
+    [Filterable]
+    public string Name { get; set; } = string.Empty;
+
+    public string Internal { get; set; } = string.Empty;
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>Entity where one property is explicitly blocked from sorting.</summary>
+public class PartiallySortableEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+
+    [NotSortable]
+    public int Rank { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Entity where all properties are blocked from sorting at class level,
+/// except <see cref="Name"/> which re-enables sorting via [Sortable].
+/// </summary>
+[NotSortable]
+public class EntityLevelNotSortableEntity : IAuditableEntity
+{
+    public Guid Id { get; set; }
+
+    [Sortable]
+    public string Name { get; set; } = string.Empty;
+
+    public int Rank { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+// ---------------------------------------------------------------------------
 // Entities used by UserTracking tests
 // ---------------------------------------------------------------------------
 

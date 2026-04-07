@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using System.Reflection;
+using CrudKit.Core.Attributes;
 
 namespace CrudKit.EntityFrameworkCore.Query;
 
@@ -28,12 +29,36 @@ public static class SortApplier
             var prop = FindProperty(typeof(T), name);
             if (prop == null) continue;
 
+            if (!IsSortable<T>(prop)) continue; // field is not sortable — skip silently
+
             ordered = ordered == null
                 ? ApplyOrderBy(query, prop, isDesc)
                 : ApplyThenBy(ordered, prop, isDesc);
         }
 
         return ordered ?? ApplyDefault(query);
+    }
+
+    // ---- Sortability check ----
+
+    /// <summary>
+    /// Resolves whether a property is sortable using 3-level precedence:
+    /// 1. Property-level [NotSortable] / [Sortable]
+    /// 2. Entity-level [NotSortable] / [Sortable]
+    /// 3. Default: sortable
+    /// </summary>
+    private static bool IsSortable<T>(PropertyInfo prop)
+    {
+        // Property level takes precedence over entity level
+        if (prop.GetCustomAttribute<NotSortableAttribute>() != null) return false;
+        if (prop.GetCustomAttribute<SortableAttribute>() != null) return true;
+
+        // Entity level
+        if (typeof(T).GetCustomAttribute<NotSortableAttribute>() != null) return false;
+        if (typeof(T).GetCustomAttribute<SortableAttribute>() != null) return true;
+
+        // Default: all properties are sortable
+        return true;
     }
 
     private static IQueryable<T> ApplyDefault<T>(IQueryable<T> query) where T : class
