@@ -161,6 +161,10 @@ Use this when the default generated DTO doesn't match your API contract — you 
 | `[AuditIgnore]` | Property | Completely excluded from audit trail. Field never appears in old/new change values. |
 | `[NotExportable]` | Property | Excluded from CSV export output. |
 | `[NotImportable]` | Property | Ignored during CSV import. |
+| `[Filterable]` | Class / Property | Force-enable filtering (overrides entity-level `[NotFilterable]`) |
+| `[NotFilterable]` | Class / Property | Disable filtering — queries with this field are silently skipped |
+| `[Sortable]` | Class / Property | Force-enable sorting (overrides entity-level `[NotSortable]`) |
+| `[NotSortable]` | Class / Property | Disable sorting — sort by this field is silently skipped |
 | `[DefaultInclude]` | Class | Auto-includes a navigation property in queries. Supports `IncludeScope.All` or `IncludeScope.DetailOnly`. |
 
 ```csharp

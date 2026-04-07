@@ -96,3 +96,40 @@ Full-text search is triggered via the `search` query parameter:
 ```
 GET /api/products?search=phone
 ```
+
+## Filter & Sort Control
+
+By default, all entity fields are filterable and sortable. Use attributes to control this behavior per-field or per-entity.
+
+### Attribute Reference
+
+- `[Filterable]` — Force-enable filtering on a property, overriding entity-level `[NotFilterable]`
+- `[NotFilterable]` — Disable filtering; filter queries for this field are silently skipped
+- `[Sortable]` — Force-enable sorting on a property, overriding entity-level `[NotSortable]`
+- `[NotSortable]` — Disable sorting; sort requests for this field are silently skipped
+
+### Usage Example
+
+```csharp
+// Property-level control
+public class Order : FullAuditableEntity
+{
+    public string CustomerName { get; set; }    // filterable + sortable (default)
+
+    [NotFilterable]
+    public string InternalNotes { get; set; }    // NOT filterable
+
+    [NotSortable]
+    public decimal Total { get; set; }           // NOT sortable
+}
+
+// Entity-level + property override
+[NotFilterable]
+public class SecureEntity : AuditableEntity
+{
+    [Filterable]                                  // override entity default
+    public string PublicField { get; set; }
+
+    public string SecretField { get; set; }       // NOT filterable (entity default)
+}
+```

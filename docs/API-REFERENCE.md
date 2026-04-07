@@ -213,6 +213,10 @@ public record UpdateOrder
 | `[AuditIgnore]` | Property | Completely excluded from audit trail. Field never appears in old/new change values. |
 | `[NotExportable]` | Property | Excluded from CSV export output. |
 | `[NotImportable]` | Property | Ignored during CSV import. |
+| `[Filterable]` | Class / Property | Force-enable filtering (overrides entity-level `[NotFilterable]`) |
+| `[NotFilterable]` | Class / Property | Disable filtering — queries with this field are silently skipped |
+| `[Sortable]` | Class / Property | Force-enable sorting (overrides entity-level `[NotSortable]`) |
+| `[NotSortable]` | Class / Property | Disable sorting — sort by this field is silently skipped |
 | `[DefaultInclude]` | Class | Auto-includes a navigation property in queries. Supports `IncludeScope.All` or `IncludeScope.DetailOnly`. |
 
 ```csharp
@@ -237,6 +241,34 @@ public class User : FullAuditableEntity
 
     [NotExportable]
     public string InternalToken { get; set; } = string.Empty;
+}
+```
+
+#### Filter & Sort Control
+
+Default: all fields are filterable and sortable. Use `[NotFilterable]`, `[NotSortable]`, `[Filterable]`, and `[Sortable]` to override behavior per-property or per-entity.
+
+```csharp
+// Property-level control
+public class Order : FullAuditableEntity
+{
+    public string CustomerName { get; set; }    // filterable + sortable (default)
+
+    [NotFilterable]
+    public string InternalNotes { get; set; }    // NOT filterable
+
+    [NotSortable]
+    public decimal Total { get; set; }           // NOT sortable
+}
+
+// Entity-level + property override
+[NotFilterable]
+public class SecureEntity : AuditableEntity
+{
+    [Filterable]                                  // override entity default
+    public string PublicField { get; set; }
+
+    public string SecretField { get; set; }       // NOT filterable (entity default)
 }
 ```
 
