@@ -17,6 +17,9 @@ public sealed class TestWebApp : IAsyncDisposable
 
     public HttpClient Client { get; }
 
+    /// <summary>Exposes the application's service provider for direct DB access in tests.</summary>
+    public IServiceProvider Services => _app.Services;
+
     private TestWebApp(WebApplication app, SqliteConnection connection)
     {
         _app = app;
