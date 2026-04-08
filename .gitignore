@@ -25,4 +25,4 @@ coverage-report/
 .idea/
 .vs/
 *.suo
-*.user
+*.userdocs/specs/
