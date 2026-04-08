@@ -1,4 +1,8 @@
-# CrudKit
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.png">
+  <img alt="CrudKit" src="assets/logo-light.png" width="300">
+</picture>
 
 A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 
