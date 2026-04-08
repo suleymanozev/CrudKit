@@ -5,7 +5,8 @@
     <Nullable>enable</Nullable>
     <AssemblyName>CrudKit.Core</AssemblyName>
     <RootNamespace>CrudKit.Core</RootNamespace>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageId>CrudKit.Core</PackageId>
+    <Description>Core attributes, interfaces, base classes, and models for CrudKit CRUD framework.</Description>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

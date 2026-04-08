@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Authors>CrudKit Contributors</Authors>
+    <Company>CrudKit</Company>
+    <Product>CrudKit</Product>
+    <Description>Convention-based CRUD framework for .NET 10. Define entities, get endpoints.</Description>
+    <PackageProjectUrl>https://github.com/crudkit/crudkit</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/crudkit/crudkit</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>crud;efcore;api;dotnet;rest;source-generator;multi-tenant;soft-delete;audit</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Copyright (c) 2026 CrudKit Contributors</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
