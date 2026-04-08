@@ -5,7 +5,8 @@
     <Nullable>enable</Nullable>
     <AssemblyName>CrudKit.Api</AssemblyName>
     <RootNamespace>CrudKit.Api</RootNamespace>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageId>CrudKit.Api</PackageId>
+    <Description>ASP.NET Core Minimal API layer for CrudKit — auto-mapped endpoints, validation, auth, import/export, idempotency.</Description>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="CrudKit.Api.Tests" />

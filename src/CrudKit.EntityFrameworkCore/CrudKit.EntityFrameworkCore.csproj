@@ -5,7 +5,8 @@
     <Nullable>enable</Nullable>
     <AssemblyName>CrudKit.EntityFrameworkCore</AssemblyName>
     <RootNamespace>CrudKit.EntityFrameworkCore</RootNamespace>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageId>CrudKit.EntityFrameworkCore</PackageId>
+    <Description>EF Core integration for CrudKit — generic repository, query builder, multi-dialect, soft-delete, audit, multi-tenant.</Description>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="CrudKit.EntityFrameworkCore.Tests" />

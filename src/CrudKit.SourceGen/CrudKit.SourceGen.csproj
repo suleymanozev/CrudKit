@@ -5,6 +5,10 @@
     <Nullable>enable</Nullable>
     <AssemblyName>CrudKit.SourceGen</AssemblyName>
     <RootNamespace>CrudKit.SourceGen</RootNamespace>
+    <PackageId>CrudKit.SourceGen</PackageId>
+    <Description>Roslyn source generator for CrudKit — auto-generates DTOs, mappers, endpoint mapping, and hook stubs from entity definitions.</Description>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <NoWarn>$(NoWarn);RS2008</NoWarn>
@@ -17,5 +21,8 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
       <_Parameter1>CrudKit.SourceGen.Tests</_Parameter1>
     </AssemblyAttribute>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
   </ItemGroup>
 </Project>

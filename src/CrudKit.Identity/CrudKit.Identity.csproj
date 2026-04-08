@@ -5,7 +5,8 @@
     <Nullable>enable</Nullable>
     <AssemblyName>CrudKit.Identity</AssemblyName>
     <RootNamespace>CrudKit.Identity</RootNamespace>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageId>CrudKit.Identity</PackageId>
+    <Description>ASP.NET Identity integration for CrudKit — CrudKitIdentityDbContext with all Identity type parameter overloads.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\CrudKit.EntityFrameworkCore\CrudKit.EntityFrameworkCore.csproj" />
