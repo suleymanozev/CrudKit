@@ -11,10 +11,12 @@
     <PackageTags>crud;efcore;api;dotnet;rest;source-generator;multi-tenant;soft-delete;audit</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <Copyright>Copyright (c) 2026 Süleyman Özev</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)..\assets\icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>
