@@ -738,7 +738,11 @@ opts.UseAuditTrail()
 // Logs: FailedCreate, FailedUpdate, FailedDelete
 ```
 
-**5. Custom audit writer:**
+**5. Correlation ID:**
+
+Each `SaveChanges` call assigns a shared `CorrelationId` to all audit entries in that batch. Use it to group related changes (e.g. cascade soft-delete of Order + OrderLines).
+
+**6. Custom audit writer:**
 
 ```csharp
 opts.UseAuditTrail<ElasticAuditWriter>();
