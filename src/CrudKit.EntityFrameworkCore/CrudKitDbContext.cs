@@ -26,6 +26,8 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
     private readonly CrudKitEfOptions? _efOptions;
     private readonly ITenantContext? _tenantContext;
     private readonly IAuditWriter? _auditWriter;
+    private readonly IDataFilter<ISoftDeletable>? _softDeleteFilter;
+    private readonly IDataFilter<IMultiTenant>? _tenantFilter;
 
     /// <summary>
     /// When true, SaveChanges skips audit entry collection. Used internally by
@@ -37,7 +39,9 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
 
     protected CrudKitDbContext(DbContextOptions options, ICurrentUser currentUser,
         TimeProvider? timeProvider = null, CrudKitEfOptions? efOptions = null,
-        ITenantContext? tenantContext = null, IAuditWriter? auditWriter = null)
+        ITenantContext? tenantContext = null, IAuditWriter? auditWriter = null,
+        IDataFilter<ISoftDeletable>? softDeleteFilter = null,
+        IDataFilter<IMultiTenant>? tenantFilter = null)
         : base(options)
     {
         _currentUser = currentUser;
@@ -45,6 +49,8 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
         _efOptions = efOptions;
         _tenantContext = tenantContext;
         _auditWriter = auditWriter;
+        _softDeleteFilter = softDeleteFilter;
+        _tenantFilter = tenantFilter;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -54,7 +60,14 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
         var currentTenantIdProperty = GetType()
             .GetProperty(nameof(CurrentTenantId), BindingFlags.Public | BindingFlags.Instance)!;
 
-        CrudKitDbContextHelper.ConfigureModel(modelBuilder, this, _efOptions, currentTenantIdProperty);
+        var isSoftDeleteFilterEnabledProperty = GetType()
+            .GetProperty(nameof(IsSoftDeleteFilterEnabled), BindingFlags.Public | BindingFlags.Instance)!;
+
+        var isTenantFilterEnabledProperty = GetType()
+            .GetProperty(nameof(IsTenantFilterEnabled), BindingFlags.Public | BindingFlags.Instance)!;
+
+        CrudKitDbContextHelper.ConfigureModel(modelBuilder, this, _efOptions,
+            currentTenantIdProperty, isSoftDeleteFilterEnabledProperty, isTenantFilterEnabledProperty);
 
         OnModelCreatingCustom(modelBuilder);
     }
@@ -78,8 +91,20 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
             this, base.SaveChangesAsync, acceptAllChangesOnSuccess,
             _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter, ct);
 
-    // ---- Runtime tenant value used by EF Core global filter ----
+    // ---- Runtime values used by EF Core global filters ----
     public string? CurrentTenantId => _tenantContext?.TenantId;
+
+    /// <summary>
+    /// Indicates whether the soft-delete query filter is currently active.
+    /// Read by the EF Core filter expression per query via a captured property accessor.
+    /// </summary>
+    public bool IsSoftDeleteFilterEnabled => _softDeleteFilter?.IsEnabled ?? true;
+
+    /// <summary>
+    /// Indicates whether the tenant query filter is currently active.
+    /// Read by the EF Core filter expression per query via a captured property accessor.
+    /// </summary>
+    public bool IsTenantFilterEnabled => _tenantFilter?.IsEnabled ?? true;
 
     // Exposed for EfRepo so it can build AppContext without taking ICurrentUser as a separate dependency.
     public ICurrentUser CurrentUser => _currentUser;

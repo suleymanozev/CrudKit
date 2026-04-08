@@ -1,3 +1,4 @@
+using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore.Dialect;
 using CrudKit.EntityFrameworkCore.Query;
 using CrudKit.EntityFrameworkCore.Repository;
@@ -53,6 +54,9 @@ public static class ServiceCollectionExtensions
 
         // Open generic repository: IRepo<T> → EfRepo<T>
         services.TryAdd(ServiceDescriptor.Scoped(typeof(IRepo<>), typeof(EfRepo<>)));
+
+        // Runtime filter toggles — one scoped instance per filter type per request.
+        services.TryAdd(ServiceDescriptor.Scoped(typeof(IDataFilter<>), typeof(DataFilter<>)));
 
         return services;
     }

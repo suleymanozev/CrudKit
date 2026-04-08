@@ -34,6 +34,8 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
     private readonly CrudKitEfOptions? _efOptions;
     private readonly ITenantContext? _tenantContext;
     private readonly IAuditWriter? _auditWriter;
+    private readonly IDataFilter<ISoftDeletable>? _softDeleteFilter;
+    private readonly IDataFilter<IMultiTenant>? _tenantFilter;
 
     public bool IsAuditSave { get; set; }
 
@@ -45,7 +47,9 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
         TimeProvider? timeProvider = null,
         CrudKitEfOptions? efOptions = null,
         ITenantContext? tenantContext = null,
-        IAuditWriter? auditWriter = null)
+        IAuditWriter? auditWriter = null,
+        IDataFilter<ISoftDeletable>? softDeleteFilter = null,
+        IDataFilter<IMultiTenant>? tenantFilter = null)
         : base(options)
     {
         _currentUser = currentUser;
@@ -53,6 +57,8 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
         _efOptions = efOptions;
         _tenantContext = tenantContext;
         _auditWriter = auditWriter;
+        _softDeleteFilter = softDeleteFilter;
+        _tenantFilter = tenantFilter;
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -62,7 +68,14 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
         var currentTenantIdProperty = GetType()
             .GetProperty(nameof(CurrentTenantId), BindingFlags.Public | BindingFlags.Instance)!;
 
-        CrudKitDbContextHelper.ConfigureModel(builder, this, _efOptions, currentTenantIdProperty);
+        var isSoftDeleteFilterEnabledProperty = GetType()
+            .GetProperty(nameof(IsSoftDeleteFilterEnabled), BindingFlags.Public | BindingFlags.Instance)!;
+
+        var isTenantFilterEnabledProperty = GetType()
+            .GetProperty(nameof(IsTenantFilterEnabled), BindingFlags.Public | BindingFlags.Instance)!;
+
+        CrudKitDbContextHelper.ConfigureModel(builder, this, _efOptions,
+            currentTenantIdProperty, isSoftDeleteFilterEnabledProperty, isTenantFilterEnabledProperty);
         OnModelCreatingCustom(builder);
     }
 
@@ -83,6 +96,19 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
             _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter, ct);
 
     public string? CurrentTenantId => _tenantContext?.TenantId;
+
+    /// <summary>
+    /// Indicates whether the soft-delete query filter is currently active.
+    /// Read by the EF Core filter expression per query via a captured property accessor.
+    /// </summary>
+    public bool IsSoftDeleteFilterEnabled => _softDeleteFilter?.IsEnabled ?? true;
+
+    /// <summary>
+    /// Indicates whether the tenant query filter is currently active.
+    /// Read by the EF Core filter expression per query via a captured property accessor.
+    /// </summary>
+    public bool IsTenantFilterEnabled => _tenantFilter?.IsEnabled ?? true;
+
     public ICurrentUser CurrentUser => _currentUser;
     public ITenantContext? TenantCtx => _tenantContext;
 }
@@ -108,8 +134,10 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey>
         TimeProvider? timeProvider = null,
         CrudKitEfOptions? efOptions = null,
         ITenantContext? tenantContext = null,
-        IAuditWriter? auditWriter = null)
-        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter) { }
+        IAuditWriter? auditWriter = null,
+        IDataFilter<ISoftDeletable>? softDeleteFilter = null,
+        IDataFilter<IMultiTenant>? tenantFilter = null)
+        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter) { }
 }
 
 // ============================================================
@@ -130,6 +158,8 @@ public abstract class CrudKitIdentityDbContext<TUser>
         TimeProvider? timeProvider = null,
         CrudKitEfOptions? efOptions = null,
         ITenantContext? tenantContext = null,
-        IAuditWriter? auditWriter = null)
-        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter) { }
+        IAuditWriter? auditWriter = null,
+        IDataFilter<ISoftDeletable>? softDeleteFilter = null,
+        IDataFilter<IMultiTenant>? tenantFilter = null)
+        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter) { }
 }

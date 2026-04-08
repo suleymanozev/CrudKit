@@ -18,7 +18,9 @@ public static class DbHelper
 {
     public static TestDbContext CreateDb(ICurrentUser? user = null, TimeProvider? timeProvider = null,
         bool auditTrailEnabled = false, bool enumAsStringEnabled = false,
-        ITenantContext? tenantContext = null, IAuditWriter? auditWriter = null)
+        ITenantContext? tenantContext = null, IAuditWriter? auditWriter = null,
+        IDataFilter<ISoftDeletable>? softDeleteFilter = null,
+        IDataFilter<IMultiTenant>? tenantFilter = null)
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -47,7 +49,7 @@ public static class DbHelper
             writer = testWriter;
         }
 
-        var db = new TestDbContext(options, user ?? new FakeCurrentUser(), connection, timeProvider, efOptions, tenantContext, writer);
+        var db = new TestDbContext(options, user ?? new FakeCurrentUser(), connection, timeProvider, efOptions, tenantContext, writer, softDeleteFilter, tenantFilter);
         db.Database.EnsureCreated();
 
         // Now bind the writer to the context it was injected into.

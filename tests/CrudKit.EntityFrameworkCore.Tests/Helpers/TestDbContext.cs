@@ -1,4 +1,5 @@
 using CrudKit.Core.Interfaces;
+using CrudKit.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,8 +16,10 @@ public class TestDbContext : CrudKitDbContext
     public TestDbContext(DbContextOptions<TestDbContext> options, ICurrentUser currentUser,
         SqliteConnection? connection = null, TimeProvider? timeProvider = null,
         CrudKitEfOptions? efOptions = null, ITenantContext? tenantContext = null,
-        IAuditWriter? auditWriter = null)
-        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter)
+        IAuditWriter? auditWriter = null,
+        IDataFilter<ISoftDeletable>? softDeleteFilter = null,
+        IDataFilter<IMultiTenant>? tenantFilter = null)
+        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter)
     {
         _connection = connection;
     }

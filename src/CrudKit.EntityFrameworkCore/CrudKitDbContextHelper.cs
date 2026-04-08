@@ -34,11 +34,21 @@ public static class CrudKitDbContextHelper
     /// A PropertyInfo pointing to the <c>CurrentTenantId</c> property on the concrete context type.
     /// Required so the tenant filter lambda can capture the right property accessor.
     /// </param>
+    /// <param name="isSoftDeleteFilterEnabledProperty">
+    /// A PropertyInfo pointing to <c>IsSoftDeleteFilterEnabled</c> on the concrete context type.
+    /// The soft-delete filter expression reads this flag per query to support runtime toggling.
+    /// </param>
+    /// <param name="isTenantFilterEnabledProperty">
+    /// A PropertyInfo pointing to <c>IsTenantFilterEnabled</c> on the concrete context type.
+    /// The tenant filter expression reads this flag per query to support runtime toggling.
+    /// </param>
     public static void ConfigureModel(
         ModelBuilder modelBuilder,
         DbContext context,
         CrudKitEfOptions? efOptions,
-        PropertyInfo currentTenantIdProperty)
+        PropertyInfo currentTenantIdProperty,
+        PropertyInfo isSoftDeleteFilterEnabledProperty,
+        PropertyInfo isTenantFilterEnabledProperty)
     {
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
@@ -62,14 +72,16 @@ public static class CrudKitDbContextHelper
             if (isSoftDeletable && !isMultiTenant)
             {
                 modelBuilder.Entity(clrType).HasQueryFilter(
-                    BuildSoftDeleteFilter(clrType));
+                    BuildSoftDeleteFilter(clrType, context, isSoftDeleteFilterEnabledProperty));
             }
 
             // ---- Multi-tenant global filter (combines with soft delete if both apply) ----
             if (isMultiTenant)
             {
-                var tenantFilter = BuildTenantFilter(clrType, context, currentTenantIdProperty);
-                var softFilter = isSoftDeletable ? BuildSoftDeleteFilter(clrType) : null;
+                var tenantFilter = BuildTenantFilter(clrType, context, currentTenantIdProperty, isTenantFilterEnabledProperty);
+                var softFilter = isSoftDeletable
+                    ? BuildSoftDeleteFilter(clrType, context, isSoftDeleteFilterEnabledProperty)
+                    : null;
                 modelBuilder.Entity(clrType).HasQueryFilter(
                     CombineFilters(tenantFilter, softFilter));
             }
@@ -352,29 +364,53 @@ public static class CrudKitDbContextHelper
 
     // ---- Filter expression builders ----
 
-    /// <summary>Builds a lambda expression that filters out soft-deleted entities.</summary>
-    public static LambdaExpression BuildSoftDeleteFilter(Type entityType)
+    /// <summary>
+    /// Builds a lambda expression that filters out soft-deleted entities unless the filter is disabled.
+    /// The expression is: <c>e.DeletedAt == null || !IsSoftDeleteFilterEnabled</c>.
+    /// EF Core re-evaluates the filter per query because it captures a property accessor on the live
+    /// DbContext instance rather than a snapshot value.
+    /// </summary>
+    public static LambdaExpression BuildSoftDeleteFilter(
+        Type entityType,
+        DbContext context,
+        PropertyInfo isSoftDeleteFilterEnabledProperty)
     {
         var param = Expression.Parameter(entityType, "e");
-        var prop = Expression.Property(param, nameof(ISoftDeletable.DeletedAt));
-        var condition = Expression.Equal(prop, Expression.Constant(null, typeof(DateTime?)));
+        var deletedAtProp = Expression.Property(param, nameof(ISoftDeletable.DeletedAt));
+        var deletedAtIsNull = Expression.Equal(deletedAtProp, Expression.Constant(null, typeof(DateTime?)));
+
+        // Read IsSoftDeleteFilterEnabled from the live context instance — re-evaluated per query.
+        var filterEnabled = Expression.Property(Expression.Constant(context), isSoftDeleteFilterEnabledProperty);
+        var filterDisabled = Expression.Not(filterEnabled);
+
+        // DeletedAt IS NULL OR filter is disabled
+        var condition = Expression.OrElse(deletedAtIsNull, filterDisabled);
         return Expression.Lambda(condition, param);
     }
 
     /// <summary>
-    /// Builds a lambda expression that filters entities by the current tenant id.
-    /// The filter closure captures a property accessor on the concrete context instance
-    /// so EF Core re-evaluates it per query.
+    /// Builds a lambda expression that filters entities by the current tenant id unless the filter is disabled.
+    /// The expression is: <c>e.TenantId == CurrentTenantId || !IsTenantFilterEnabled</c>.
+    /// Both property accessors capture the live DbContext instance so EF Core re-evaluates them per query.
     /// </summary>
     public static LambdaExpression BuildTenantFilter(
         Type entityType,
         DbContext context,
-        PropertyInfo currentTenantIdProperty)
+        PropertyInfo currentTenantIdProperty,
+        PropertyInfo isTenantFilterEnabledProperty)
     {
         var param = Expression.Parameter(entityType, "e");
-        var prop = Expression.Property(param, nameof(IMultiTenant.TenantId));
-        var tenantIdAccess = Expression.Property(Expression.Constant(context), currentTenantIdProperty);
-        var condition = Expression.Equal(prop, tenantIdAccess);
+        var tenantIdProp = Expression.Property(param, nameof(IMultiTenant.TenantId));
+        var contextConstant = Expression.Constant(context);
+        var tenantIdAccess = Expression.Property(contextConstant, currentTenantIdProperty);
+        var tenantMatches = Expression.Equal(tenantIdProp, tenantIdAccess);
+
+        // Read IsTenantFilterEnabled from the live context instance — re-evaluated per query.
+        var filterEnabled = Expression.Property(contextConstant, isTenantFilterEnabledProperty);
+        var filterDisabled = Expression.Not(filterEnabled);
+
+        // TenantId == CurrentTenantId OR filter is disabled
+        var condition = Expression.OrElse(tenantMatches, filterDisabled);
         return Expression.Lambda(condition, param);
     }
 

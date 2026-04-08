@@ -1,3 +1,4 @@
+using System.Reflection;
 using CrudKit.Core.Auth;
 using CrudKit.Core.Tenancy;
 using CrudKit.EntityFrameworkCore.Tests.Helpers;
@@ -85,7 +86,11 @@ public class DbContextHelperTests
     [Fact]
     public void BuildSoftDeleteFilter_ReturnsValidExpression()
     {
-        var filter = CrudKitDbContextHelper.BuildSoftDeleteFilter(typeof(SoftPersonEntity));
+        using var db = DbHelper.CreateDb();
+        var prop = db.GetType().GetProperty(
+            nameof(db.IsSoftDeleteFilterEnabled), BindingFlags.Public | BindingFlags.Instance)!;
+
+        var filter = CrudKitDbContextHelper.BuildSoftDeleteFilter(typeof(SoftPersonEntity), db, prop);
         Assert.NotNull(filter);
         Assert.Single(filter.Parameters);
         Assert.Equal(typeof(SoftPersonEntity), filter.Parameters[0].Type);
@@ -94,7 +99,11 @@ public class DbContextHelperTests
     [Fact]
     public void CombineFilters_WithNullSecond_ReturnsFirst()
     {
-        var filter1 = CrudKitDbContextHelper.BuildSoftDeleteFilter(typeof(SoftPersonEntity));
+        using var db = DbHelper.CreateDb();
+        var prop = db.GetType().GetProperty(
+            nameof(db.IsSoftDeleteFilterEnabled), BindingFlags.Public | BindingFlags.Instance)!;
+
+        var filter1 = CrudKitDbContextHelper.BuildSoftDeleteFilter(typeof(SoftPersonEntity), db, prop);
         var result = CrudKitDbContextHelper.CombineFilters(filter1, null);
         Assert.Same(filter1, result);
     }
@@ -102,8 +111,12 @@ public class DbContextHelperTests
     [Fact]
     public void CombineFilters_WithBothFilters_CombinesWithAnd()
     {
-        var filter1 = CrudKitDbContextHelper.BuildSoftDeleteFilter(typeof(SoftPersonEntity));
-        var filter2 = CrudKitDbContextHelper.BuildSoftDeleteFilter(typeof(SoftPersonEntity));
+        using var db = DbHelper.CreateDb();
+        var prop = db.GetType().GetProperty(
+            nameof(db.IsSoftDeleteFilterEnabled), BindingFlags.Public | BindingFlags.Instance)!;
+
+        var filter1 = CrudKitDbContextHelper.BuildSoftDeleteFilter(typeof(SoftPersonEntity), db, prop);
+        var filter2 = CrudKitDbContextHelper.BuildSoftDeleteFilter(typeof(SoftPersonEntity), db, prop);
         var result = CrudKitDbContextHelper.CombineFilters(filter1, filter2);
 
         Assert.NotSame(filter1, result);

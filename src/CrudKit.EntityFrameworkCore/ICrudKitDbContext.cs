@@ -16,6 +16,12 @@ public interface ICrudKitDbContext
     /// <summary>The current tenant identifier, or null when not in a multi-tenant context.</summary>
     string? CurrentTenantId { get; }
 
+    /// <summary>When false, the global soft-delete query filter is bypassed for this scope.</summary>
+    bool IsSoftDeleteFilterEnabled { get; }
+
+    /// <summary>When false, the global tenant query filter is bypassed for this scope.</summary>
+    bool IsTenantFilterEnabled { get; }
+
     /// <summary>The current user for user-tracking fields and audit log.</summary>
     ICurrentUser CurrentUser { get; }
 
