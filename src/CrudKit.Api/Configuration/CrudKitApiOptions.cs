@@ -33,6 +33,12 @@ public class CrudKitApiOptions
     /// </summary>
     internal Type? CustomAuditWriterType { get; set; }
 
+    /// <summary>Maximum file size for CSV import in bytes. Default: 10 MB.</summary>
+    public long MaxImportFileSize { get; set; } = 10 * 1024 * 1024;
+
+    /// <summary>Maximum number of rows for CSV export. Default: 50,000.</summary>
+    public int MaxExportRows { get; set; } = 50_000;
+
     /// <summary>
     /// When true, export endpoints are generated for all entities by default.
     /// Individual entities can opt out with [NotExportable] or force opt in with [Exportable].

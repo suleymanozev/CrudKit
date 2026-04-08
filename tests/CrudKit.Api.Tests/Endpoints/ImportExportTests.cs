@@ -173,6 +173,43 @@ public class ImportExportTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Import_Returns400_WhenFileTooLarge()
+    {
+        await using var app = await TestWebApp.CreateAsync(
+            configureEndpoints: web =>
+            {
+                web.MapCrudEndpoints<ProductEntity, CreateProductDto, UpdateProductDto>("products");
+            },
+            configureOptions: opts => opts.MaxImportFileSize = 100); // 100 bytes limit
+
+        // Build a CSV payload larger than 100 bytes
+        var csv = "Name,Price\n" + string.Join("\n", Enumerable.Range(1, 10).Select(i => $"Product{i},{i}.99"));
+        var content = CreateMultipartCsvContent(csv);
+
+        var response = await app.Client.PostAsync("/api/products/import", content);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Export_Returns400_WhenTooManyRows()
+    {
+        await using var app = await TestWebApp.CreateAsync(
+            configureEndpoints: web =>
+            {
+                web.MapCrudEndpoints<ProductEntity, CreateProductDto, UpdateProductDto>("products");
+            },
+            configureOptions: opts => opts.MaxExportRows = 2);
+
+        // Insert 3 products — one more than the limit
+        await app.Client.PostAsJsonAsync("/api/products", new { Name = "P1", Price = 1.0 });
+        await app.Client.PostAsJsonAsync("/api/products", new { Name = "P2", Price = 2.0 });
+        await app.Client.PostAsJsonAsync("/api/products", new { Name = "P3", Price = 3.0 });
+
+        var response = await app.Client.GetAsync("/api/products/export?format=csv");
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     /// <summary>
     /// Helper to create multipart form content with a CSV file attachment.
     /// </summary>

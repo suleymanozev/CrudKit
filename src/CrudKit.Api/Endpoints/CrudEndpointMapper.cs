@@ -333,9 +333,16 @@ public static class CrudEndpointMapper
                 var listParams = ListParams.FromQuery(httpCtx.Request.Query);
                 var format = httpCtx.Request.Query["format"].FirstOrDefault() ?? "csv";
 
-                // Fetch all matching records (no pagination for export)
+                var apiOpts = httpCtx.RequestServices.GetService<Configuration.CrudKitApiOptions>();
+                var maxRows = apiOpts?.MaxExportRows ?? 50_000;
+
+                // Count first to prevent memory DoS
+                var count = await repo.BulkCount(listParams.Filters, ct);
+                if (count > maxRows)
+                    throw AppError.BadRequest($"Export would return {count} rows, exceeding the limit of {maxRows}. Narrow your filters.");
+
                 listParams.Page = 1;
-                listParams.PerPage = int.MaxValue;
+                listParams.PerPage = maxRows;
                 var result = await repo.List(listParams, ct);
 
                 if (format == "csv")
@@ -710,9 +717,16 @@ public static class CrudEndpointMapper
                 var listParams = ListParams.FromQuery(httpCtx.Request.Query);
                 var format = httpCtx.Request.Query["format"].FirstOrDefault() ?? "csv";
 
-                // Fetch all matching records (no pagination for export)
+                var apiOpts = httpCtx.RequestServices.GetService<Configuration.CrudKitApiOptions>();
+                var maxRows = apiOpts?.MaxExportRows ?? 50_000;
+
+                // Count first to prevent memory DoS
+                var count = await repo.BulkCount(listParams.Filters, ct);
+                if (count > maxRows)
+                    throw AppError.BadRequest($"Export would return {count} rows, exceeding the limit of {maxRows}. Narrow your filters.");
+
                 listParams.Page = 1;
-                listParams.PerPage = int.MaxValue;
+                listParams.PerPage = maxRows;
                 var result = await repo.List(listParams, ct);
 
                 if (format == "csv")
@@ -743,6 +757,10 @@ public static class CrudEndpointMapper
                 var file = form.Files.FirstOrDefault();
                 if (file == null || file.Length == 0)
                     throw AppError.BadRequest("No file uploaded.");
+
+                var apiOpts = httpCtx.RequestServices.GetService<Configuration.CrudKitApiOptions>();
+                if (apiOpts != null && file.Length > apiOpts.MaxImportFileSize)
+                    throw AppError.BadRequest($"File size ({file.Length / 1024 / 1024} MB) exceeds the limit of {apiOpts.MaxImportFileSize / 1024 / 1024} MB.");
 
                 using var reader = new StreamReader(file.OpenReadStream());
                 var content = await reader.ReadToEndAsync(ct);
