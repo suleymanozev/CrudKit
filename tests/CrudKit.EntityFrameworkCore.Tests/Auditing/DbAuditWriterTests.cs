@@ -1,3 +1,4 @@
+using CrudKit.Core.Auth;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Auditing;
 using CrudKit.EntityFrameworkCore.Tests.Helpers;
@@ -101,5 +102,55 @@ public class DbAuditWriterTests
 
         // IsAuditSave must be false after WriteAsync completes (reset in finally block).
         Assert.False(db.IsAuditSave);
+    }
+
+    [Fact]
+    public void AuditDbContextAccessor_Default_ResolvesICrudKitDbContext()
+    {
+        var (services, db) = BuildServiceProvider();
+        var accessor = new AuditDbContextAccessor();
+        var resolved = accessor.Resolve(services);
+        Assert.Same(db, resolved);
+    }
+
+    [Fact]
+    public void AuditDbContextAccessor_WithType_ResolvesSpecificContext()
+    {
+        var (services, db) = BuildServiceProvider();
+        var accessor = new AuditDbContextAccessor(typeof(TestDbContext));
+        // TestDbContext is registered in BuildServiceProvider as itself.
+        var resolved = accessor.Resolve(services);
+        Assert.Same(db, resolved);
+    }
+
+    [Fact]
+    public async Task AuditEntries_SameSaveChanges_ShareCorrelationId()
+    {
+        // Create a database with audit trail enabled.
+        var db = DbHelper.CreateDb(auditTrailEnabled: true);
+        var currentUser = new FakeCurrentUser { Id = "test-user" };
+
+        // Add two [Audited] entities.
+        var entity1 = new AuditPersonEntity { Id = Guid.NewGuid(), Name = "Alice" };
+        var entity2 = new AuditPersonEntity { Id = Guid.NewGuid(), Name = "Bob" };
+
+        db.AuditPersons.Add(entity1);
+        db.AuditPersons.Add(entity2);
+
+        // Save changes — both audit entries should have the same CorrelationId.
+        await db.SaveChangesAsync();
+
+        var auditLogs = db.AuditLogs.ToList();
+        Assert.Equal(2, auditLogs.Count);
+        Assert.NotNull(auditLogs[0].CorrelationId);
+        Assert.Equal(auditLogs[0].CorrelationId, auditLogs[1].CorrelationId);
+
+        // Save again — new CorrelationId should be generated.
+        entity1.Name = "Alice Updated";
+        await db.SaveChangesAsync();
+
+        var updatedLogs = db.AuditLogs.Where(l => l.Action == "Update").ToList();
+        Assert.Single(updatedLogs);
+        Assert.NotEqual(auditLogs[0].CorrelationId, updatedLogs[0].CorrelationId);
     }
 }
