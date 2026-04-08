@@ -22,3 +22,7 @@ coverage-report/
 # IDE
 *.DotSettings.user
 .claude/
+.idea/
+.vs/
+*.suo
+*.user
