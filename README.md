@@ -108,6 +108,8 @@ public class Product : FullAuditableEntity
 | POST | `/api/products/{id}/restore` | Restore soft-deleted record |
 | POST | `/api/products/{id}/transition/{action}` | State transition (`IStateMachine<TState>` only) |
 
+**Mappers are optional.** Without them, CrudKit uses reflection for DTO ↔ entity mapping and serializes entities directly for responses. Register `IResponseMapper<T, TResponse>` for custom response shapes, or use SourceGen to eliminate reflection entirely.
+
 ---
 
 ## Entity Hierarchy

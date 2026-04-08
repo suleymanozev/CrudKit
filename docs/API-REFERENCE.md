@@ -406,7 +406,35 @@ public interface ICurrentUser
 
 ### `IResponseMapper`, `ICreateMapper`, `IUpdateMapper`, `ICrudMapper`
 
-Mapper interfaces for converting between entities and DTOs. Implement manually or let SourceGen generate them.
+Mapper interfaces for converting between entities and DTOs. **All mappers are optional** — the framework works without them.
+
+**Without mappers (default):**
+- **Create/Update** — reflection-based DTO → entity mapping. Respects `[Protected]`, `[SkipUpdate]`, `[Hashed]`, `Optional<T>` automatically.
+- **Response** — entity is serialized directly. `[SkipResponse]` fields are set to null and excluded from JSON.
+
+**With mappers (when registered in DI):**
+- **Create** — `ICreateMapper<T, TCreate>.FromCreateDto()` replaces reflection
+- **Update** — `IUpdateMapper<T, TUpdate>.ApplyUpdate()` replaces reflection
+- **Response** — `IResponseMapper<T, TResponse>.Map()` returns a custom-shaped DTO
+
+```csharp
+// No mapper needed — this works out of the box
+app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
+
+// Optional: register a mapper for custom response shape
+public class ProductMapper : IResponseMapper<Product, ProductResponse>
+{
+    public ProductResponse Map(Product entity)
+        => new(entity.Id, entity.Name, entity.Price, $"{entity.Name} ({entity.Sku})");
+
+    public IQueryable<ProductResponse> Project(IQueryable<Product> query)
+        => query.Select(e => new ProductResponse(e.Id, e.Name, e.Price, e.Name + " (" + e.Sku + ")"));
+}
+
+builder.Services.AddScoped<IResponseMapper<Product, ProductResponse>, ProductMapper>();
+```
+
+SourceGen generates `ICrudMapper` implementations automatically — combining all three interfaces. When registered via `AddAllCrudMappers()`, reflection is fully bypassed.
 
 - `IResponseMapper<T, TResponse>` — entity → response DTO
 - `ICreateMapper<T, TCreate>` — create DTO → entity
