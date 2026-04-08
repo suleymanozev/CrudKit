@@ -1,3 +1,5 @@
+using CrudKit.Core.Interfaces;
+using CrudKit.EntityFrameworkCore;
 using CrudKit.EntityFrameworkCore.Dialect;
 using CrudKit.EntityFrameworkCore.Query;
 using CrudKit.EntityFrameworkCore.Repository;
@@ -12,11 +14,12 @@ public class CascadeSoftDeleteTests
     private static (TestDbContext db, EfRepo<ParentItemEntity> repo) CreateParentRepo(
         TimeProvider? timeProvider = null)
     {
-        var db = DbHelper.CreateDb(timeProvider: timeProvider);
+        var softDeleteFilter = new DataFilter<ISoftDeletable>();
+        var db = DbHelper.CreateDb(timeProvider: timeProvider, softDeleteFilter: softDeleteFilter);
         var dialect = DialectDetector.Detect(db);
         var filterApplier = new FilterApplier(dialect);
         var queryBuilder = new QueryBuilder<ParentItemEntity>(filterApplier);
-        var repo = new EfRepo<ParentItemEntity>(DbHelper.WrapAsServiceProvider(db), queryBuilder, filterApplier);
+        var repo = new EfRepo<ParentItemEntity>(DbHelper.WrapAsServiceProvider(db, softDeleteFilter: softDeleteFilter), queryBuilder, filterApplier);
         return (db, repo);
     }
 

@@ -176,30 +176,16 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
             throw new InvalidOperationException($"{typeof(T).Name} does not implement ISoftDeletable.");
 
         // Disable only soft-delete filter — tenant filter stays active (no cross-tenant leak)
-        var filterScope = _softDeleteFilter?.Disable();
-        try
+        using (_softDeleteFilter!.Disable())
         {
-            var query = _softDeleteFilter != null
-                ? _db.Set<T>()                        // filter disabled via IDataFilter
-                : _db.Set<T>().IgnoreQueryFilters();  // fallback when no IDataFilter registered
-
-            var entity = await query
+            var entity = await _db.Set<T>()
                 .FirstOrDefaultAsync(e => e.Id == id, ct)
                 ?? throw AppError.NotFound($"Deleted {typeof(T).Name} with id '{id}' was not found.");
-
-            // When using IgnoreQueryFilters fallback, re-enforce tenant isolation manually
-            if (_softDeleteFilter == null && entity is IMultiTenant multiTenant)
-            {
-                var currentTenantId = _db.CurrentTenantId;
-                if (currentTenantId != null && multiTenant.TenantId != currentTenantId)
-                    throw AppError.NotFound($"Deleted {typeof(T).Name} with id '{id}' was not found.");
-            }
 
             ((ISoftDeletable)entity).DeletedAt = null;
 
             // Check [Unique] properties — re-enable soft-delete filter to check only active records
-            var enableScope = _softDeleteFilter?.Enable();
-            try
+            using (_softDeleteFilter.Enable())
             {
                 var uniqueProps = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance)
                     .Where(p => p.GetCustomAttribute<UniqueAttribute>() != null)
@@ -225,10 +211,6 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
                         throw AppError.Conflict(
                             $"Cannot restore: active {typeof(T).Name} with {prop.Name} = '{value}' already exists.");
                 }
-            }
-            finally
-            {
-                enableScope?.Dispose();
             }
 
             await _db.SaveChangesAsync(ct);
@@ -258,11 +240,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
                     tableName, deletedAtColumn, updatedAtColumn, fkColumn);
                 _db.Database.ExecuteSqlRaw(sql, now, id);
             }
-        }
-        finally
-        {
-            filterScope?.Dispose();
-        }
+        } // soft-delete filter re-enabled
     }
 
     public async Task HardDelete(Guid id, CancellationToken ct = default)
@@ -272,37 +250,20 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
             throw new InvalidOperationException($"{typeof(T).Name} does not implement ISoftDeletable.");
 
         // Disable soft-delete filter — tenant filter stays active
-        var hardDeleteScope = _softDeleteFilter?.Disable();
-        try
+        using (_softDeleteFilter!.Disable())
         {
-            var query = _softDeleteFilter != null
-                ? _db.Set<T>()
-                : _db.Set<T>().IgnoreQueryFilters();
-
-            var entity = await query
+            var entity = await _db.Set<T>()
                 .FirstOrDefaultAsync(e => e.Id == id, ct)
                 ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
-
-            // When using IgnoreQueryFilters fallback, re-enforce tenant isolation
-            if (_softDeleteFilter == null && entity is IMultiTenant mt)
-            {
-                var currentTenantId = _db.CurrentTenantId;
-                if (currentTenantId != null && mt.TenantId != currentTenantId)
-                    throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
-            }
 
             // Must be soft-deleted already
             if (((ISoftDeletable)entity).DeletedAt == null)
                 throw AppError.BadRequest($"{typeof(T).Name} with id '{id}' is not soft-deleted. Delete it first.");
 
             // Hard delete — ExecuteDeleteAsync bypasses SaveChanges interception
-            await (_softDeleteFilter != null ? _db.Set<T>() : _db.Set<T>().IgnoreQueryFilters())
+            await _db.Set<T>()
                 .Where(e => e.Id == id)
                 .ExecuteDeleteAsync(ct);
-        }
-        finally
-        {
-            hardDeleteScope?.Dispose();
         }
     }
 

@@ -26,11 +26,12 @@ public class EfRepoTests
 
     private static (TestDbContext db, EfRepo<SoftPersonEntity> repo) CreateSoftRepo()
     {
-        var db = DbHelper.CreateDb();
+        var softDeleteFilter = new DataFilter<ISoftDeletable>();
+        var db = DbHelper.CreateDb(softDeleteFilter: softDeleteFilter);
         var dialect = DialectDetector.Detect(db);
         var filterApplier = new FilterApplier(dialect);
         var queryBuilder = new QueryBuilder<SoftPersonEntity>(filterApplier);
-        var repo = new EfRepo<SoftPersonEntity>(DbHelper.WrapAsServiceProvider(db), queryBuilder, filterApplier);
+        var repo = new EfRepo<SoftPersonEntity>(DbHelper.WrapAsServiceProvider(db, softDeleteFilter: softDeleteFilter), queryBuilder, filterApplier);
         return (db, repo);
     }
 
@@ -262,11 +263,12 @@ public class EfRepoTests
 
     private static (TestDbContext db, EfRepo<UniqueCodeEntity> repo) CreateUniqueCodeRepo()
     {
-        var db = DbHelper.CreateDb();
+        var softDeleteFilter = new DataFilter<ISoftDeletable>();
+        var db = DbHelper.CreateDb(softDeleteFilter: softDeleteFilter);
         var dialect = DialectDetector.Detect(db);
         var filterApplier = new FilterApplier(dialect);
         var queryBuilder = new QueryBuilder<UniqueCodeEntity>(filterApplier);
-        var repo = new EfRepo<UniqueCodeEntity>(DbHelper.WrapAsServiceProvider(db), queryBuilder, filterApplier);
+        var repo = new EfRepo<UniqueCodeEntity>(DbHelper.WrapAsServiceProvider(db, softDeleteFilter: softDeleteFilter), queryBuilder, filterApplier);
         return (db, repo);
     }
 

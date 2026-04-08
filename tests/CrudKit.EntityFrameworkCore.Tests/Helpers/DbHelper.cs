@@ -61,13 +61,27 @@ public static class DbHelper
     /// <summary>
     /// Build a minimal IServiceProvider that resolves the given CrudKitDbContext.
     /// Used by tests that construct EfRepo manually.
+    /// When softDeleteFilter or tenantFilter are provided, those exact instances are
+    /// registered so that EfRepo and the DbContext share the same filter state.
     /// </summary>
-    public static IServiceProvider WrapAsServiceProvider(CrudKitDbContext db)
+    public static IServiceProvider WrapAsServiceProvider(
+        CrudKitDbContext db,
+        IDataFilter<ISoftDeletable>? softDeleteFilter = null,
+        IDataFilter<IMultiTenant>? tenantFilter = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton(db);
         services.AddSingleton<CrudKitDbContext>(db);
         services.AddSingleton<ICrudKitDbContext>(db);
+
+        if (softDeleteFilter != null)
+            services.AddSingleton<IDataFilter<ISoftDeletable>>(softDeleteFilter);
+        else
+            services.AddSingleton(typeof(IDataFilter<>), typeof(DataFilter<>));
+
+        if (tenantFilter != null)
+            services.AddSingleton<IDataFilter<IMultiTenant>>(tenantFilter);
+
         return services.BuildServiceProvider();
     }
 }
