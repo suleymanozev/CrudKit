@@ -78,3 +78,59 @@ builder.Services.AddCrudKit<InventoryDbContext>();
 ```
 
 `EfRepo<Order>` resolves `OrderDbContext`; `EfRepo<Product>` resolves `InventoryDbContext`. No extra configuration needed — the resolution is automatic via `CrudKitContextRegistry`.
+
+## IModule with Own DbContext (Recommended)
+
+The cleanest pattern — each module registers its own DbContext inside `RegisterServices`:
+
+```csharp
+public class OrderModule : IModule
+{
+    public string Name => "Orders";
+
+    public void RegisterServices(IServiceCollection services, IConfiguration config)
+    {
+        services.AddDbContext<OrderDbContext>(opts =>
+            opts.UseNpgsql(config.GetConnectionString("Orders")));
+        services.AddCrudKitEf<OrderDbContext>();
+        services.AddScoped<ICrudHooks<Order>, OrderHooks>();
+    }
+
+    public void MapEndpoints(WebApplication app)
+    {
+        app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>();
+    }
+}
+
+public class InventoryModule : IModule
+{
+    public string Name => "Inventory";
+
+    public void RegisterServices(IServiceCollection services, IConfiguration config)
+    {
+        services.AddDbContext<InventoryDbContext>(opts =>
+            opts.UseNpgsql(config.GetConnectionString("Inventory")));
+        services.AddCrudKitEf<InventoryDbContext>();
+    }
+
+    public void MapEndpoints(WebApplication app)
+    {
+        app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
+    }
+}
+```
+
+Program.cs stays minimal:
+
+```csharp
+builder.Services.AddCrudKit<SharedDbContext>(opts =>
+{
+    opts.ScanModulesFromAssembly = typeof(Program).Assembly;
+});
+
+var app = builder.Build();
+app.UseCrudKit();  // discovers modules, calls RegisterServices + MapEndpoints
+app.Run();
+```
+
+Each module is self-contained: own DbContext, own connection string, own hooks. Modules can even use different database providers (PostgreSQL for orders, SQL Server for inventory).

@@ -1183,6 +1183,56 @@ builder.Services.AddCrudKit<InventoryDbContext>();
 
 `EfRepo<Order>` resolves `OrderDbContext`; `EfRepo<Product>` resolves `InventoryDbContext`. No extra configuration needed.
 
+### IModule with Own DbContext
+
+Each module can register its own DbContext inside `RegisterServices` — the recommended pattern for true modular monolith:
+
+```csharp
+public class OrderModule : IModule
+{
+    public string Name => "Orders";
+
+    public void RegisterServices(IServiceCollection services, IConfiguration config)
+    {
+        services.AddDbContext<OrderDbContext>(opts =>
+            opts.UseNpgsql(config.GetConnectionString("Orders")));
+        services.AddCrudKitEf<OrderDbContext>();
+        services.AddScoped<ICrudHooks<Order>, OrderHooks>();
+    }
+
+    public void MapEndpoints(WebApplication app)
+    {
+        app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>();
+    }
+}
+
+public class InventoryModule : IModule
+{
+    public string Name => "Inventory";
+
+    public void RegisterServices(IServiceCollection services, IConfiguration config)
+    {
+        services.AddDbContext<InventoryDbContext>(opts =>
+            opts.UseNpgsql(config.GetConnectionString("Inventory")));
+        services.AddCrudKitEf<InventoryDbContext>();
+    }
+
+    public void MapEndpoints(WebApplication app)
+    {
+        app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
+        app.MapCrudEndpoints<Category, CreateCategory, UpdateCategory>();
+    }
+}
+
+// Program.cs — modules discovered automatically
+builder.Services.AddCrudKit<SharedDbContext>(opts =>
+{
+    opts.ScanModulesFromAssembly = typeof(Program).Assembly;
+});
+```
+
+Each module is self-contained: own DbContext, own connection string, own entity registrations. `CrudKitContextRegistry` tracks all contexts and `EfRepo<T>` resolves the correct one per entity.
+
 ---
 
 ## Source Generation
