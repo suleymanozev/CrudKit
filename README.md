@@ -8,7 +8,7 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 
 - Auto-mapped REST endpoints (List, Get, Create, Update, Delete)
 - Soft delete with cascade and restore
-- Multi-tenant isolation (`ITenantContext` + 5 built-in resolvers + 3-layer cross-tenant protection)
+- Multi-tenant isolation (`ITenantContext` + 5 built-in resolvers + 3-layer cross-tenant protection + `IDataFilter<T>` for runtime filter control)
 - Audit trail (`[Audited]` + `UseAuditTrail()` opt-in, `[AuditIgnore]` per-property, `[Hashed]` auto-masked)
 - Per-operation authorization (`Authorize()` builder — role-based, permission-based, convention)
 - Custom endpoints via `.WithCustomEndpoints()` under same route group
@@ -173,7 +173,9 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 
     // Import / Export
     opts.UseExport();                    // All entities exportable (opt-out with [NotExportable])
+    opts.MaxExportRows = 50_000;         // Default: 50,000
     opts.UseImport();                    // All entities importable (opt-out with [NotImportable])
+    opts.MaxImportFileSize = 10 * 1024 * 1024; // Default: 10 MB
 
     // Enum storage
     opts.UseEnumAsString();              // Store enums as strings in DB
@@ -201,6 +203,46 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 | `UseEnumAsString()` | `CrudKitApiOptions` | Store all enum properties as strings |
 | `UseMultiTenancy()` | `MultiTenancyOptions` | Enable multi-tenancy, chain resolver method |
 | `UseGlobalHook<T>()` | `CrudKitApiOptions` | Register a global `IGlobalCrudHook` |
+
+## Multi-Tenant Program.cs Example
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<AppDbContext>(opts =>
+    opts.UseSqlite("Data Source=app.db"));
+
+builder.Services.AddScoped<ICurrentUser, JwtCurrentUser>();
+
+builder.Services.AddCrudKit<AppDbContext>(opts =>
+{
+    opts.UseMultiTenancy()
+        .ResolveTenantFromClaim("tenant_id")
+        .RejectUnresolvedTenant()
+        .CrossTenantPolicy(p => p.Allow("superadmin"));
+});
+
+var app = builder.Build();
+app.UseCrudKit();
+app.MapAllCrudEndpoints();
+app.Run();
+```
+
+Entities implementing `IMultiTenant` are automatically scoped to the resolved tenant. Inject `IDataFilter<T>` to temporarily disable the soft-delete or tenant filter within a request:
+
+```csharp
+public class ReportService
+{
+    private readonly IDataFilter<Order> _filter;
+    public ReportService(IDataFilter<Order> filter) => _filter = filter;
+
+    public async Task<List<Order>> GetDeletedOrdersAsync()
+    {
+        using (_filter.Disable<ISoftDeletable>())
+            return await _repo.ListAsync();
+    }
+}
+```
 
 ---
 

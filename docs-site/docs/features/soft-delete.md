@@ -58,6 +58,24 @@ DELETE /api/products/purge?olderThan=30
 - Uses `ExecuteDeleteAsync` — bypasses EF change tracking and soft-delete interception (real hard delete, no hooks fired).
 - Respects tenant isolation: only records in the current tenant are purged for `IMultiTenant` entities.
 
+## IDataFilter — Temporarily Include Soft-Deleted Records
+
+Inject `IDataFilter<T>` to disable the soft-delete query filter within a scoped block. The filter is automatically re-enabled when the block exits.
+
+```csharp
+public class ArchiveService
+{
+    private readonly IDataFilter<Product> _filter;
+    public ArchiveService(IDataFilter<Product> filter) => _filter = filter;
+
+    public async Task<List<Product>> GetAllIncludingDeletedAsync()
+    {
+        using (_filter.Disable<ISoftDeletable>())
+            return await _repo.ListAsync();
+    }
+}
+```
+
 ## Endpoints
 
 | Method | Route | Description |

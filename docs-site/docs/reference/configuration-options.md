@@ -21,7 +21,9 @@ All options are set via `AddCrudKit<TContext>(opts => ...)`.
 | `ScanModulesFromAssembly` | `Assembly?` | `null` | Assembly to scan for `IModule` implementations |
 | `AuditTrailEnabled` | `bool` | `false` | Set via `UseAuditTrail()` |
 | `ExportEnabled` | `bool` | `false` | Set via `UseExport()` |
+| `MaxExportRows` | `int` | `50000` | Maximum rows per CSV export request |
 | `ImportEnabled` | `bool` | `false` | Set via `UseImport()` |
+| `MaxImportFileSize` | `int` | `10485760` | Maximum CSV upload size in bytes (10 MB) |
 | `EnumAsStringEnabled` | `bool` | `false` | Set via `UseEnumAsString()` |
 
 ### Fluent Methods
@@ -69,7 +71,9 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
         .EnableAuditFailedOperations();
 
     opts.UseExport();
+    opts.MaxExportRows = 50_000;
     opts.UseImport();
+    opts.MaxImportFileSize = 10 * 1024 * 1024;
     opts.UseEnumAsString();
 
     opts.UseMultiTenancy()

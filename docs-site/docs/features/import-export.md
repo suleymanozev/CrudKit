@@ -55,6 +55,21 @@ GET /api/products/export?format=csv&price=gte:100&sort=-name
 
 System fields (`Id`, `CreatedAt`, `UpdatedAt`, etc.) are handled automatically during import and should not appear in the CSV.
 
+## Limits
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `MaxExportRows` | `50000` | Maximum rows per export request. Excess rows return `400`. |
+| `MaxImportFileSize` | `10 MB` | Maximum upload size for CSV import. Larger files return `400`. |
+
+```csharp
+opts.UseExport();
+opts.MaxExportRows = 50_000;
+
+opts.UseImport();
+opts.MaxImportFileSize = 10 * 1024 * 1024;
+```
+
 ## Feature Flag Levels
 
 | Level | Enable | Disable |

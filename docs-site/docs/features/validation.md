@@ -38,6 +38,12 @@ public class CreateProductValidator : AbstractValidator<CreateProduct>
 builder.Services.AddScoped<IValidator<CreateProduct>, CreateProductValidator>();
 ```
 
+To register all validators in an assembly at once, use `AddValidatorsFromAssembly` — this is the application's responsibility, not CrudKit's:
+
+```csharp
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+```
+
 ## DataAnnotations Fallback
 
 When no FluentValidation validator is registered, DataAnnotations on the DTO are checked:

@@ -413,6 +413,22 @@ Mapper interfaces for converting between entities and DTOs. Implement manually o
 - `IUpdateMapper<T, TUpdate>` — apply update DTO to existing entity
 - `ICrudMapper<T, TCreate, TUpdate, TResponse>` — combines all three
 
+### `IDataFilter<T>`
+
+Runtime toggle for global query filters (soft-delete and tenant filters) on a specific entity. Inject as a scoped service and call `Disable<TFilter>()` inside a `using` block — the filter is re-enabled when the block exits.
+
+```csharp
+// Temporarily include soft-deleted records
+using (_dataFilter.Disable<ISoftDeletable>())
+{
+    var all = await _repo.ListAsync(); // includes deleted rows
+}
+
+// Re-enabled automatically after the using block
+```
+
+`Disable<ITenantFilter>()` is deliberately not supported — the tenant filter is always active and cannot be disabled at runtime. Use `CrossTenantPolicy` in configuration to grant cross-tenant access to specific roles.
+
 ### `IModule`
 
 Self-registers services and endpoints for one bounded context. Discovered via assembly scan or manual registration.
@@ -882,6 +898,12 @@ public class CreateProductValidator : AbstractValidator<CreateProduct>
 builder.Services.AddScoped<IValidator<CreateProduct>, CreateProductValidator>();
 ```
 
+To register all validators in an assembly at once, use `AddValidatorsFromAssembly` — this is the application's responsibility, not CrudKit's:
+
+```csharp
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+```
+
 ### Startup Validation
 
 `CrudKitStartupValidator` runs as an `IHostedService` at startup. It validates entity metadata before the first request:
@@ -1002,6 +1024,21 @@ GET /api/products/export?format=csv&price=gte:100&sort=-name
 ```
 
 System fields (`Id`, `CreatedAt`, `UpdatedAt`, etc.) are handled automatically during import and should not appear in the CSV.
+
+### Limits
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `MaxExportRows` | `50000` | Maximum rows returned per export request. Requests exceeding this limit return `400`. |
+| `MaxImportFileSize` | `10485760` (10 MB) | Maximum allowed upload size for CSV import. Larger files return `400`. |
+
+```csharp
+opts.UseExport();
+opts.MaxExportRows = 50_000;
+
+opts.UseImport();
+opts.MaxImportFileSize = 10 * 1024 * 1024;
+```
 
 ---
 
@@ -1232,7 +1269,9 @@ public record UpdateOrder
 | `ScanModulesFromAssembly` | `Assembly?` | `null` | Assembly to scan for `IModule` implementations |
 | `AuditTrailEnabled` | `bool` | `false` | Set via `UseAuditTrail()` |
 | `ExportEnabled` | `bool` | `false` | Set via `UseExport()` |
+| `MaxExportRows` | `int` | `50000` | Maximum rows per CSV export request |
 | `ImportEnabled` | `bool` | `false` | Set via `UseImport()` |
+| `MaxImportFileSize` | `int` | `10485760` | Maximum CSV upload size in bytes (10 MB) |
 | `EnumAsStringEnabled` | `bool` | `false` | Set via `UseEnumAsString()` |
 
 ### `CrudKitApiOptions` Fluent Methods

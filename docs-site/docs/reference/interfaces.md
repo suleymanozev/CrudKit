@@ -144,6 +144,27 @@ Mapper interfaces for converting between entities and DTOs. Implement manually o
 - `IUpdateMapper<T, TUpdate>` — apply update DTO to existing entity
 - `ICrudMapper<T, TCreate, TUpdate, TResponse>` — combines all three
 
+## IDataFilter\<T\>
+
+Runtime toggle for global query filters on a specific entity type. Inject as a scoped service and use `Disable<TFilter>()` inside a `using` block — the filter is restored automatically when the block exits.
+
+```csharp
+public interface IDataFilter<T>
+{
+    IDisposable Disable<TFilter>() where TFilter : class;
+}
+```
+
+```csharp
+// Temporarily include soft-deleted records for entity T
+using (_dataFilter.Disable<ISoftDeletable>())
+{
+    var all = await _repo.ListAsync();
+}
+```
+
+The tenant filter (`ITenantFilter`) cannot be disabled — it is always enforced. Cross-tenant access is configured via `CrossTenantPolicy` at startup.
+
 ## IModule
 
 Self-registers services and endpoints for one bounded context. Discovered via assembly scan or manual registration.
