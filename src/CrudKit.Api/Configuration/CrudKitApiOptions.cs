@@ -74,6 +74,15 @@ public class CrudKitApiOptions
     }
 
     /// <summary>
+    /// Enables audit trail with additional configuration (schema, context, failed ops).
+    /// </summary>
+    public void UseAuditTrail(Action<AuditTrailOptions> configure)
+    {
+        AuditTrailEnabled = true;
+        configure(new AuditTrailOptions(this));
+    }
+
+    /// <summary>
     /// Enables audit trail logging with a custom <see cref="CrudKit.Core.Interfaces.IAuditWriter"/>.
     /// Returns <see cref="AuditTrailOptions"/> for further audit-specific configuration.
     /// </summary>

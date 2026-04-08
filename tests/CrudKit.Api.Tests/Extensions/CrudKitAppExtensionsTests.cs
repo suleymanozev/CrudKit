@@ -178,6 +178,49 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
         Assert.True(efOptions.AuditFailedOperations);
     }
 
+    [Fact]
+    public void UseSchema_SetsAuditSchema()
+    {
+        var opts = new CrudKitApiOptions();
+        opts.UseAuditTrail(audit => audit.UseSchema("audit_schema"));
+        Assert.True(opts.AuditTrailEnabled);
+        Assert.Equal("audit_schema", opts.AuditSchema);
+    }
+
+    [Fact]
+    public void UseContext_SetsAuditContextType()
+    {
+        var opts = new CrudKitApiOptions();
+        opts.UseAuditTrail(audit => audit.UseContext<ApiTestDbContext>());
+        Assert.True(opts.AuditTrailEnabled);
+        Assert.Equal(typeof(ApiTestDbContext), opts.AuditContextType);
+    }
+
+    [Fact]
+    public void UseSchema_PropagatesTo_CrudKitEfOptions()
+    {
+        var builder = CreateBuilder();
+        builder.Services.AddCrudKit<ApiTestDbContext>(o =>
+            o.UseAuditTrail(audit => audit.UseSchema("my_audit")));
+
+        using var app = builder.Build();
+        var efOptions = app.Services.GetRequiredService<CrudKit.EntityFrameworkCore.CrudKitEfOptions>();
+        Assert.Equal("my_audit", efOptions.AuditSchema);
+    }
+
+    [Fact]
+    public void UseAuditTrail_Chaining_AllOptionsWork()
+    {
+        var opts = new CrudKitApiOptions();
+        opts.UseAuditTrail(audit => audit
+            .UseSchema("audit")
+            .EnableAuditFailedOperations());
+
+        Assert.True(opts.AuditTrailEnabled);
+        Assert.Equal("audit", opts.AuditSchema);
+        Assert.True(opts.AuditFailedOperations);
+    }
+
     // --- Test helpers ---
 
     private class TestModule : IModule
