@@ -22,11 +22,14 @@ public class DbAuditWriterTests
         return (services.BuildServiceProvider(), db);
     }
 
+    private static DbAuditWriter CreateWriter(IServiceProvider services)
+        => new DbAuditWriter(services, new AuditDbContextAccessor());
+
     [Fact]
     public async Task WriteAsync_EmptyList_DoesNotSaveAnything()
     {
         var (services, db) = BuildServiceProvider();
-        var writer = new DbAuditWriter(services);
+        var writer = CreateWriter(services);
 
         await writer.WriteAsync([], CancellationToken.None);
 
@@ -37,7 +40,7 @@ public class DbAuditWriterTests
     public async Task WriteAsync_SingleEntry_AppearsInAuditLogs()
     {
         var (services, db) = BuildServiceProvider();
-        var writer = new DbAuditWriter(services);
+        var writer = CreateWriter(services);
 
         var timestamp = DateTime.UtcNow;
         var entry = new AuditEntry
@@ -65,7 +68,7 @@ public class DbAuditWriterTests
     public async Task WriteAsync_MultipleEntries_AllAppearInAuditLogs()
     {
         var (services, db) = BuildServiceProvider();
-        var writer = new DbAuditWriter(services);
+        var writer = new DbAuditWriter(services, new AuditDbContextAccessor());
 
         var entries = new List<AuditEntry>
         {
@@ -84,7 +87,7 @@ public class DbAuditWriterTests
     public async Task WriteAsync_ResetsIsAuditSaveFlag_AfterSave()
     {
         var (services, db) = BuildServiceProvider();
-        var writer = new DbAuditWriter(services);
+        var writer = new DbAuditWriter(services, new AuditDbContextAccessor());
 
         var entry = new AuditEntry
         {

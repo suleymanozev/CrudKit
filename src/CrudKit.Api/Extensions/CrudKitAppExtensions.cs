@@ -34,7 +34,12 @@ public static class CrudKitAppExtensions
             AuditTrailEnabled = opts.AuditTrailEnabled,
             EnumAsStringEnabled = opts.EnumAsStringEnabled,
             AuditFailedOperations = opts.AuditFailedOperations,
+            AuditSchema = opts.AuditSchema,
         });
+
+        // Register the accessor that determines which DbContext audit entries are written to.
+        // When UseContext<T>() is configured, audit goes to that dedicated context.
+        services.AddSingleton(new AuditDbContextAccessor(opts.AuditContextType));
 
         // Register audit writer when audit trail is enabled
         if (opts.AuditTrailEnabled)

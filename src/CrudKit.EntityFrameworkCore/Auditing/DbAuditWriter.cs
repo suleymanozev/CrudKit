@@ -6,22 +6,27 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CrudKit.EntityFrameworkCore.Auditing;
 
 /// <summary>
-/// Default <see cref="IAuditWriter"/> that writes audit entries to the __crud_audit_logs table
-/// on the current <see cref="CrudKitDbContext"/>. Resolves the context from
-/// <see cref="IServiceProvider"/> to avoid a circular constructor dependency.
+/// Default <see cref="IAuditWriter"/> that writes audit entries to the __crud_audit_logs table.
+/// Resolves the target DbContext via <see cref="AuditDbContextAccessor"/> — this allows routing
+/// audit writes to a dedicated centralized context when UseContext&lt;T&gt;() is configured.
 /// Uses an internal flag to prevent recursive audit collection when saving audit records.
 /// </summary>
 public class DbAuditWriter : IAuditWriter
 {
     private readonly IServiceProvider _services;
+    private readonly AuditDbContextAccessor _accessor;
 
-    public DbAuditWriter(IServiceProvider services) => _services = services;
+    public DbAuditWriter(IServiceProvider services, AuditDbContextAccessor accessor)
+    {
+        _services = services;
+        _accessor = accessor;
+    }
 
     public async Task WriteAsync(IReadOnlyList<AuditEntry> entries, CancellationToken ct = default)
     {
         if (entries.Count == 0) return;
 
-        var db = _services.GetRequiredService<ICrudKitDbContext>();
+        var db = _accessor.Resolve(_services);
 
         foreach (var entry in entries)
         {

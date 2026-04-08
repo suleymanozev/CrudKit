@@ -1,3 +1,5 @@
+using CrudKit.EntityFrameworkCore;
+
 namespace CrudKit.Api.Configuration;
 
 /// <summary>
@@ -16,9 +18,29 @@ public class AuditTrailOptions
     /// Failed operations are recorded with action "FailedCreate", "FailedUpdate", "FailedDelete".
     /// Useful for security auditing and compliance.
     /// </summary>
-    public CrudKitApiOptions EnableAuditFailedOperations()
+    public AuditTrailOptions EnableAuditFailedOperations()
     {
         _parent.AuditFailedOperations = true;
-        return _parent;
+        return this;
+    }
+
+    /// <summary>
+    /// Store audit logs in a specific database schema.
+    /// Only affects the __crud_audit_logs table location.
+    /// </summary>
+    public AuditTrailOptions UseSchema(string schema)
+    {
+        _parent.AuditSchema = schema;
+        return this;
+    }
+
+    /// <summary>
+    /// Store audit logs in a separate DbContext (different database).
+    /// All modules will write audit entries to this centralized context.
+    /// </summary>
+    public AuditTrailOptions UseContext<TAuditContext>() where TAuditContext : CrudKitDbContext
+    {
+        _parent.AuditContextType = typeof(TAuditContext);
+        return this;
     }
 }

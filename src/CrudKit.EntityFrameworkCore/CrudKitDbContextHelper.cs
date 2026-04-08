@@ -130,7 +130,12 @@ public static class CrudKitDbContextHelper
         {
             modelBuilder.Entity<AuditLogEntry>(b =>
             {
-                b.ToTable("__crud_audit_logs");
+                // Place the audit log table in the configured schema when UseSchema() is set.
+                if (efOptions?.AuditSchema != null)
+                    b.ToTable("__crud_audit_logs", efOptions.AuditSchema);
+                else
+                    b.ToTable("__crud_audit_logs");
+
                 b.HasIndex(e => new { e.EntityType, e.EntityId });
                 b.HasIndex(e => e.Timestamp);
             });

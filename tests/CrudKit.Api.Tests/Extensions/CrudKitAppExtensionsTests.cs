@@ -158,9 +158,9 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
     public void EnableAuditFailedOperations_ReturnsCrudKitApiOptions_AndAuditTrailEnabled()
     {
         var opts = new CrudKitApiOptions();
-        // EnableAuditFailedOperations returns the parent CrudKitApiOptions (fluent chain)
+        // EnableAuditFailedOperations returns AuditTrailOptions for further chaining
         var result = opts.UseAuditTrail().EnableAuditFailedOperations();
-        Assert.IsType<CrudKitApiOptions>(result);
+        Assert.IsType<AuditTrailOptions>(result);
         Assert.True(opts.AuditTrailEnabled);
     }
 

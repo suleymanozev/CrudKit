@@ -33,6 +33,12 @@ public class CrudKitApiOptions
     /// </summary>
     internal Type? CustomAuditWriterType { get; set; }
 
+    /// <summary>Schema for __crud_audit_logs table. Null = default schema.</summary>
+    internal string? AuditSchema { get; set; }
+
+    /// <summary>Separate DbContext type for centralized audit. Null = use entity's own context.</summary>
+    internal Type? AuditContextType { get; set; }
+
     /// <summary>Maximum file size for CSV import in bytes. Default: 10 MB.</summary>
     public long MaxImportFileSize { get; set; } = 10 * 1024 * 1024;
 

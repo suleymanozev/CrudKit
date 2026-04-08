@@ -24,4 +24,7 @@ public class CrudKitEfOptions
     /// Useful for security auditing and compliance. Default: false.
     /// </summary>
     public bool AuditFailedOperations { get; set; }
+
+    /// <summary>Schema for __crud_audit_logs table. Null = default schema.</summary>
+    public string? AuditSchema { get; set; }
 }
