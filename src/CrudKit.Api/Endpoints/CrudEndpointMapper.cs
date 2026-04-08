@@ -633,24 +633,16 @@ public static class CrudEndpointMapper
                 var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
                 var cutoff = DateTime.UtcNow.AddDays(-olderThan);
 
-                // IgnoreQueryFilters to access soft-deleted records, then hard delete via ExecuteDeleteAsync
-                // which bypasses the ChangeTracker entirely — no soft-delete interception, no hooks.
-                var query = db.Set<TEntity>()
-                    .IgnoreQueryFilters()
-                    .Where(e => ((ISoftDeletable)e).DeletedAt != null && ((ISoftDeletable)e).DeletedAt < cutoff);
-
-                // Re-apply tenant filter manually since IgnoreQueryFilters removes all filters
-                if (typeof(IMultiTenant).IsAssignableFrom(typeof(TEntity)))
+                // Disable only soft-delete filter — tenant filter stays active (no cross-tenant leak)
+                var softDeleteFilter = httpCtx.RequestServices.GetService<IDataFilter<ISoftDeletable>>();
+                using (softDeleteFilter?.Disable())
                 {
-                    var tenantContext = httpCtx.RequestServices.GetService<ITenantContext>();
-                    if (tenantContext?.TenantId != null)
-                    {
-                        query = query.Where(e => ((IMultiTenant)e).TenantId == tenantContext.TenantId);
-                    }
-                }
+                    var query = db.Set<TEntity>()
+                        .Where(e => ((ISoftDeletable)e).DeletedAt != null && ((ISoftDeletable)e).DeletedAt < cutoff);
 
-                var purged = await query.ExecuteDeleteAsync(ct);
-                return Results.Ok(new { purged });
+                    var purged = await query.ExecuteDeleteAsync(ct);
+                    return Results.Ok(new { purged });
+                }
             })
             .WithName($"Purge{tag}")
             .WithTags(tag)

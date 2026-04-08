@@ -16,16 +16,20 @@ namespace CrudKit.EntityFrameworkCore.Repository;
 public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
 {
     private readonly ICrudKitDbContext _db;
+    private readonly IServiceProvider _services;
     private readonly QueryBuilder<T> _queryBuilder;
     private readonly FilterApplier _filterApplier;
     private readonly ICrudHooks<T>? _hooks;
+    private readonly IDataFilter<ISoftDeletable>? _softDeleteFilter;
 
     public EfRepo(IServiceProvider services, QueryBuilder<T> queryBuilder, FilterApplier filterApplier, ICrudHooks<T>? hooks = null)
     {
         _db = ResolveContext(services);
+        _services = services;
         _queryBuilder = queryBuilder;
         _filterApplier = filterApplier;
         _hooks = hooks;
+        _softDeleteFilter = services.GetService<IDataFilter<ISoftDeletable>>();
     }
 
     /// <summary>
@@ -171,74 +175,93 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
         if (typeof(T).IsAssignableTo(typeof(ISoftDeletable)) == false)
             throw new InvalidOperationException($"{typeof(T).Name} does not implement ISoftDeletable.");
 
-        var entity = await _db.Set<T>().IgnoreQueryFilters()
-            .FirstOrDefaultAsync(e => e.Id == id, ct)
-            ?? throw AppError.NotFound($"Deleted {typeof(T).Name} with id '{id}' was not found.");
-
-        // Re-enforce tenant isolation since IgnoreQueryFilters bypasses the tenant filter.
-        if (entity is IMultiTenant multiTenant)
+        // Disable only soft-delete filter — tenant filter stays active (no cross-tenant leak)
+        var filterScope = _softDeleteFilter?.Disable();
+        try
         {
-            var currentTenantId = _db.CurrentTenantId;
-            if (currentTenantId != null && multiTenant.TenantId != currentTenantId)
-                throw AppError.NotFound($"Deleted {typeof(T).Name} with id '{id}' was not found.");
+            var query = _softDeleteFilter != null
+                ? _db.Set<T>()                        // filter disabled via IDataFilter
+                : _db.Set<T>().IgnoreQueryFilters();  // fallback when no IDataFilter registered
+
+            var entity = await query
+                .FirstOrDefaultAsync(e => e.Id == id, ct)
+                ?? throw AppError.NotFound($"Deleted {typeof(T).Name} with id '{id}' was not found.");
+
+            // When using IgnoreQueryFilters fallback, re-enforce tenant isolation manually
+            if (_softDeleteFilter == null && entity is IMultiTenant multiTenant)
+            {
+                var currentTenantId = _db.CurrentTenantId;
+                if (currentTenantId != null && multiTenant.TenantId != currentTenantId)
+                    throw AppError.NotFound($"Deleted {typeof(T).Name} with id '{id}' was not found.");
+            }
+
+            ((ISoftDeletable)entity).DeletedAt = null;
+
+            // Check [Unique] properties — re-enable soft-delete filter to check only active records
+            var enableScope = _softDeleteFilter?.Enable();
+            try
+            {
+                var uniqueProps = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                    .Where(p => p.GetCustomAttribute<UniqueAttribute>() != null)
+                    .ToList();
+
+                foreach (var prop in uniqueProps)
+                {
+                    var value = prop.GetValue(entity);
+                    if (value == null) continue;
+
+                    var param = Expression.Parameter(typeof(T), "e");
+                    var body = Expression.AndAlso(
+                        Expression.NotEqual(
+                            Expression.Property(param, nameof(IAuditableEntity.Id)),
+                            Expression.Constant(entity.Id)),
+                        Expression.Equal(
+                            Expression.Property(param, prop),
+                            Expression.Constant(value, prop.PropertyType)));
+                    var predicate = Expression.Lambda<Func<T, bool>>(body, param);
+
+                    var conflicts = await _db.Set<T>().Where(predicate).AnyAsync(ct);
+                    if (conflicts)
+                        throw AppError.Conflict(
+                            $"Cannot restore: active {typeof(T).Name} with {prop.Name} = '{value}' already exists.");
+                }
+            }
+            finally
+            {
+                enableScope?.Dispose();
+            }
+
+            await _db.SaveChangesAsync(ct);
+
+            // Cascade restore to child entities declared via [CascadeSoftDelete] attributes
+            var cascadeAttributes = typeof(T).GetCustomAttributes<CascadeSoftDeleteAttribute>();
+            foreach (var attr in cascadeAttributes)
+            {
+                var childEntityType = _db.Model.FindEntityType(attr.ChildType);
+                if (childEntityType == null) continue;
+
+                var tableName = childEntityType.GetTableName();
+                var schema = childEntityType.GetSchema();
+                if (tableName == null) continue;
+
+                var storeObject = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(tableName, schema);
+                var fkColumn = childEntityType.FindProperty(attr.ForeignKeyProperty)?.GetColumnName(storeObject);
+                var deletedAtColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeletedAt))?.GetColumnName(storeObject);
+                var updatedAtColumn = childEntityType.FindProperty(nameof(IAuditableEntity.UpdatedAt))?.GetColumnName(storeObject);
+
+                if (fkColumn == null || deletedAtColumn == null || updatedAtColumn == null)
+                    continue;
+
+                var now = entity.UpdatedAt;
+                var sql = string.Format(
+                    "UPDATE \"{0}\" SET \"{1}\" = NULL, \"{2}\" = {{0}} WHERE \"{3}\" = {{1}} AND \"{1}\" IS NOT NULL",
+                    tableName, deletedAtColumn, updatedAtColumn, fkColumn);
+                _db.Database.ExecuteSqlRaw(sql, now, id);
+            }
         }
-
-        ((ISoftDeletable)entity).DeletedAt = null;
-
-        // Check [Unique] properties for conflicts with active (non-deleted) records before restoring
-        var uniqueProps = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.GetCustomAttribute<UniqueAttribute>() != null)
-            .ToList();
-
-        foreach (var prop in uniqueProps)
+        finally
         {
-            var value = prop.GetValue(entity);
-            if (value == null) continue;
-
-            // Build predicate: e => e.Id != entity.Id && e.<prop> == value
-            var param = Expression.Parameter(typeof(T), "e");
-            var body = Expression.AndAlso(
-                Expression.NotEqual(
-                    Expression.Property(param, nameof(IAuditableEntity.Id)),
-                    Expression.Constant(entity.Id)),
-                Expression.Equal(
-                    Expression.Property(param, prop),
-                    Expression.Constant(value, prop.PropertyType)));
-            var predicate = Expression.Lambda<Func<T, bool>>(body, param);
-
-            // Normal query (no IgnoreQueryFilters) — checks only active records
-            var conflicts = await _db.Set<T>().Where(predicate).AnyAsync(ct);
-            if (conflicts)
-                throw AppError.Conflict(
-                    $"Cannot restore: active {typeof(T).Name} with {prop.Name} = '{value}' already exists.");
-        }
-
-        await _db.SaveChangesAsync(ct);
-
-        // Cascade restore to child entities declared via [CascadeSoftDelete] attributes
-        var cascadeAttributes = typeof(T).GetCustomAttributes<CascadeSoftDeleteAttribute>();
-        foreach (var attr in cascadeAttributes)
-        {
-            var childEntityType = _db.Model.FindEntityType(attr.ChildType);
-            if (childEntityType == null) continue;
-
-            var tableName = childEntityType.GetTableName();
-            var schema = childEntityType.GetSchema();
-            if (tableName == null) continue;
-
-            var storeObject = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(tableName, schema);
-            var fkColumn = childEntityType.FindProperty(attr.ForeignKeyProperty)?.GetColumnName(storeObject);
-            var deletedAtColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeletedAt))?.GetColumnName(storeObject);
-            var updatedAtColumn = childEntityType.FindProperty(nameof(IAuditableEntity.UpdatedAt))?.GetColumnName(storeObject);
-
-            if (fkColumn == null || deletedAtColumn == null || updatedAtColumn == null)
-                continue;
-
-            var now = entity.UpdatedAt; // Use the same timestamp set by SaveChanges
-            var sql = string.Format(
-                "UPDATE \"{0}\" SET \"{1}\" = NULL, \"{2}\" = {{0}} WHERE \"{3}\" = {{1}} AND \"{1}\" IS NOT NULL",
-                tableName, deletedAtColumn, updatedAtColumn, fkColumn);
-            _db.Database.ExecuteSqlRaw(sql, now, id);
+            filterScope?.Dispose();
         }
     }
 
@@ -248,26 +271,39 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
         if (!typeof(ISoftDeletable).IsAssignableFrom(typeof(T)))
             throw new InvalidOperationException($"{typeof(T).Name} does not implement ISoftDeletable.");
 
-        var entity = await _db.Set<T>().IgnoreQueryFilters()
-            .FirstOrDefaultAsync(e => e.Id == id, ct)
-            ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
-
-        // Must be soft-deleted already
-        if (((ISoftDeletable)entity).DeletedAt == null)
-            throw AppError.BadRequest($"{typeof(T).Name} with id '{id}' is not soft-deleted. Delete it first.");
-
-        // Re-enforce tenant isolation
-        if (entity is IMultiTenant multiTenant)
+        // Disable soft-delete filter — tenant filter stays active
+        var hardDeleteScope = _softDeleteFilter?.Disable();
+        try
         {
-            var currentTenantId = _db.CurrentTenantId;
-            if (currentTenantId != null && multiTenant.TenantId != currentTenantId)
-                throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
-        }
+            var query = _softDeleteFilter != null
+                ? _db.Set<T>()
+                : _db.Set<T>().IgnoreQueryFilters();
 
-        // Hard delete — ExecuteDeleteAsync bypasses SaveChanges interception (no soft-delete conversion)
-        await _db.Set<T>().IgnoreQueryFilters()
-            .Where(e => e.Id == id)
-            .ExecuteDeleteAsync(ct);
+            var entity = await query
+                .FirstOrDefaultAsync(e => e.Id == id, ct)
+                ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
+
+            // When using IgnoreQueryFilters fallback, re-enforce tenant isolation
+            if (_softDeleteFilter == null && entity is IMultiTenant mt)
+            {
+                var currentTenantId = _db.CurrentTenantId;
+                if (currentTenantId != null && mt.TenantId != currentTenantId)
+                    throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
+            }
+
+            // Must be soft-deleted already
+            if (((ISoftDeletable)entity).DeletedAt == null)
+                throw AppError.BadRequest($"{typeof(T).Name} with id '{id}' is not soft-deleted. Delete it first.");
+
+            // Hard delete — ExecuteDeleteAsync bypasses SaveChanges interception
+            await (_softDeleteFilter != null ? _db.Set<T>() : _db.Set<T>().IgnoreQueryFilters())
+                .Where(e => e.Id == id)
+                .ExecuteDeleteAsync(ct);
+        }
+        finally
+        {
+            hardDeleteScope?.Dispose();
+        }
     }
 
     public Task<bool> Exists(Guid id, CancellationToken ct = default)

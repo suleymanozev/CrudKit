@@ -7,8 +7,16 @@ namespace CrudKit.Api.Tests.Helpers;
 
 public class ApiTestDbContext : CrudKitDbContext
 {
-    public ApiTestDbContext(DbContextOptions<ApiTestDbContext> options, ICurrentUser currentUser)
-        : base(options, currentUser) { }
+    public ApiTestDbContext(
+        DbContextOptions<ApiTestDbContext> options,
+        ICurrentUser currentUser,
+        TimeProvider? timeProvider = null,
+        CrudKitEfOptions? efOptions = null,
+        ITenantContext? tenantContext = null,
+        IAuditWriter? auditWriter = null,
+        IDataFilter<ISoftDeletable>? softDeleteFilter = null,
+        IDataFilter<IMultiTenant>? tenantFilter = null)
+        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter) { }
 
     public DbSet<ProductEntity> Products => Set<ProductEntity>();
     public DbSet<SoftProductEntity> SoftProducts => Set<SoftProductEntity>();
