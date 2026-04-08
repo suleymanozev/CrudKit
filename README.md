@@ -228,18 +228,20 @@ app.MapAllCrudEndpoints();
 app.Run();
 ```
 
-Entities implementing `IMultiTenant` are automatically scoped to the resolved tenant. Inject `IDataFilter<T>` to temporarily disable the soft-delete or tenant filter within a request:
+Entities implementing `IMultiTenant` are automatically scoped to the resolved tenant. Inject `IDataFilter<ISoftDeletable>` to temporarily disable the soft-delete filter within a request:
 
 ```csharp
-public class ReportService
+public class OrderService
 {
-    private readonly IDataFilter<Order> _filter;
-    public ReportService(IDataFilter<Order> filter) => _filter = filter;
+    private readonly IDataFilter<ISoftDeletable> _softDeleteFilter;
+    private readonly IRepo<Order> _repo;
 
     public async Task<List<Order>> GetDeletedOrdersAsync()
     {
-        using (_filter.Disable<ISoftDeletable>())
-            return await _repo.ListAsync();
+        using (_softDeleteFilter.Disable())
+        {
+            return (await _repo.List(new ListParams(), default)).Data;
+        }
     }
 }
 ```
