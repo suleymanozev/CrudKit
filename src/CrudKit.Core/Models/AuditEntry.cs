@@ -12,6 +12,7 @@ public class AuditEntry
     public string Action { get; set; } = string.Empty;
 
     public string? UserId { get; set; }
+    public string? CorrelationId { get; set; }
     public DateTime Timestamp { get; set; }
 
     /// <summary>JSON representation of previous values.</summary>

@@ -31,6 +31,7 @@ public class DbAuditWriter : IAuditWriter
                 EntityId = entry.EntityId,
                 Action = entry.Action,
                 UserId = entry.UserId,
+                CorrelationId = entry.CorrelationId,
                 Timestamp = entry.Timestamp,
                 OldValues = entry.OldValues,
                 NewValues = entry.NewValues,

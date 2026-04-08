@@ -8,6 +8,8 @@ public class AuditLogEntry
     public string EntityId { get; set; } = string.Empty;
     public string Action { get; set; } = string.Empty;   // Create | Update | Delete
     public string? UserId { get; set; }
+    /// <summary>Links all audit entries from the same request/operation.</summary>
+    public string? CorrelationId { get; set; }
     public DateTime Timestamp { get; set; }
     public string? OldValues { get; set; }
     public string? NewValues { get; set; }

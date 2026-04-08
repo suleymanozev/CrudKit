@@ -218,10 +218,12 @@ public static class CrudKitDbContextHelper
         ChangeTracker changeTracker,
         ICurrentUser currentUser,
         TimeProvider timeProvider,
-        CrudKitEfOptions? efOptions)
+        CrudKitEfOptions? efOptions,
+        string? correlationId = null)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var globalAuditEnabled = efOptions?.AuditTrailEnabled == true;
+        var corrId = correlationId ?? Guid.NewGuid().ToString();
 
         var entries = changeTracker.Entries()
             .Where(e =>
@@ -244,6 +246,7 @@ public static class CrudKitDbContextHelper
                 EntityType = entry.Entity.GetType().Name,
                 EntityId = (entry.Entity as IEntity)?.Id.ToString() ?? string.Empty,
                 UserId = currentUser.Id,
+                CorrelationId = corrId,
                 Timestamp = now,
             };
 
