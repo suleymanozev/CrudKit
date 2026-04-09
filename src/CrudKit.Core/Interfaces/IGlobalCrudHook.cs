@@ -11,7 +11,22 @@ public interface IGlobalCrudHook
     Task BeforeCreate(object entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
     Task AfterCreate(object entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
     Task BeforeUpdate(object entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
+
+    /// <summary>
+    /// Called before an update is committed. Receives both the updated entity and its previous state.
+    /// Default implementation delegates to the 2-parameter overload (ignoring existingEntity).
+    /// </summary>
+    Task BeforeUpdate(object entity, object? existingEntity, CrudKit.Core.Context.AppContext ctx)
+        => BeforeUpdate(entity, ctx);
+
     Task AfterUpdate(object entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
+
+    /// <summary>
+    /// Called after an update is committed. Receives both the updated entity and its previous state.
+    /// Default implementation delegates to the 2-parameter overload (ignoring existingEntity).
+    /// </summary>
+    Task AfterUpdate(object entity, object? existingEntity, CrudKit.Core.Context.AppContext ctx)
+        => AfterUpdate(entity, ctx);
     Task BeforeDelete(object entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
     Task AfterDelete(object entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
 }
