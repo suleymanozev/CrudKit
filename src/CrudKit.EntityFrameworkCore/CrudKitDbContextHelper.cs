@@ -304,7 +304,7 @@ public static class CrudKitDbContextHelper
 
     /// <summary>
     /// Orchestrates the full SaveChanges flow: collect audit entries, process before save,
-    /// call base save, execute cascade ops, write audit.
+    /// apply auto-sequences, call base save, execute cascade ops, write audit.
     /// Used by both CrudKitDbContext and CrudKitIdentityDbContext to avoid duplication.
     /// </summary>
     public static int SaveChanges(
@@ -325,6 +325,7 @@ public static class CrudKitDbContextHelper
             ? CollectAuditEntries(context.ChangeTracker, currentUser, timeProvider, efOptions)
             : [];
         var cascadeOps = ProcessBeforeSave(context.ChangeTracker, currentUser, tenantContext, timeProvider);
+        ApplyAutoSequences(context, tenantContext, timeProvider);
 
         try
         {
@@ -384,6 +385,7 @@ public static class CrudKitDbContextHelper
             ? CollectAuditEntries(context.ChangeTracker, currentUser, timeProvider, efOptions)
             : [];
         var cascadeOps = ProcessBeforeSave(context.ChangeTracker, currentUser, tenantContext, timeProvider);
+        await ApplyAutoSequencesAsync(context, tenantContext, timeProvider, ct);
 
         try
         {
@@ -418,6 +420,91 @@ public static class CrudKitDbContextHelper
             foreach (var e in auditEntries) e.Action = $"Failed{e.Action}";
             await auditWriter.WriteAsync(auditEntries, ct);
             throw;
+        }
+    }
+
+    // ---- AutoSequence processing ----
+
+    /// <summary>
+    /// Processes AutoSequence properties on newly added entities.
+    /// Reads and increments sequence counters in-memory so they are saved in the same transaction.
+    /// </summary>
+    private static void ApplyAutoSequences(
+        ICrudKitDbContext context,
+        ITenantContext? tenantContext,
+        TimeProvider timeProvider)
+    {
+        ApplyAutoSequencesAsync(context, tenantContext, timeProvider, CancellationToken.None)
+            .GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Async version of AutoSequence processing.
+    /// Queries the sequence table for current values and increments them, adding the
+    /// sequence row changes to the same ChangeTracker so everything saves atomically.
+    /// </summary>
+    private static async Task ApplyAutoSequencesAsync(
+        ICrudKitDbContext context,
+        ITenantContext? tenantContext,
+        TimeProvider timeProvider,
+        CancellationToken ct)
+    {
+        var dbContext = (DbContext)(object)context;
+        var now = DateOnly.FromDateTime(timeProvider.GetUtcNow().DateTime);
+        var tenantId = tenantContext?.TenantId ?? "";
+        var sequences = dbContext.Set<CrudKitSequence>();
+
+        var addedEntries = context.ChangeTracker.Entries()
+            .Where(e => e.State == EntityState.Added)
+            .ToList();
+
+        foreach (var entry in addedEntries)
+        {
+            var entityType = entry.Entity.GetType();
+            var seqProperties = entityType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.GetCustomAttribute<AutoSequenceAttribute>() != null)
+                .ToList();
+
+            if (seqProperties.Count == 0) continue;
+
+            var entityTypeName = entityType.Name;
+
+            foreach (var prop in seqProperties)
+            {
+                // Skip if value is already set (non-null, non-empty)
+                var currentValue = prop.GetValue(entry.Entity) as string;
+                if (!string.IsNullOrEmpty(currentValue)) continue;
+
+                var attr = prop.GetCustomAttribute<AutoSequenceAttribute>()!;
+                var (prefix, padding) = SequenceGenerator.ResolvePrefix(attr.Template, now);
+
+                // Look up the sequence row — query directly to avoid ChangeTracker conflicts
+                var seq = await sequences.FirstOrDefaultAsync(
+                    s => s.EntityType == entityTypeName && s.TenantId == tenantId && s.Prefix == prefix, ct);
+
+                long nextValue;
+                if (seq == null)
+                {
+                    seq = new CrudKitSequence
+                    {
+                        Id = Guid.NewGuid(),
+                        EntityType = entityTypeName,
+                        TenantId = tenantId,
+                        Prefix = prefix,
+                        CurrentValue = 1
+                    };
+                    sequences.Add(seq);
+                    nextValue = 1;
+                }
+                else
+                {
+                    seq.CurrentValue++;
+                    nextValue = seq.CurrentValue;
+                }
+
+                var formatted = SequenceGenerator.FormatSequenceValue(prefix, nextValue, padding);
+                prop.SetValue(entry.Entity, formatted);
+            }
         }
     }
 

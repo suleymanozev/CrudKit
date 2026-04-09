@@ -1,5 +1,6 @@
 using CrudKit.Api.Models;
 using CrudKit.Api.Tests.Events;
+using CrudKit.Api.Tests.Sequencing;
 using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore;
@@ -39,6 +40,7 @@ public class ApiTestDbContext : CrudKitDbContext
     public DbSet<ProjectTaskEntity> ProjectTasks => Set<ProjectTaskEntity>();
     public DbSet<ProjectMilestoneEntity> ProjectMilestones => Set<ProjectMilestoneEntity>();
     public DbSet<AggregateOrderEntity> AggregateOrders => Set<AggregateOrderEntity>();
+    public DbSet<SeqInvoiceEntity> SeqInvoices => Set<SeqInvoiceEntity>();
 
     protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
     {
