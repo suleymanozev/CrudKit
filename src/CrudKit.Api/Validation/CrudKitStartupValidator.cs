@@ -57,7 +57,7 @@ public class CrudKitStartupValidator : IHostedService
         }
 
         var entityTypes = db.Model.GetEntityTypes()
-            .Where(t => t.ClrType != null && typeof(IAuditableEntity).IsAssignableFrom(t.ClrType))
+            .Where(t => t.ClrType != null && typeof(IEntity).IsAssignableFrom(t.ClrType))
             .Select(t => t.ClrType)
             .ToList();
 

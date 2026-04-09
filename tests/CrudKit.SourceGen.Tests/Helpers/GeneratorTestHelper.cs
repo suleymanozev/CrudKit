@@ -126,7 +126,7 @@ public static class GeneratorTestHelper
             }
 
             public interface IResponseMapper<TEntity, TResponse>
-                where TEntity : class, IAuditableEntity
+                where TEntity : class, IEntity
                 where TResponse : class
             {
                 TResponse Map(TEntity entity);
@@ -134,14 +134,14 @@ public static class GeneratorTestHelper
             }
 
             public interface ICreateMapper<TEntity, TCreate>
-                where TEntity : class, IAuditableEntity
+                where TEntity : class, IEntity
                 where TCreate : class
             {
                 TEntity FromCreateDto(TCreate dto);
             }
 
             public interface IUpdateMapper<TEntity, TUpdate>
-                where TEntity : class, IAuditableEntity
+                where TEntity : class, IEntity
                 where TUpdate : class
             {
                 void ApplyUpdate(TEntity entity, TUpdate dto);
@@ -151,14 +151,14 @@ public static class GeneratorTestHelper
                 : IResponseMapper<TEntity, TResponse>,
                   ICreateMapper<TEntity, TCreate>,
                   IUpdateMapper<TEntity, TUpdate>
-                where TEntity : class, IAuditableEntity
+                where TEntity : class, IEntity
                 where TCreate : class
                 where TUpdate : class
                 where TResponse : class
             {
             }
 
-            public interface ICrudHooks<T> where T : class, IAuditableEntity { }
+            public interface ICrudHooks<T> where T : class, IEntity { }
         }
 
         namespace CrudKit.Core.Models

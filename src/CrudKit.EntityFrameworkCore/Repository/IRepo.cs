@@ -4,7 +4,7 @@ using CrudKit.Core.Models;
 namespace CrudKit.EntityFrameworkCore.Repository;
 
 /// <summary>Generic CRUD contract for EF Core entities.</summary>
-public interface IRepo<T> where T : class, IAuditableEntity
+public interface IRepo<T> where T : class, IEntity
 {
     Task<T> FindById(Guid id, CancellationToken ct = default);
     Task<T?> FindByIdOrDefault(Guid id, CancellationToken ct = default);

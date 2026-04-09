@@ -13,7 +13,7 @@ namespace CrudKit.EntityFrameworkCore.Repository;
 /// Generic EF Core repository. Handles DTO→entity mapping via reflection.
 /// All cross-cutting concerns (timestamps, tenant, soft delete, audit) are in CrudKitDbContext.
 /// </summary>
-public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
+public class EfRepo<T> : IRepo<T> where T : class, IEntity
 {
     private readonly ICrudKitDbContext _db;
     private readonly IServiceProvider _services;
@@ -234,7 +234,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IAuditableEntity
                 if (fkColumn == null || deletedAtColumn == null || updatedAtColumn == null)
                     continue;
 
-                var now = entity.UpdatedAt;
+                var now = (entity as IAuditableEntity)?.UpdatedAt ?? DateTime.UtcNow;
                 var sql = string.Format(
                     "UPDATE \"{0}\" SET \"{1}\" = NULL, \"{2}\" = {{0}} WHERE \"{3}\" = {{1}} AND \"{1}\" IS NOT NULL",
                     tableName, deletedAtColumn, updatedAtColumn, fkColumn);

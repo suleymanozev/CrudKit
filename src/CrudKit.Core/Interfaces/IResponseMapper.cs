@@ -5,7 +5,7 @@ namespace CrudKit.Core.Interfaces;
 /// If registered in DI, CrudEndpointMapper uses it instead of returning raw entities.
 /// </summary>
 public interface IResponseMapper<TEntity, TResponse>
-    where TEntity : class, IAuditableEntity
+    where TEntity : class, IEntity
     where TResponse : class
 {
     TResponse Map(TEntity entity);

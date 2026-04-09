@@ -22,7 +22,7 @@ namespace CrudKit.Api.Endpoints;
 /// Wrapper returned by <see cref="CrudEndpointMapper.MapCrudEndpoints{TEntity}(WebApplication, string)"/>
 /// and its overloads. Carries enough context for fluent <c>.WithChild</c> chaining.
 /// </summary>
-public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
+public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
 {
     /// <summary>The route group created for the master entity.</summary>
     public RouteGroupBuilder Group { get; }
@@ -90,7 +90,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
     public CrudEndpointGroup<TMaster> WithChild<TDetail, TCreateDetail>(
         string detailRoute,
         string foreignKeyProperty)
-        where TDetail : class, IAuditableEntity
+        where TDetail : class, IEntity
         where TCreateDetail : class
     {
         RegisteredDetailTypes.Add(typeof(TDetail));
@@ -293,7 +293,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
     public CrudEndpointGroup<TMaster> WithChild<TDetail, TCreateDetail, TUpdateDetail>(
         string detailRoute,
         string foreignKeyProperty)
-        where TDetail : class, IAuditableEntity
+        where TDetail : class, IEntity
         where TCreateDetail : class
         where TUpdateDetail : class
     {
@@ -367,7 +367,7 @@ public static class CrudEndpointMapper
     public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity>(
         this WebApplication app,
         string route)
-        where TEntity : class, IAuditableEntity
+        where TEntity : class, IEntity
     {
         var tag = typeof(TEntity).Name.Replace("Entity", "");
         var group = app.MapGroup($"/api/{route}").WithTags(tag);
@@ -454,7 +454,7 @@ public static class CrudEndpointMapper
     /// </summary>
     public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity>(
         this WebApplication app)
-        where TEntity : class, IAuditableEntity
+        where TEntity : class, IEntity
     {
         var route = ResolveRoute<TEntity>();
         return app.MapCrudEndpoints<TEntity>(route);
@@ -467,7 +467,7 @@ public static class CrudEndpointMapper
     public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity, TCreate, TUpdate>(
         this WebApplication app,
         string route)
-        where TEntity : class, IAuditableEntity
+        where TEntity : class, IEntity
         where TCreate : class
         where TUpdate : class
     {
@@ -931,7 +931,7 @@ public static class CrudEndpointMapper
     /// </summary>
     public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity, TCreate, TUpdate>(
         this WebApplication app)
-        where TEntity : class, IAuditableEntity
+        where TEntity : class, IEntity
         where TCreate : class
         where TUpdate : class
     {
@@ -979,8 +979,8 @@ public static class CrudEndpointMapper
     internal static void RegisterChildEndpoints<TMaster, TDetail>(
         WebApplication app, string masterRoute, string detailRoute, string foreignKey,
         CrudEndpointGroup<TMaster>? endpointGroup = null)
-        where TMaster : class, IAuditableEntity
-        where TDetail : class, IAuditableEntity
+        where TMaster : class, IEntity
+        where TDetail : class, IEntity
     {
         var masterTag = typeof(TMaster).Name.Replace("Entity", "");
         var detailTag = typeof(TDetail).Name.Replace("Entity", "");
@@ -1131,8 +1131,8 @@ public static class CrudEndpointMapper
     /// </summary>
     private static void RegisterChildCreateEndpoint<TMaster, TDetail, TCreateDto>(
         RouteGroupBuilder group, string masterRoute, string detailRoute, string foreignKey)
-        where TMaster : class, IAuditableEntity
-        where TDetail : class, IAuditableEntity
+        where TMaster : class, IEntity
+        where TDetail : class, IEntity
         where TCreateDto : class
     {
         var masterTag = typeof(TMaster).Name.Replace("Entity", "");
@@ -1188,8 +1188,8 @@ public static class CrudEndpointMapper
     /// </summary>
     private static void RegisterChildUpdateEndpoint<TMaster, TDetail, TUpdateDto>(
         RouteGroupBuilder group, string masterRoute, string detailRoute, string foreignKey)
-        where TMaster : class, IAuditableEntity
-        where TDetail : class, IAuditableEntity
+        where TMaster : class, IEntity
+        where TDetail : class, IEntity
         where TUpdateDto : class
     {
         var masterTag = typeof(TMaster).Name.Replace("Entity", "");
@@ -1244,7 +1244,7 @@ public static class CrudEndpointMapper
     /// an explicit <c>WithChild</c> call) are skipped to avoid duplicate route registration.
     /// </summary>
     private static void AutoRegisterChildEndpoints<TEntity>(WebApplication app, string route, CrudEndpointGroup<TEntity> group)
-        where TEntity : class, IAuditableEntity
+        where TEntity : class, IEntity
     {
         var parentType = typeof(TEntity);
 
@@ -1260,7 +1260,7 @@ public static class CrudEndpointMapper
                     .FirstOrDefault(a => a.ParentType == parentType);
 
                 if (childOfAttr is null) continue;
-                if (!typeof(IAuditableEntity).IsAssignableFrom(childType)) continue;
+                if (!typeof(IEntity).IsAssignableFrom(childType)) continue;
 
                 // Skip types already registered explicitly via WithChild
                 if (group.RegisteredDetailTypes.Contains(childType)) continue;
@@ -1344,7 +1344,7 @@ public static class CrudEndpointMapper
     /// Uses reflection to check if TEntity implements IStateMachine and maps the transition endpoint.
     /// </summary>
     private static void MapTransitionEndpoint<TEntity>(RouteGroupBuilder group, string route, string tag)
-        where TEntity : class, IAuditableEntity
+        where TEntity : class, IEntity
     {
         // Find IStateMachine<TState> on TEntity
         var smInterface = typeof(TEntity).GetInterfaces()
@@ -1425,7 +1425,7 @@ public static class CrudEndpointMapper
     /// Returns the mapped response if a mapper is found, otherwise the raw entity.
     /// </summary>
     private static object TryMapSingle<TEntity>(IServiceProvider services, TEntity entity)
-        where TEntity : class, IAuditableEntity
+        where TEntity : class, IEntity
     {
         var mapper = ResolveEntityMapper<TEntity>(services);
         if (mapper is null) return entity;
@@ -1440,7 +1440,7 @@ public static class CrudEndpointMapper
     /// Returns the mapped paginated response if a mapper is found, otherwise the raw result.
     /// </summary>
     private static object TryMapPaginated<TEntity>(IServiceProvider services, Paginated<TEntity> result)
-        where TEntity : class, IAuditableEntity
+        where TEntity : class, IEntity
     {
         var mapper = ResolveEntityMapper<TEntity>(services);
         if (mapper is null) return result;
@@ -1463,7 +1463,7 @@ public static class CrudEndpointMapper
     /// Scans DI service descriptors for any registered IResponseMapper&lt;TEntity, ?&gt; implementation.
     /// </summary>
     private static object? ResolveEntityMapper<TEntity>(IServiceProvider services)
-        where TEntity : class, IAuditableEntity
+        where TEntity : class, IEntity
     {
         var mapperInterfaceBase = typeof(IResponseMapper<,>);
 
