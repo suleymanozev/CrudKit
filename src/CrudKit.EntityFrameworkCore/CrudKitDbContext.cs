@@ -74,6 +74,8 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
             currentTenantIdProperty, isSoftDeleteFilterEnabledProperty, isTenantFilterEnabledProperty);
 
         OnModelCreatingCustom(modelBuilder);
+
+        CrudKitDbContextHelper.ValidateSchemaSupport(modelBuilder, this);
     }
 
     /// <summary>

@@ -81,6 +81,8 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
         CrudKitDbContextHelper.ConfigureModel(builder, this, _efOptions,
             currentTenantIdProperty, isSoftDeleteFilterEnabledProperty, isTenantFilterEnabledProperty);
         OnModelCreatingCustom(builder);
+
+        CrudKitDbContextHelper.ValidateSchemaSupport(builder, this);
     }
 
     /// <summary>Override to add entity configurations and seed data.</summary>

@@ -25,4 +25,10 @@ public interface IDbDialect
     /// SQL Server uses IsRowVersion(), others use IsConcurrencyToken().
     /// </summary>
     void ConfigureConcurrencyToken(Microsoft.EntityFrameworkCore.ModelBuilder modelBuilder, Type entityType);
+
+    /// <summary>
+    /// Whether this database provider supports schemas (e.g. PostgreSQL, SQL Server).
+    /// SQLite does not — using HasDefaultSchema with SQLite will throw at startup.
+    /// </summary>
+    bool SupportsSchemas => true;
 }

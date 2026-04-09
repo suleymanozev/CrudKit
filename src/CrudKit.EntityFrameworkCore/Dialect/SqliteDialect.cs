@@ -11,6 +11,8 @@ namespace CrudKit.EntityFrameworkCore.Dialect;
 /// </summary>
 public class SqliteDialect : IDbDialect
 {
+    public bool SupportsSchemas => false;
+
     public IQueryable<T> ApplyLike<T>(
         IQueryable<T> query,
         Expression<Func<T, string>> property,

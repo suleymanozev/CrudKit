@@ -589,6 +589,37 @@ public static class CrudKitDbContextHelper
             => node == _oldParam ? _newParam : base.VisitParameter(node);
     }
 
+    /// <summary>
+    /// Validates that the database provider supports schemas when the model uses them.
+    /// Throws InvalidOperationException at startup if SQLite is used with HasDefaultSchema or per-entity schemas.
+    /// </summary>
+    public static void ValidateSchemaSupport(ModelBuilder modelBuilder, DbContext context)
+    {
+        var dialect = Dialect.DialectDetector.Detect(context);
+        if (dialect.SupportsSchemas) return;
+
+        var defaultSchema = modelBuilder.Model.GetDefaultSchema();
+        if (!string.IsNullOrEmpty(defaultSchema))
+        {
+            throw new InvalidOperationException(
+                $"Database provider '{context.Database.ProviderName}' does not support schemas, " +
+                $"but HasDefaultSchema(\"{defaultSchema}\") was configured on {context.GetType().Name}. " +
+                $"Remove the HasDefaultSchema call or switch to a provider that supports schemas (e.g. PostgreSQL, SQL Server).");
+        }
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            var schema = entityType.GetSchema();
+            if (!string.IsNullOrEmpty(schema))
+            {
+                throw new InvalidOperationException(
+                    $"Database provider '{context.Database.ProviderName}' does not support schemas, " +
+                    $"but entity '{entityType.ClrType.Name}' is configured with schema \"{schema}\" on {context.GetType().Name}. " +
+                    $"Remove the schema configuration or switch to a provider that supports schemas (e.g. PostgreSQL, SQL Server).");
+            }
+        }
+    }
+
     // ---- Private helpers ----
 
     private static List<(string Sql, object[] Params)> CollectCascadeSoftDeleteOps(
