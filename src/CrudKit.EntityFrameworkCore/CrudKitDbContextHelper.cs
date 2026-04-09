@@ -7,6 +7,7 @@ using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Concurrency;
 using CrudKit.EntityFrameworkCore.Dialect;
 using CrudKit.EntityFrameworkCore.Models;
+using CrudKit.EntityFrameworkCore.Sequencing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -140,6 +141,17 @@ public static class CrudKitDbContextHelper
                 b.HasIndex(e => e.Timestamp);
             });
         }
+
+        // Configure CrudKitSequence table for AutoSequence support
+        modelBuilder.Entity<CrudKitSequence>(b =>
+        {
+            b.ToTable("__crud_sequences");
+            b.HasKey(e => e.Id);
+            b.Property(e => e.EntityType).HasMaxLength(200).IsRequired();
+            b.Property(e => e.TenantId).HasMaxLength(200).IsRequired();
+            b.Property(e => e.Prefix).HasMaxLength(200).IsRequired();
+            b.HasIndex(e => new { e.EntityType, e.TenantId, e.Prefix }).IsUnique();
+        });
 
     }
 
