@@ -47,6 +47,13 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
     /// </summary>
     internal Dictionary<Type, RouteGroupBuilder> AutoDiscoveredGroups { get; } = new();
 
+    /// <summary>
+    /// Stores the <see cref="RouteGroupBuilder"/> created by any <c>WithChild</c> call for each child type.
+    /// Used by <see cref="WithChild{TDetail,TCreateDetail,TUpdateDetail}"/> to reuse the group
+    /// created by <see cref="WithChild{TDetail,TCreateDetail}"/>.
+    /// </summary>
+    internal Dictionary<Type, RouteGroupBuilder> ChildGroups { get; } = new();
+
     internal CrudEndpointGroup(RouteGroupBuilder group, WebApplication app, string route)
     {
         Group = group;
@@ -269,6 +276,76 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IAuditableEntity
         })
         .WithName($"BatchUpsert{tag}")
         .Produces<List<TDetail>>(200)
+        .ProducesProblem(400)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
+
+        // Store group reference for potential reuse by WithChild<TDetail,TCreateDetail,TUpdateDetail>
+        ChildGroups.TryAdd(typeof(TDetail), group);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Maps nested CRUD endpoints for a child entity with update support.
+    /// Registers all endpoints from <see cref="WithChild{TDetail,TCreateDetail}"/> plus a PUT /{id} update endpoint.
+    /// </summary>
+    public CrudEndpointGroup<TMaster> WithChild<TDetail, TCreateDetail, TUpdateDetail>(
+        string detailRoute,
+        string foreignKeyProperty)
+        where TDetail : class, IAuditableEntity
+        where TCreateDetail : class
+        where TUpdateDetail : class
+    {
+        // Register List, Get, Create, Delete, Batch via the 2-type-param overload
+        WithChild<TDetail, TCreateDetail>(detailRoute, foreignKeyProperty);
+
+        var masterTag = typeof(TMaster).Name.Replace("Entity", "");
+        var detailTag = typeof(TDetail).Name.Replace("Entity", "");
+        var tag = $"{masterTag}{detailTag}";
+
+        var fkProp = typeof(TDetail).GetProperty(foreignKeyProperty,
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)!;
+
+        // Reuse the group created by WithChild<TDetail,TCreateDetail> above
+        var group = ChildGroups[typeof(TDetail)];
+
+        var masterRoute = Route;
+
+        // PUT /api/{masterRoute}/{masterId}/{detailRoute}/{id} — Update detail
+        group.MapPut("/{id}", async (string masterId, string id, TUpdateDetail dto,
+            HttpContext httpCtx, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
+        {
+            var masterGuid = CrudEndpointMapper.ParseGuid(masterId, typeof(TMaster).Name);
+            var detailGuid = CrudEndpointMapper.ParseGuid(id, typeof(TDetail).Name);
+            if (!await masterRepo.Exists(masterGuid, ct))
+                throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
+
+            var existing = await detailRepo.FindByIdOrDefault(detailGuid, ct);
+            if (existing is null)
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
+
+            var fkValue = fkProp.GetValue(existing)?.ToString();
+            if (fkValue != masterId)
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
+
+            var db = CrudEndpointMapper.ResolveDbContextFor<TDetail>(httpCtx.RequestServices);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                var entity = await detailRepo.Update(detailGuid, dto, ct);
+                await tx.CommitAsync(ct);
+                return Results.Ok(entity);
+            }
+            catch
+            {
+                await tx.RollbackAsync(ct);
+                throw;
+            }
+        })
+        .WithName($"Update{tag}")
+        .AddEndpointFilter<ValidationFilter<TUpdateDetail>>()
+        .Produces<TDetail>(200)
         .ProducesProblem(400)
         .ProducesProblem(404)
         .ProducesProblem(500);
@@ -991,6 +1068,16 @@ public static class CrudEndpointMapper
                 .MakeGenericMethod(typeof(TMaster), typeof(TDetail), createDtoType);
             registerCreateMethod.Invoke(null, [group, masterRoute, detailRoute, foreignKey]);
         }
+
+        // Auto-discover [UpdateDtoFor(typeof(TDetail))] and register PUT if found
+        var updateDtoType = FindUpdateDtoFor(typeof(TDetail));
+        if (updateDtoType != null)
+        {
+            var registerUpdateMethod = typeof(CrudEndpointMapper)
+                .GetMethod(nameof(RegisterChildUpdateEndpoint), BindingFlags.NonPublic | BindingFlags.Static)!
+                .MakeGenericMethod(typeof(TMaster), typeof(TDetail), updateDtoType);
+            registerUpdateMethod.Invoke(null, [group, masterRoute, detailRoute, foreignKey]);
+        }
     }
 
     /// <summary>
@@ -1009,6 +1096,27 @@ public static class CrudEndpointMapper
             foreach (var type in types)
             {
                 var attr = type.GetCustomAttribute<CreateDtoForAttribute>();
+                if (attr?.EntityType == childType) return type;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Scans all loaded assemblies for a type decorated with <c>[UpdateDtoFor(typeof(childType))]</c>.
+    /// Returns the first match, or null if none is found.
+    /// </summary>
+    private static Type? FindUpdateDtoFor(Type childType)
+    {
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            Type[] types;
+            try { types = assembly.GetTypes(); }
+            catch { continue; }
+
+            foreach (var type in types)
+            {
+                var attr = type.GetCustomAttribute<UpdateDtoForAttribute>();
                 if (attr?.EntityType == childType) return type;
             }
         }
@@ -1068,6 +1176,62 @@ public static class CrudEndpointMapper
         .WithName($"Create{tag}__auto")
         .Accepts<TCreateDto>("application/json")
         .Produces<TDetail>(201)
+        .ProducesProblem(400)
+        .ProducesProblem(404)
+        .ProducesProblem(500);
+    }
+
+    /// <summary>
+    /// Registers a PUT (update) endpoint for a child entity using the discovered <typeparamref name="TUpdateDto"/>.
+    /// Called via reflection from <see cref="RegisterChildEndpoints{TMaster,TDetail}"/> when a
+    /// <c>[UpdateDtoFor(typeof(TDetail))]</c>-decorated DTO is found at startup.
+    /// </summary>
+    private static void RegisterChildUpdateEndpoint<TMaster, TDetail, TUpdateDto>(
+        RouteGroupBuilder group, string masterRoute, string detailRoute, string foreignKey)
+        where TMaster : class, IAuditableEntity
+        where TDetail : class, IAuditableEntity
+        where TUpdateDto : class
+    {
+        var masterTag = typeof(TMaster).Name.Replace("Entity", "");
+        var detailTag = typeof(TDetail).Name.Replace("Entity", "");
+        var tag = $"{masterTag}{detailTag}";
+
+        var fkProp = typeof(TDetail).GetProperty(foreignKey,
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)!;
+
+        group.MapPut("/{id}", async (string masterId, string id, TUpdateDto dto,
+            HttpContext httpCtx, IRepo<TMaster> masterRepo, IRepo<TDetail> detailRepo, CancellationToken ct) =>
+        {
+            var masterGuid = ParseGuid(masterId, typeof(TMaster).Name);
+            var detailGuid = ParseGuid(id, typeof(TDetail).Name);
+            if (!await masterRepo.Exists(masterGuid, ct))
+                throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
+
+            var existing = await detailRepo.FindByIdOrDefault(detailGuid, ct);
+            if (existing is null)
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
+
+            var fkValue = fkProp.GetValue(existing)?.ToString();
+            if (fkValue != masterId)
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
+
+            var db = ResolveDbContextFor<TDetail>(httpCtx.RequestServices);
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                var entity = await detailRepo.Update(detailGuid, dto, ct);
+                await tx.CommitAsync(ct);
+                return Results.Ok(entity);
+            }
+            catch
+            {
+                await tx.RollbackAsync(ct);
+                throw;
+            }
+        })
+        .WithName($"Update{tag}__auto")
+        .AddEndpointFilter<ValidationFilter<TUpdateDto>>()
+        .Produces<TDetail>(200)
         .ProducesProblem(400)
         .ProducesProblem(404)
         .ProducesProblem(500);
