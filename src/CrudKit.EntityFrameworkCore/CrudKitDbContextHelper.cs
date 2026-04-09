@@ -566,10 +566,27 @@ public static class CrudKitDbContextHelper
     {
         if (filter2 == null) return filter1;
         var param = filter1.Parameters[0];
-        var body = Expression.AndAlso(
-            filter1.Body,
-            Expression.Invoke(filter2, param));
+        // Replace filter2's parameter with filter1's parameter so EF Core can translate
+        // the combined expression without Expression.Invoke (which is not translatable).
+        var rewrittenBody = new ParameterReplacer(filter2.Parameters[0], param).Visit(filter2.Body);
+        var body = Expression.AndAlso(filter1.Body, rewrittenBody);
         return Expression.Lambda(body, param);
+    }
+
+    /// <summary>Replaces all occurrences of one parameter expression with another.</summary>
+    private sealed class ParameterReplacer : System.Linq.Expressions.ExpressionVisitor
+    {
+        private readonly ParameterExpression _oldParam;
+        private readonly ParameterExpression _newParam;
+
+        public ParameterReplacer(ParameterExpression oldParam, ParameterExpression newParam)
+        {
+            _oldParam = oldParam;
+            _newParam = newParam;
+        }
+
+        protected override Expression VisitParameter(ParameterExpression node)
+            => node == _oldParam ? _newParam : base.VisitParameter(node);
     }
 
     // ---- Private helpers ----
