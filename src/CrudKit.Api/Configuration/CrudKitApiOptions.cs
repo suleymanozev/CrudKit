@@ -1,5 +1,6 @@
 using System.Reflection;
 using CrudKit.Api.Tenancy;
+using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using Microsoft.AspNetCore.Http;
 
@@ -146,6 +147,48 @@ public class CrudKitApiOptions
     public MultiTenancyOptions UseMultiTenancy()
     {
         return new MultiTenancyOptions(this);
+    }
+
+    /// <summary>Whether domain event dispatching is enabled.</summary>
+    public bool DomainEventsEnabled { get; private set; }
+
+    /// <summary>Custom dispatcher type, null means use default CrudKitEventDispatcher.</summary>
+    public Type? CustomDomainEventDispatcherType { get; private set; }
+
+    /// <summary>Assemblies to scan for IDomainEventHandler implementations.</summary>
+    public List<Assembly> DomainEventHandlerAssemblies { get; } = [];
+
+    /// <summary>
+    /// Enable domain event dispatching. Events added to IHasDomainEvents entities
+    /// are dispatched automatically after SaveChanges.
+    /// </summary>
+    public CrudKitApiOptions UseDomainEvents(Action<DomainEventOptions>? configure = null)
+    {
+        DomainEventsEnabled = true;
+        if (configure != null)
+        {
+            var eventOpts = new DomainEventOptions();
+            configure(eventOpts);
+            DomainEventHandlerAssemblies.AddRange(eventOpts.Assemblies);
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// Enable domain events with a custom dispatcher implementation.
+    /// </summary>
+    public CrudKitApiOptions UseDomainEvents<TDispatcher>(Action<DomainEventOptions>? configure = null)
+        where TDispatcher : class, IDomainEventDispatcher
+    {
+        DomainEventsEnabled = true;
+        CustomDomainEventDispatcherType = typeof(TDispatcher);
+        if (configure != null)
+        {
+            var eventOpts = new DomainEventOptions();
+            configure(eventOpts);
+            DomainEventHandlerAssemblies.AddRange(eventOpts.Assemblies);
+        }
+        return this;
     }
 
     // Store global hook types to register in DI

@@ -1,4 +1,5 @@
 using System.Reflection;
+using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore;
 using CrudKit.EntityFrameworkCore.Models;
@@ -36,6 +37,7 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
     private readonly IAuditWriter? _auditWriter;
     private readonly IDataFilter<ISoftDeletable>? _softDeleteFilter;
     private readonly IDataFilter<IMultiTenant>? _tenantFilter;
+    private readonly IDomainEventDispatcher? _domainEventDispatcher;
 
     public bool IsAuditSave { get; set; }
 
@@ -49,7 +51,8 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
         ITenantContext? tenantContext = null,
         IAuditWriter? auditWriter = null,
         IDataFilter<ISoftDeletable>? softDeleteFilter = null,
-        IDataFilter<IMultiTenant>? tenantFilter = null)
+        IDataFilter<IMultiTenant>? tenantFilter = null,
+        IDomainEventDispatcher? domainEventDispatcher = null)
         : base(options)
     {
         _currentUser = currentUser;
@@ -59,6 +62,7 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
         _auditWriter = auditWriter;
         _softDeleteFilter = softDeleteFilter;
         _tenantFilter = tenantFilter;
+        _domainEventDispatcher = domainEventDispatcher;
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -87,13 +91,15 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
         => CrudKitDbContextHelper.SaveChanges(
             this, base.SaveChanges, acceptAllChangesOnSuccess,
-            _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter);
+            _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter,
+            _domainEventDispatcher);
 
     public override Task<int> SaveChangesAsync(
         bool acceptAllChangesOnSuccess, CancellationToken ct = default)
         => CrudKitDbContextHelper.SaveChangesAsync(
             this, base.SaveChangesAsync, acceptAllChangesOnSuccess,
-            _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter, ct);
+            _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter, ct,
+            _domainEventDispatcher);
 
     public string? CurrentTenantId => _tenantContext?.TenantId;
 
@@ -136,8 +142,9 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey>
         ITenantContext? tenantContext = null,
         IAuditWriter? auditWriter = null,
         IDataFilter<ISoftDeletable>? softDeleteFilter = null,
-        IDataFilter<IMultiTenant>? tenantFilter = null)
-        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter) { }
+        IDataFilter<IMultiTenant>? tenantFilter = null,
+        IDomainEventDispatcher? domainEventDispatcher = null)
+        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter, domainEventDispatcher) { }
 }
 
 // ============================================================
@@ -160,6 +167,7 @@ public abstract class CrudKitIdentityDbContext<TUser>
         ITenantContext? tenantContext = null,
         IAuditWriter? auditWriter = null,
         IDataFilter<ISoftDeletable>? softDeleteFilter = null,
-        IDataFilter<IMultiTenant>? tenantFilter = null)
-        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter) { }
+        IDataFilter<IMultiTenant>? tenantFilter = null,
+        IDomainEventDispatcher? domainEventDispatcher = null)
+        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter, domainEventDispatcher) { }
 }

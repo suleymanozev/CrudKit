@@ -1,4 +1,6 @@
 using CrudKit.Api.Models;
+using CrudKit.Api.Tests.Events;
+using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -15,8 +17,9 @@ public class ApiTestDbContext : CrudKitDbContext
         ITenantContext? tenantContext = null,
         IAuditWriter? auditWriter = null,
         IDataFilter<ISoftDeletable>? softDeleteFilter = null,
-        IDataFilter<IMultiTenant>? tenantFilter = null)
-        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter) { }
+        IDataFilter<IMultiTenant>? tenantFilter = null,
+        IDomainEventDispatcher? domainEventDispatcher = null)
+        : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter, domainEventDispatcher) { }
 
     public DbSet<ProductEntity> Products => Set<ProductEntity>();
     public DbSet<SoftProductEntity> SoftProducts => Set<SoftProductEntity>();
@@ -35,6 +38,7 @@ public class ApiTestDbContext : CrudKitDbContext
     public DbSet<ProjectEntity> Projects => Set<ProjectEntity>();
     public DbSet<ProjectTaskEntity> ProjectTasks => Set<ProjectTaskEntity>();
     public DbSet<ProjectMilestoneEntity> ProjectMilestones => Set<ProjectMilestoneEntity>();
+    public DbSet<AggregateOrderEntity> AggregateOrders => Set<AggregateOrderEntity>();
 
     protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
     {

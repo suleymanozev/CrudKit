@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
 using CrudKit.Api.Configuration;
+using CrudKit.Api.Events;
 using CrudKit.Api.Tenancy;
 using CrudKit.Api.Validation;
 using CrudKit.Core.Auth;
+using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Tenancy;
 using CrudKit.EntityFrameworkCore;
@@ -35,6 +37,7 @@ public static class CrudKitAppExtensions
             EnumAsStringEnabled = opts.EnumAsStringEnabled,
             AuditFailedOperations = opts.AuditFailedOperations,
             AuditSchema = opts.AuditSchema,
+            DomainEventsEnabled = opts.DomainEventsEnabled,
         });
 
         // Register the accessor that determines which DbContext audit entries are written to.
@@ -77,6 +80,28 @@ public static class CrudKitAppExtensions
         // Register global hooks
         foreach (var hookType in opts.GlobalHookTypes)
             services.AddScoped(typeof(IGlobalCrudHook), hookType);
+
+        // Register domain event dispatcher
+        if (opts.DomainEventsEnabled)
+        {
+            if (opts.CustomDomainEventDispatcherType != null)
+                services.TryAddScoped(typeof(IDomainEventDispatcher), opts.CustomDomainEventDispatcherType);
+            else
+                services.TryAddScoped<IDomainEventDispatcher, CrudKitEventDispatcher>();
+
+            // Assembly-scan for handlers
+            foreach (var assembly in opts.DomainEventHandlerAssemblies)
+            {
+                var handlerTypes = assembly.GetTypes()
+                    .Where(t => !t.IsAbstract && !t.IsInterface)
+                    .SelectMany(t => t.GetInterfaces()
+                        .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDomainEventHandler<>))
+                        .Select(i => new { Interface = i, Implementation = t }));
+
+                foreach (var pair in handlerTypes)
+                    services.AddScoped(pair.Interface, pair.Implementation);
+            }
+        }
 
         if (opts.ScanModulesFromAssembly != null)
         {

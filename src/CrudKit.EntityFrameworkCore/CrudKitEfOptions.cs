@@ -27,4 +27,7 @@ public class CrudKitEfOptions
 
     /// <summary>Schema for __crud_audit_logs table. Null = default schema.</summary>
     public string? AuditSchema { get; set; }
+
+    /// <summary>Whether domain event dispatching is enabled.</summary>
+    public bool DomainEventsEnabled { get; set; }
 }

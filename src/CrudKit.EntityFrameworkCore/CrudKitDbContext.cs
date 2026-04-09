@@ -1,4 +1,5 @@
 using System.Reflection;
+using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore;
@@ -28,6 +29,7 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
     private readonly IAuditWriter? _auditWriter;
     private readonly IDataFilter<ISoftDeletable>? _softDeleteFilter;
     private readonly IDataFilter<IMultiTenant>? _tenantFilter;
+    private readonly IDomainEventDispatcher? _domainEventDispatcher;
 
     /// <summary>
     /// When true, SaveChanges skips audit entry collection. Used internally by
@@ -41,7 +43,8 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
         TimeProvider? timeProvider = null, CrudKitEfOptions? efOptions = null,
         ITenantContext? tenantContext = null, IAuditWriter? auditWriter = null,
         IDataFilter<ISoftDeletable>? softDeleteFilter = null,
-        IDataFilter<IMultiTenant>? tenantFilter = null)
+        IDataFilter<IMultiTenant>? tenantFilter = null,
+        IDomainEventDispatcher? domainEventDispatcher = null)
         : base(options)
     {
         _currentUser = currentUser;
@@ -51,6 +54,7 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
         _auditWriter = auditWriter;
         _softDeleteFilter = softDeleteFilter;
         _tenantFilter = tenantFilter;
+        _domainEventDispatcher = domainEventDispatcher;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -83,13 +87,15 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
         => CrudKitDbContextHelper.SaveChanges(
             this, base.SaveChanges, acceptAllChangesOnSuccess,
-            _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter);
+            _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter,
+            _domainEventDispatcher);
 
     public override Task<int> SaveChangesAsync(
         bool acceptAllChangesOnSuccess, CancellationToken ct = default)
         => CrudKitDbContextHelper.SaveChangesAsync(
             this, base.SaveChangesAsync, acceptAllChangesOnSuccess,
-            _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter, ct);
+            _currentUser, _tenantContext, _timeProvider, _efOptions, _auditWriter, ct,
+            _domainEventDispatcher);
 
     // ---- Runtime values used by EF Core global filters ----
     public string? CurrentTenantId => _tenantContext?.TenantId;

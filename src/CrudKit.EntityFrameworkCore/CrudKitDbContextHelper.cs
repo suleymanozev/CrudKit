@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json;
 using CrudKit.Core.Attributes;
+using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Concurrency;
@@ -314,7 +315,8 @@ public static class CrudKitDbContextHelper
         ITenantContext? tenantContext,
         TimeProvider timeProvider,
         CrudKitEfOptions? efOptions,
-        IAuditWriter? auditWriter)
+        IAuditWriter? auditWriter,
+        IDomainEventDispatcher? domainEventDispatcher = null)
     {
         if (context.IsAuditSave)
             return baseSaveChanges(acceptAllChangesOnSuccess);
@@ -331,6 +333,24 @@ public static class CrudKitDbContextHelper
 
             if (auditEntries.Count > 0 && auditWriter != null)
                 auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
+
+            // Dispatch domain events after successful save
+            if (domainEventDispatcher != null)
+            {
+                var entitiesWithEvents = context.ChangeTracker.Entries<IHasDomainEvents>()
+                    .Where(e => e.Entity.DomainEvents.Count > 0)
+                    .Select(e => e.Entity)
+                    .ToList();
+
+                var domainEvents = entitiesWithEvents
+                    .SelectMany(e => e.DomainEvents)
+                    .ToList();
+
+                entitiesWithEvents.ForEach(e => e.ClearDomainEvents());
+
+                if (domainEvents.Count > 0)
+                    domainEventDispatcher.DispatchAsync(domainEvents).GetAwaiter().GetResult();
+            }
 
             return result;
         }
@@ -354,7 +374,8 @@ public static class CrudKitDbContextHelper
         TimeProvider timeProvider,
         CrudKitEfOptions? efOptions,
         IAuditWriter? auditWriter,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        IDomainEventDispatcher? domainEventDispatcher = null)
     {
         if (context.IsAuditSave)
             return await baseSaveChangesAsync(acceptAllChangesOnSuccess, ct);
@@ -371,6 +392,24 @@ public static class CrudKitDbContextHelper
 
             if (auditEntries.Count > 0 && auditWriter != null)
                 await auditWriter.WriteAsync(auditEntries, ct);
+
+            // Dispatch domain events after successful save
+            if (domainEventDispatcher != null)
+            {
+                var entitiesWithEvents = context.ChangeTracker.Entries<IHasDomainEvents>()
+                    .Where(e => e.Entity.DomainEvents.Count > 0)
+                    .Select(e => e.Entity)
+                    .ToList();
+
+                var domainEvents = entitiesWithEvents
+                    .SelectMany(e => e.DomainEvents)
+                    .ToList();
+
+                entitiesWithEvents.ForEach(e => e.ClearDomainEvents());
+
+                if (domainEvents.Count > 0)
+                    await domainEventDispatcher.DispatchAsync(domainEvents, ct);
+            }
 
             return result;
         }
