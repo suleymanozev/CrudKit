@@ -483,28 +483,37 @@ public static class CrudEndpointMapper
             {
                 var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
                 var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
+
+                // Capture existing entity state before update (detached snapshot)
+                TEntity? existingEntity = null;
+                if (globalHooks.Count > 0 || hooks != null)
+                {
+                    existingEntity = await db.Set<TEntity>().AsNoTracking()
+                        .FirstOrDefaultAsync(e => e.Id == guid, ct);
+                }
+
                 var entity = await repo.Update(guid, dto, ct);
 
                 var appCtx = BuildAppContext(httpCtx);
 
                 // Global before hooks run first
                 foreach (var gh in globalHooks)
-                    await gh.BeforeUpdate(entity, appCtx);
+                    await gh.BeforeUpdate(entity, existingEntity, appCtx);
 
                 if (hooks != null)
                 {
-                    await hooks.BeforeUpdate(entity, appCtx);
+                    await hooks.BeforeUpdate(entity, existingEntity, appCtx);
                     await db.SaveChangesAsync(ct);
                 }
 
                 await tx.CommitAsync(ct);
 
                 if (hooks != null)
-                    await hooks.AfterUpdate(entity, appCtx);
+                    await hooks.AfterUpdate(entity, existingEntity, appCtx);
 
                 // Global after hooks run last
                 foreach (var gh in globalHooks)
-                    await gh.AfterUpdate(entity, appCtx);
+                    await gh.AfterUpdate(entity, existingEntity, appCtx);
 
                 return Results.Ok(entity);
             }
