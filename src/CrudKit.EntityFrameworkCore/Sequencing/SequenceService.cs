@@ -29,7 +29,7 @@ public class SequenceService
         var seq = await sequences.FirstOrDefaultAsync(
             s => s.EntityType == entityType && s.TenantId == tenantId && s.Prefix == prefix, ct);
 
-        if (seq == null)
+        if (seq is null)
         {
             seq = new CrudKitSequence
             {

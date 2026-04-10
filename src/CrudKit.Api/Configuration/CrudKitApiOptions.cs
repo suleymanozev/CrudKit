@@ -176,7 +176,7 @@ public class CrudKitApiOptions
     public CrudKitApiOptions UseDomainEvents(Action<DomainEventOptions>? configure = null)
     {
         DomainEventsEnabled = true;
-        if (configure != null)
+        if (configure is not null)
         {
             var eventOpts = new DomainEventOptions();
             configure(eventOpts);
@@ -193,7 +193,7 @@ public class CrudKitApiOptions
     {
         DomainEventsEnabled = true;
         CustomDomainEventDispatcherType = typeof(TDispatcher);
-        if (configure != null)
+        if (configure is not null)
         {
             var eventOpts = new DomainEventOptions();
             configure(eventOpts);

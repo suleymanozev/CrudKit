@@ -67,12 +67,12 @@ public class IdempotencyFilter : IEndpointFilter
                 r.TenantId == tenantId &&
                 r.ExpiresAt > now);
 
-        if (existing != null)
+        if (existing is not null)
         {
             // Return the cached response
             httpContext.Response.Headers["X-Idempotency-Replayed"] = "true";
 
-            var body = existing.ResponseBody != null
+            var body = existing.ResponseBody is not null
                 ? JsonSerializer.Deserialize<object>(existing.ResponseBody)
                 : null;
 
@@ -110,7 +110,7 @@ public class IdempotencyFilter : IEndpointFilter
                 Path = httpContext.Request.Path.ToString(),
                 Method = httpContext.Request.Method,
                 StatusCode = statusCode,
-                ResponseBody = body != null ? JsonSerializer.Serialize(body) : null,
+                ResponseBody = body is not null ? JsonSerializer.Serialize(body) : null,
                 UserId = userId,
                 TenantId = tenantId,
                 CreatedAt = now,

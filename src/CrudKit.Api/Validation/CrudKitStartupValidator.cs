@@ -49,7 +49,7 @@ public class CrudKitStartupValidator : IHostedService
         var hasMultiTenantEntities = db.Model.GetEntityTypes()
             .Any(et => typeof(IMultiTenant).IsAssignableFrom(et.ClrType));
 
-        if (hasMultiTenantEntities && tenantResolver == null)
+        if (hasMultiTenantEntities && tenantResolver is null)
         {
             _logger.LogWarning(
                 "One or more entities implement IMultiTenant but no tenant resolver is configured. " +
@@ -57,7 +57,7 @@ public class CrudKitStartupValidator : IHostedService
         }
 
         var entityTypes = db.Model.GetEntityTypes()
-            .Where(t => t.ClrType != null && typeof(IEntity).IsAssignableFrom(t.ClrType))
+            .Where(t => t.ClrType is not null && typeof(IEntity).IsAssignableFrom(t.ClrType))
             .Select(t => t.ClrType)
             .ToList();
 

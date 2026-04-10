@@ -112,7 +112,7 @@ public static class CrudKitDbContextHelper
             // ---- [Unique] attribute → unique index ----
             foreach (var prop in clrType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
-                if (prop.GetCustomAttribute<UniqueAttribute>() == null) continue;
+                if (prop.GetCustomAttribute<UniqueAttribute>() is null) continue;
 
                 var indexBuilder = modelBuilder.Entity(clrType)
                     .HasIndex(prop.Name)
@@ -126,14 +126,14 @@ public static class CrudKitDbContextHelper
         // CrudKit internal tables — audit log when global UseAuditTrail() is on,
         // OR when any registered entity type carries [Audited] (entity-level override).
         var anyEntityAudited = modelBuilder.Model.GetEntityTypes()
-            .Any(et => et.ClrType.GetCustomAttribute<AuditedAttribute>() != null);
+            .Any(et => et.ClrType.GetCustomAttribute<AuditedAttribute>() is not null);
 
         if (efOptions?.AuditTrailEnabled == true || anyEntityAudited)
         {
             modelBuilder.Entity<AuditLogEntry>(b =>
             {
                 // Place the audit log table in the configured schema when UseSchema() is set.
-                if (efOptions?.AuditSchema != null)
+                if (efOptions?.AuditSchema is not null)
                     b.ToTable("__crud_audit_logs", efOptions.AuditSchema);
                 else
                     b.ToTable("__crud_audit_logs");
@@ -186,7 +186,7 @@ public static class CrudKitDbContextHelper
                 case EntityState.Added:
                     entry.Entity.CreatedAt = now;
                     entry.Entity.UpdatedAt = now;
-                    if (entry.Entity is IMultiTenant mt && tenantContext?.TenantId != null)
+                    if (entry.Entity is IMultiTenant mt && tenantContext?.TenantId is not null)
                         mt.TenantId = tenantContext.TenantId;
                     TrySetUserField(entry, "CreatedById", currentUser);
                     TrySetUserField(entry, "UpdatedById", currentUser);
@@ -247,8 +247,8 @@ public static class CrudKitDbContextHelper
             .Where(e =>
             {
                 var type = e.Entity.GetType();
-                if (type.GetCustomAttribute<NotAuditedAttribute>() != null) return false;
-                if (type.GetCustomAttribute<AuditedAttribute>() != null) return true;
+                if (type.GetCustomAttribute<NotAuditedAttribute>() is not null) return false;
+                if (type.GetCustomAttribute<AuditedAttribute>() is not null) return true;
                 return globalAuditEnabled;
             })
             .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
@@ -269,7 +269,7 @@ public static class CrudKitDbContextHelper
             };
 
             var auditableProps = entry.Properties
-                .Where(p => p.Metadata.PropertyInfo?.GetCustomAttribute<AuditIgnoreAttribute>() == null)
+                .Where(p => p.Metadata.PropertyInfo?.GetCustomAttribute<AuditIgnoreAttribute>() is null)
                 .ToList();
 
             switch (entry.State)
@@ -321,7 +321,7 @@ public static class CrudKitDbContextHelper
         if (context.IsAuditSave)
             return baseSaveChanges(acceptAllChangesOnSuccess);
 
-        var auditEntries = auditWriter != null
+        var auditEntries = auditWriter is not null
             ? CollectAuditEntries(context.ChangeTracker, currentUser, timeProvider, efOptions)
             : [];
         var cascadeOps = ProcessBeforeSave(context.ChangeTracker, currentUser, tenantContext, timeProvider);
@@ -333,11 +333,11 @@ public static class CrudKitDbContextHelper
             ExecuteCascadeOps(context.Database, cascadeOps);
 
             // Sync path has no cancellation token — use None
-            if (auditEntries.Count > 0 && auditWriter != null)
+            if (auditEntries.Count > 0 && auditWriter is not null)
                 auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
 
             // Dispatch domain events after successful save
-            if (domainEventDispatcher != null)
+            if (domainEventDispatcher is not null)
             {
                 var entitiesWithEvents = context.ChangeTracker.Entries<IHasDomainEvents>()
                     .Where(e => e.Entity.DomainEvents.Count > 0)
@@ -356,7 +356,7 @@ public static class CrudKitDbContextHelper
 
             return result;
         }
-        catch when (efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && auditWriter != null)
+        catch when (efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && auditWriter is not null)
         {
             foreach (var e in auditEntries) e.Action = $"Failed{e.Action}";
             // Sync path has no cancellation token — use None
@@ -383,7 +383,7 @@ public static class CrudKitDbContextHelper
         if (context.IsAuditSave)
             return await baseSaveChangesAsync(acceptAllChangesOnSuccess, ct);
 
-        var auditEntries = auditWriter != null
+        var auditEntries = auditWriter is not null
             ? CollectAuditEntries(context.ChangeTracker, currentUser, timeProvider, efOptions)
             : [];
         var cascadeOps = ProcessBeforeSave(context.ChangeTracker, currentUser, tenantContext, timeProvider);
@@ -394,11 +394,11 @@ public static class CrudKitDbContextHelper
             var result = await baseSaveChangesAsync(acceptAllChangesOnSuccess, ct);
             ExecuteCascadeOps(context.Database, cascadeOps);
 
-            if (auditEntries.Count > 0 && auditWriter != null)
+            if (auditEntries.Count > 0 && auditWriter is not null)
                 await auditWriter.WriteAsync(auditEntries, ct);
 
             // Dispatch domain events after successful save
-            if (domainEventDispatcher != null)
+            if (domainEventDispatcher is not null)
             {
                 var entitiesWithEvents = context.ChangeTracker.Entries<IHasDomainEvents>()
                     .Where(e => e.Entity.DomainEvents.Count > 0)
@@ -417,7 +417,7 @@ public static class CrudKitDbContextHelper
 
             return result;
         }
-        catch when (efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && auditWriter != null)
+        catch when (efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && auditWriter is not null)
         {
             foreach (var e in auditEntries) e.Action = $"Failed{e.Action}";
             await auditWriter.WriteAsync(auditEntries, ct);
@@ -464,7 +464,7 @@ public static class CrudKitDbContextHelper
         {
             var entityType = entry.Entity.GetType();
             var seqProperties = entityType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.GetCustomAttribute<AutoSequenceAttribute>() != null)
+                .Where(p => p.GetCustomAttribute<AutoSequenceAttribute>() is not null)
                 .ToList();
 
             if (seqProperties.Count == 0) continue;
@@ -485,7 +485,7 @@ public static class CrudKitDbContextHelper
                     s => s.EntityType == entityTypeName && s.TenantId == tenantId && s.Prefix == prefix, ct);
 
                 long nextValue;
-                if (seq == null)
+                if (seq is null)
                 {
                     seq = new CrudKitSequence
                     {
@@ -566,7 +566,7 @@ public static class CrudKitDbContextHelper
     public static LambdaExpression CombineFilters(
         LambdaExpression filter1, LambdaExpression? filter2)
     {
-        if (filter2 == null) return filter1;
+        if (filter2 is null) return filter1;
         var param = filter1.Parameters[0];
         // Replace filter2's parameter with filter1's parameter so EF Core can translate
         // the combined expression without Expression.Invoke (which is not translatable).
@@ -632,7 +632,7 @@ public static class CrudKitDbContextHelper
         var softDeletedEntries = changeTracker.Entries<IAuditableEntity>()
             .Where(e => e.State == EntityState.Modified
                 && e.Entity is ISoftDeletable
-                && ((ISoftDeletable)e.Entity).DeletedAt != null
+                && ((ISoftDeletable)e.Entity).DeletedAt is not null
                 && e.Property(nameof(ISoftDeletable.DeletedAt)).IsModified)
             .ToList();
 
@@ -644,11 +644,11 @@ public static class CrudKitDbContextHelper
             foreach (var attr in cascadeAttributes)
             {
                 var childEntityType = changeTracker.Context.Model.FindEntityType(attr.ChildType);
-                if (childEntityType == null) continue;
+                if (childEntityType is null) continue;
 
                 var tableName = childEntityType.GetTableName();
                 var schema = childEntityType.GetSchema();
-                if (tableName == null) continue;
+                if (tableName is null) continue;
 
                 var storeObject = StoreObjectIdentifier.Table(tableName, schema);
 
@@ -656,7 +656,7 @@ public static class CrudKitDbContextHelper
                 var deletedAtColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeletedAt))?.GetColumnName(storeObject);
                 var updatedAtColumn = childEntityType.FindProperty(nameof(IAuditableEntity.UpdatedAt))?.GetColumnName(storeObject);
 
-                if (fkColumn == null || deletedAtColumn == null || updatedAtColumn == null)
+                if (fkColumn is null || deletedAtColumn is null || updatedAtColumn is null)
                     continue;
 
                 // {0},{1},{2},{3} = string.Format positional args (table/column names from EF metadata — safe)
@@ -678,7 +678,7 @@ public static class CrudKitDbContextHelper
 
         var prop = entry.Entity.GetType().GetProperty(propertyName,
             BindingFlags.Public | BindingFlags.Instance);
-        if (prop == null || !prop.CanWrite) return;
+        if (prop is null || !prop.CanWrite) return;
 
         var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
 
@@ -700,7 +700,7 @@ public static class CrudKitDbContextHelper
     private static void TryPreserveField(EntityEntry entry, string propertyName)
     {
         var efProp = entry.Properties.FirstOrDefault(p => p.Metadata.Name == propertyName);
-        if (efProp != null)
+        if (efProp is not null)
             efProp.IsModified = false;
     }
 
@@ -714,7 +714,7 @@ public static class CrudKitDbContextHelper
 
     private static object? MaskIfHashed(PropertyEntry prop, object? value)
     {
-        if (prop.Metadata.PropertyInfo?.GetCustomAttribute<HashedAttribute>() != null)
+        if (prop.Metadata.PropertyInfo?.GetCustomAttribute<HashedAttribute>() is not null)
             return "***";
         return value;
     }

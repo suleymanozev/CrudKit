@@ -19,7 +19,7 @@ public class AuditDbContextAccessor
 
     public ICrudKitDbContext Resolve(IServiceProvider services)
     {
-        if (_contextType != null)
+        if (_contextType is not null)
             return (ICrudKitDbContext)services.GetRequiredService(_contextType);
 
         return services.GetRequiredService<ICrudKitDbContext>();

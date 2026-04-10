@@ -59,5 +59,5 @@ public class OperationAuth
     /// <summary>Require a specific permission for this operation.</summary>
     public void RequirePermission(string entity, string action) => Permission = (entity, action);
 
-    internal bool HasAuth => Role != null || Permission != null;
+    internal bool HasAuth => Role is not null || Permission is not null;
 }

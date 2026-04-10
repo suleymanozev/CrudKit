@@ -13,12 +13,12 @@ public class ValidationFilter<T> : IEndpointFilter where T : class
         EndpointFilterDelegate next)
     {
         var arg = ctx.Arguments.OfType<T>().FirstOrDefault();
-        if (arg == null) return await next(ctx);
+        if (arg is null) return await next(ctx);
 
         var errors = new ValidationErrors();
 
         var fluentValidator = ctx.HttpContext.RequestServices.GetService<IValidator<T>>();
-        if (fluentValidator != null)
+        if (fluentValidator is not null)
         {
             var result = await fluentValidator.ValidateAsync(arg);
             if (!result.IsValid)

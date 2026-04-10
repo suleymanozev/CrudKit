@@ -22,8 +22,8 @@ public static class CsvExportService
     public static string Export<T>(IReadOnlyList<T> data) where T : class
     {
         var props = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.GetCustomAttribute<NotExportableAttribute>() == null)
-            .Where(p => p.GetCustomAttribute<SkipResponseAttribute>() == null)
+            .Where(p => p.GetCustomAttribute<NotExportableAttribute>() is null)
+            .Where(p => p.GetCustomAttribute<SkipResponseAttribute>() is null)
             .Where(p => !SystemFields.Contains(p.Name))
             .ToList();
 

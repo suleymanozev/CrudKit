@@ -61,7 +61,7 @@ public class CrudKitContextRegistry
     public ICrudKitDbContext ResolveFor<T>(IServiceProvider services) where T : class
     {
         var contextType = FindContextForEntity(typeof(T));
-        if (contextType != null)
+        if (contextType is not null)
             return (ICrudKitDbContext)services.GetRequiredService(contextType);
         return services.GetRequiredService<ICrudKitDbContext>();
     }

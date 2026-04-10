@@ -35,7 +35,7 @@ public static class CsvImportService
 
         // Build property map (case-insensitive)
         var entityProps = typeof(TEntity).GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.GetCustomAttribute<NotImportableAttribute>() == null)
+            .Where(p => p.GetCustomAttribute<NotImportableAttribute>() is null)
             .Where(p => !SystemFields.Contains(p.Name))
             .ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
 
@@ -81,7 +81,7 @@ public static class CsvImportService
     {
         if (string.IsNullOrEmpty(value))
         {
-            if (Nullable.GetUnderlyingType(targetType) != null || !targetType.IsValueType)
+            if (Nullable.GetUnderlyingType(targetType) is not null || !targetType.IsValueType)
                 return null;
             return Activator.CreateInstance(targetType);
         }

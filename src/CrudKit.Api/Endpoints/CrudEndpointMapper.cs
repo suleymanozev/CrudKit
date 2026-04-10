@@ -175,7 +175,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
 
             var dtoFkProp = typeof(TCreateDetail).GetProperty(foreignKeyProperty,
                 BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-            if (dtoFkProp != null)
+            if (dtoFkProp is not null)
                 dtoFkProp.SetValue(dto, CrudEndpointMapper.ConvertFkValue(masterId, dtoFkProp.PropertyType));
 
             var db = CrudEndpointMapper.ResolveDbContextFor<TDetail>(httpCtx.RequestServices);
@@ -184,7 +184,7 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
             {
                 var entity = await detailRepo.Create(dto, ct);
 
-                if (dtoFkProp == null)
+                if (dtoFkProp is null)
                 {
                     fkProp.SetValue(entity, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType));
                     await db.SaveChangesAsync(ct);
@@ -254,12 +254,12 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
 
                 foreach (var dto in dtos)
                 {
-                    if (dtoFkProp != null)
+                    if (dtoFkProp is not null)
                         dtoFkProp.SetValue(dto, CrudEndpointMapper.ConvertFkValue(masterId, dtoFkProp.PropertyType));
 
                     var entity = await detailRepo.Create(dto, ct);
 
-                    if (dtoFkProp == null)
+                    if (dtoFkProp is null)
                     {
                         fkProp.SetValue(entity, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType));
                         await db.SaveChangesAsync(ct);
@@ -524,7 +524,7 @@ public static class CrudEndpointMapper
                 foreach (var gh in globalHooks)
                     await gh.BeforeCreate(entity, appCtx);
 
-                if (hooks != null)
+                if (hooks is not null)
                 {
                     await hooks.BeforeCreate(entity, appCtx);
                     await db.SaveChangesAsync(ct);
@@ -532,7 +532,7 @@ public static class CrudEndpointMapper
 
                 await tx.CommitAsync(ct);
 
-                if (hooks != null)
+                if (hooks is not null)
                     await hooks.AfterCreate(entity, appCtx);
 
                 // Global after hooks run last
@@ -567,7 +567,7 @@ public static class CrudEndpointMapper
 
                 // Capture existing entity state before update (detached snapshot)
                 TEntity? existingEntity = null;
-                if (globalHooks.Count > 0 || hooks != null)
+                if (globalHooks.Count > 0 || hooks is not null)
                 {
                     existingEntity = await db.Set<TEntity>().AsNoTracking()
                         .FirstOrDefaultAsync(e => e.Id == guid, ct);
@@ -581,7 +581,7 @@ public static class CrudEndpointMapper
                 foreach (var gh in globalHooks)
                     await gh.BeforeUpdate(entity, existingEntity, appCtx);
 
-                if (hooks != null)
+                if (hooks is not null)
                 {
                     await hooks.BeforeUpdate(entity, existingEntity, appCtx);
                     await db.SaveChangesAsync(ct);
@@ -589,7 +589,7 @@ public static class CrudEndpointMapper
 
                 await tx.CommitAsync(ct);
 
-                if (hooks != null)
+                if (hooks is not null)
                     await hooks.AfterUpdate(entity, existingEntity, appCtx);
 
                 // Global after hooks run last
@@ -626,7 +626,7 @@ public static class CrudEndpointMapper
 
                 // Load entity for Before hooks (needed by both global and entity-specific)
                 TEntity? entityForBefore = null;
-                if (hooks != null || globalHooks.Count > 0)
+                if (hooks is not null || globalHooks.Count > 0)
                 {
                     entityForBefore = await repo.FindByIdOrDefault(guid, ct);
                     if (entityForBefore is null)
@@ -634,13 +634,13 @@ public static class CrudEndpointMapper
                 }
 
                 // Global before hooks run first
-                if (entityForBefore != null)
+                if (entityForBefore is not null)
                 {
                     foreach (var gh in globalHooks)
                         await gh.BeforeDelete(entityForBefore, appCtx);
                 }
 
-                if (hooks != null && entityForBefore != null)
+                if (hooks is not null && entityForBefore is not null)
                     await hooks.BeforeDelete(entityForBefore, appCtx);
 
                 await repo.Delete(guid, ct);
@@ -650,7 +650,7 @@ public static class CrudEndpointMapper
                 var stub = Activator.CreateInstance<TEntity>();
                 stub.Id = guid;
 
-                if (hooks != null)
+                if (hooks is not null)
                     await hooks.AfterDelete(stub, appCtx);
 
                 // Global after hooks run last
@@ -685,7 +685,7 @@ public static class CrudEndpointMapper
 
                     await repo.Restore(guid, ct);
 
-                    if (hooks != null)
+                    if (hooks is not null)
                     {
                         var entity = await repo.FindById(guid, ct);
                         await hooks.BeforeRestore(entity, appCtx);
@@ -842,7 +842,7 @@ public static class CrudEndpointMapper
                 var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
                 var form = await httpCtx.Request.ReadFormAsync(ct);
                 var file = form.Files.FirstOrDefault();
-                if (file == null || file.Length == 0)
+                if (file is null || file.Length == 0)
                     throw AppError.BadRequest("No file uploaded.");
 
                 var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
@@ -872,7 +872,7 @@ public static class CrudEndpointMapper
                             {
                                 var prop = typeof(TEntity).GetProperty(key,
                                     BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                                if (prop != null && prop.CanWrite && value != null)
+                                if (prop is not null && prop.CanWrite && value is not null)
                                     prop.SetValue(entity, value);
                             }
 
@@ -1088,7 +1088,7 @@ public static class CrudEndpointMapper
 
         // Auto-discover [CreateDtoFor(typeof(TDetail))] and register POST if found
         var createDtoType = FindCreateDtoFor(typeof(TDetail));
-        if (createDtoType != null)
+        if (createDtoType is not null)
         {
             var registerCreateMethod = typeof(CrudEndpointMapper)
                 .GetMethod(nameof(RegisterChildCreateEndpoint), BindingFlags.NonPublic | BindingFlags.Static)!
@@ -1098,7 +1098,7 @@ public static class CrudEndpointMapper
 
         // Auto-discover [UpdateDtoFor(typeof(TDetail))] and register PUT if found
         var updateDtoType = FindUpdateDtoFor(typeof(TDetail));
-        if (updateDtoType != null)
+        if (updateDtoType is not null)
         {
             var registerUpdateMethod = typeof(CrudEndpointMapper)
                 .GetMethod(nameof(RegisterChildUpdateEndpoint), BindingFlags.NonPublic | BindingFlags.Static)!
@@ -1164,7 +1164,7 @@ public static class CrudEndpointMapper
                 throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
 
             // Auto-set FK on DTO from the URL segment
-            if (fkProp != null)
+            if (fkProp is not null)
             {
                 var fkValue = ConvertFkValue(masterId, fkProp.PropertyType);
                 fkProp.SetValue(dto, fkValue);
@@ -1301,20 +1301,20 @@ public static class CrudEndpointMapper
         var entityType = typeof(TEntity);
 
         // [RequireAuth] — simple authentication
-        if (entityType.GetCustomAttribute<RequireAuthAttribute>() != null)
+        if (entityType.GetCustomAttribute<RequireAuthAttribute>() is not null)
         {
             group.AddEndpointFilter<RequireAuthFilter>();
         }
 
         // [RequireRole("admin")] — role for all operations
         var roleAttr = entityType.GetCustomAttribute<RequireRoleAttribute>();
-        if (roleAttr != null)
+        if (roleAttr is not null)
         {
             group.AddEndpointFilter(new RequireRoleFilter(roleAttr.Role));
         }
 
         // [RequirePermissions] — convention permissions
-        if (entityType.GetCustomAttribute<RequirePermissionsAttribute>() != null)
+        if (entityType.GetCustomAttribute<RequirePermissionsAttribute>() is not null)
         {
             var authBuilder = new Configuration.EndpointAuthorizationBuilder();
             authBuilder.RequirePermissions();
@@ -1568,7 +1568,7 @@ public static class CrudEndpointMapper
     internal static ICrudKitDbContext ResolveDbContextFor<TEntity>(IServiceProvider services) where TEntity : class
     {
         var registry = services.GetService<CrudKitContextRegistry>();
-        if (registry != null)
+        if (registry is not null)
             return registry.ResolveFor<TEntity>(services);
         return services.GetRequiredService<ICrudKitDbContext>();
     }

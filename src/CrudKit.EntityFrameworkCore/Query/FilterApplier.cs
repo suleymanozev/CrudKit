@@ -21,7 +21,7 @@ public class FilterApplier
         where T : class
     {
         var prop = FindProperty(typeof(T), propertyName);
-        if (prop == null) return query; // unknown field — skip silently
+        if (prop is null) return query; // unknown field — skip silently
 
         if (!IsFilterable<T>(prop)) return query; // field is not filterable — skip silently
 
@@ -47,12 +47,12 @@ public class FilterApplier
     private static bool IsFilterable<T>(PropertyInfo prop)
     {
         // Property level takes precedence over entity level
-        if (prop.GetCustomAttribute<NotFilterableAttribute>() != null) return false;
-        if (prop.GetCustomAttribute<FilterableAttribute>() != null) return true;
+        if (prop.GetCustomAttribute<NotFilterableAttribute>() is not null) return false;
+        if (prop.GetCustomAttribute<FilterableAttribute>() is not null) return true;
 
         // Entity level
-        if (typeof(T).GetCustomAttribute<NotFilterableAttribute>() != null) return false;
-        if (typeof(T).GetCustomAttribute<FilterableAttribute>() != null) return true;
+        if (typeof(T).GetCustomAttribute<NotFilterableAttribute>() is not null) return false;
+        if (typeof(T).GetCustomAttribute<FilterableAttribute>() is not null) return true;
 
         // Default: all properties are filterable
         return true;
@@ -64,12 +64,12 @@ public class FilterApplier
     {
         // 1. Exact match
         var prop = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
-        if (prop != null) return prop;
+        if (prop is not null) return prop;
 
         // 2. Case-insensitive match
         prop = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
-        if (prop != null) return prop;
+        if (prop is not null) return prop;
 
         // 3. snake_case → PascalCase conversion (e.g. created_at → CreatedAt)
         var pascal = ToPascalCase(name);
@@ -124,17 +124,17 @@ public class FilterApplier
         // For numeric types — build OR chain
         var convertedValues = values
             .Select(v => ConvertValue(v, propType))
-            .Where(v => v != null)
+            .Where(v => v is not null)
             .ToList();
 
         Expression? orExpr = null;
         foreach (var converted in convertedValues)
         {
             var eq = Expression.Equal(member, Expression.Constant(converted, propType));
-            orExpr = orExpr == null ? eq : Expression.OrElse(orExpr, eq);
+            orExpr = orExpr is null ? eq : Expression.OrElse(orExpr, eq);
         }
 
-        if (orExpr == null) return query;
+        if (orExpr is null) return query;
         return query.Where(Expression.Lambda<Func<T, bool>>(orExpr, param));
     }
 
@@ -142,7 +142,7 @@ public class FilterApplier
         where T : class
     {
         // Value types cannot be null — skip this filter silently
-        if (prop.PropertyType.IsValueType && Nullable.GetUnderlyingType(prop.PropertyType) == null)
+        if (prop.PropertyType.IsValueType && Nullable.GetUnderlyingType(prop.PropertyType) is null)
             return query;
 
         var param = Expression.Parameter(typeof(T), "e");
@@ -156,7 +156,7 @@ public class FilterApplier
         where T : class
     {
         // Value types are never null — skip this filter silently
-        if (prop.PropertyType.IsValueType && Nullable.GetUnderlyingType(prop.PropertyType) == null)
+        if (prop.PropertyType.IsValueType && Nullable.GetUnderlyingType(prop.PropertyType) is null)
             return query;
 
         var param = Expression.Parameter(typeof(T), "e");
@@ -170,7 +170,7 @@ public class FilterApplier
         where T : class
     {
         var convertedValue = ConvertValue(op.Value, prop.PropertyType);
-        if (convertedValue == null) return query;
+        if (convertedValue is null) return query;
 
         var param = Expression.Parameter(typeof(T), "e");
         var member = Expression.Property(param, prop);
@@ -187,7 +187,7 @@ public class FilterApplier
             _     => null,
         };
 
-        if (body == null) return query;
+        if (body is null) return query;
         return query.Where(Expression.Lambda<Func<T, bool>>(body, param));
     }
 

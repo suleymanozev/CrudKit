@@ -42,8 +42,8 @@ public static class FeatureResolver
         var type = typeof(TEntity);
 
         // Entity-level explicit override takes priority
-        if (type.GetCustomAttribute<TDisable>() != null) return false;
-        if (type.GetCustomAttribute<TEnable>() != null) return true;
+        if (type.GetCustomAttribute<TDisable>() is not null) return false;
+        if (type.GetCustomAttribute<TEnable>() is not null) return true;
 
         // Fall back to global flag
         return globalFlag;

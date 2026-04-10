@@ -25,7 +25,7 @@ public class TenantResolverMiddleware
         tenantContext.TenantId = _options.Resolver?.Invoke(context);
 
         // Reject unresolved tenant if configured
-        if (tenantContext.TenantId == null && _options.RejectUnresolved)
+        if (tenantContext.TenantId is null && _options.RejectUnresolved)
         {
             await WriteTenantError(context, 400, "TENANT_REQUIRED",
                 "Tenant could not be resolved from the request.");
@@ -33,15 +33,15 @@ public class TenantResolverMiddleware
         }
 
         // Cross-tenant access validation
-        if (tenantContext.TenantId != null && _options.Policy != null)
+        if (tenantContext.TenantId is not null && _options.Policy is not null)
         {
             var currentUser = context.RequestServices.GetService<ICurrentUser>();
-            if (currentUser != null && currentUser.IsAuthenticated)
+            if (currentUser is not null && currentUser.IsAuthenticated)
             {
                 var accessibleTenants = currentUser.AccessibleTenants;
 
                 // accessibleTenants == null means all tenants (superadmin-level)
-                if (accessibleTenants != null)
+                if (accessibleTenants is not null)
                 {
                     if (!accessibleTenants.Contains(tenantContext.TenantId))
                     {

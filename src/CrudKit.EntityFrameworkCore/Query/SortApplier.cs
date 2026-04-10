@@ -27,11 +27,11 @@ public static class SortApplier
             var name = isDesc ? field[1..] : field;
 
             var prop = FindProperty(typeof(T), name);
-            if (prop == null) continue;
+            if (prop is null) continue;
 
             if (!IsSortable<T>(prop)) continue; // field is not sortable — skip silently
 
-            ordered = ordered == null
+            ordered = ordered is null
                 ? ApplyOrderBy(query, prop, isDesc)
                 : ApplyThenBy(ordered, prop, isDesc);
         }
@@ -50,12 +50,12 @@ public static class SortApplier
     private static bool IsSortable<T>(PropertyInfo prop)
     {
         // Property level takes precedence over entity level
-        if (prop.GetCustomAttribute<NotSortableAttribute>() != null) return false;
-        if (prop.GetCustomAttribute<SortableAttribute>() != null) return true;
+        if (prop.GetCustomAttribute<NotSortableAttribute>() is not null) return false;
+        if (prop.GetCustomAttribute<SortableAttribute>() is not null) return true;
 
         // Entity level
-        if (typeof(T).GetCustomAttribute<NotSortableAttribute>() != null) return false;
-        if (typeof(T).GetCustomAttribute<SortableAttribute>() != null) return true;
+        if (typeof(T).GetCustomAttribute<NotSortableAttribute>() is not null) return false;
+        if (typeof(T).GetCustomAttribute<SortableAttribute>() is not null) return true;
 
         // Default: all properties are sortable
         return true;
@@ -64,7 +64,7 @@ public static class SortApplier
     private static IQueryable<T> ApplyDefault<T>(IQueryable<T> query) where T : class
     {
         var createdAt = typeof(T).GetProperty("CreatedAt");
-        if (createdAt == null) return query;
+        if (createdAt is null) return query;
         return ApplyOrderBy(query, createdAt, descending: true);
     }
 
@@ -96,11 +96,11 @@ public static class SortApplier
     private static PropertyInfo? FindProperty(Type type, string name)
     {
         var prop = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
-        if (prop != null) return prop;
+        if (prop is not null) return prop;
 
         prop = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
-        if (prop != null) return prop;
+        if (prop is not null) return prop;
 
         var pascal = ToPascalCase(name);
         return type.GetProperty(pascal, BindingFlags.Public | BindingFlags.Instance)

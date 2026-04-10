@@ -47,7 +47,7 @@ public static class CrudKitAppExtensions
         // Register audit writer when audit trail is enabled
         if (opts.AuditTrailEnabled)
         {
-            if (opts.CustomAuditWriterType != null)
+            if (opts.CustomAuditWriterType is not null)
                 services.TryAddScoped(typeof(IAuditWriter), opts.CustomAuditWriterType);
             else
                 services.TryAddScoped<IAuditWriter, DbAuditWriter>();
@@ -59,7 +59,7 @@ public static class CrudKitAppExtensions
         services.TryAddScoped<TenantContext>();
         services.TryAddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 
-        if (opts.TenantResolver != null)
+        if (opts.TenantResolver is not null)
         {
             services.AddSingleton(new TenantResolverOptions
             {
@@ -84,7 +84,7 @@ public static class CrudKitAppExtensions
         // Register domain event dispatcher
         if (opts.DomainEventsEnabled)
         {
-            if (opts.CustomDomainEventDispatcherType != null)
+            if (opts.CustomDomainEventDispatcherType is not null)
                 services.TryAddScoped(typeof(IDomainEventDispatcher), opts.CustomDomainEventDispatcherType);
             else
                 services.TryAddScoped<IDomainEventDispatcher, CrudKitEventDispatcher>();
@@ -103,7 +103,7 @@ public static class CrudKitAppExtensions
             }
         }
 
-        if (opts.ScanModulesFromAssembly != null)
+        if (opts.ScanModulesFromAssembly is not null)
         {
             var moduleTypes = opts.ScanModulesFromAssembly.GetTypes()
                 .Where(t => typeof(IModule).IsAssignableFrom(t) && !t.IsAbstract && t.IsClass);
@@ -118,7 +118,7 @@ public static class CrudKitAppExtensions
     {
         // Add tenant resolver middleware if configured
         var resolverOptions = app.Services.GetService<TenantResolverOptions>();
-        if (resolverOptions != null)
+        if (resolverOptions is not null)
         {
             app.UseMiddleware<TenantResolverMiddleware>();
         }

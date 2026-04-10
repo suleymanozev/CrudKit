@@ -18,5 +18,5 @@ public class AnonymousCurrentUser : ICurrentUser
     /// <summary>
     /// Empty list = no cross-tenant access for anonymous users.
     /// </summary>
-    public IReadOnlyList<string>? AccessibleTenants => new List<string>();
+    public IReadOnlyList<string>? AccessibleTenants => [];
 }

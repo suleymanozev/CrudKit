@@ -21,7 +21,7 @@ public class SqlServerDialect : IDbDialect
         var likeMethod = typeof(DbFunctionsExtensions).GetMethod(
             "Like", [typeof(DbFunctions), typeof(string), typeof(string)]);
 
-        if (likeMethod == null)
+        if (likeMethod is null)
             return _fallback.ApplyLike(query, property, value);
 
         var param = property.Parameters[0];
@@ -43,7 +43,7 @@ public class SqlServerDialect : IDbDialect
         var likeMethod = typeof(DbFunctionsExtensions).GetMethod(
             "Like", [typeof(DbFunctions), typeof(string), typeof(string)]);
 
-        if (likeMethod == null)
+        if (likeMethod is null)
             return _fallback.ApplyStartsWith(query, property, value);
 
         var param = property.Parameters[0];

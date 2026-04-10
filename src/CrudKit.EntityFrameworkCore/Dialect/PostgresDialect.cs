@@ -27,7 +27,7 @@ public class PostgresDialect : IDbDialect
                 if (!type.Name.Contains("DbFunctions")) continue;
                 var method = type.GetMethod("ILike",
                     [typeof(DbFunctions), typeof(string), typeof(string)]);
-                if (method != null) return method;
+                if (method is not null) return method;
             }
         }
         return null;
@@ -38,7 +38,7 @@ public class PostgresDialect : IDbDialect
         Expression<Func<T, string>> property,
         string value) where T : class
     {
-        if (_iLikeMethod == null)
+        if (_iLikeMethod is null)
             return _fallback.ApplyLike(query, property, value);
 
         var param = property.Parameters[0];
@@ -57,7 +57,7 @@ public class PostgresDialect : IDbDialect
         Expression<Func<T, string>> property,
         string value) where T : class
     {
-        if (_iLikeMethod == null)
+        if (_iLikeMethod is null)
             return _fallback.ApplyStartsWith(query, property, value);
 
         var param = property.Parameters[0];

@@ -34,14 +34,14 @@ public class CrudAuthorizationFilter : IEndpointFilter
 
         // Per-operation auth takes priority
         var opAuth = GetOperationAuth(operation);
-        if (opAuth != null && opAuth.HasAuth)
+        if (opAuth is not null && opAuth.HasAuth)
         {
             var result = CheckOperationAuth(ctx.HttpContext, opAuth);
-            if (result != null) return result;
+            if (result is not null) return result;
         }
 
         // Global role applies to all operations
-        if (_auth.GlobalRole != null)
+        if (_auth.GlobalRole is not null)
         {
             var user = ctx.HttpContext.RequestServices.GetRequiredService<ICurrentUser>();
             if (!user.IsAuthenticated)
@@ -71,10 +71,10 @@ public class CrudAuthorizationFilter : IEndpointFilter
         if (!user.IsAuthenticated)
             return Unauthorized();
 
-        if (opAuth.Role != null && !user.HasRole(opAuth.Role))
+        if (opAuth.Role is not null && !user.HasRole(opAuth.Role))
             return Forbidden($"Role '{opAuth.Role}' is required.");
 
-        if (opAuth.Permission != null &&
+        if (opAuth.Permission is not null &&
             !user.HasPermission(opAuth.Permission.Value.Entity, opAuth.Permission.Value.Action))
             return Forbidden($"Permission '{opAuth.Permission.Value.Entity}:{opAuth.Permission.Value.Action}' is required.");
 
