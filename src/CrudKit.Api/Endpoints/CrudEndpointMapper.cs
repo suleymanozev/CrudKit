@@ -1098,44 +1098,29 @@ public static class CrudEndpointMapper
     }
 
     /// <summary>
-    /// Scans all loaded assemblies for a type decorated with <c>[CreateDtoFor(typeof(childType))]</c>.
-    /// Returns the first match, or null if none is found.
-    /// Assembly load exceptions are swallowed to allow partial-trust environments.
+    /// Scans the child entity's assembly for a type decorated with <c>[CreateDtoFor(typeof(childType))]</c>.
+    /// Only the child's own assembly is scanned — DTOs live in the same module as their entity.
     /// </summary>
     private static Type? FindCreateDtoFor(Type childType)
     {
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        foreach (var type in childType.Assembly.GetTypes())
         {
-            Type[] types;
-            try { types = assembly.GetTypes(); }
-            catch { continue; }
-
-            foreach (var type in types)
-            {
-                var attr = type.GetCustomAttribute<CreateDtoForAttribute>();
-                if (attr?.EntityType == childType) return type;
-            }
+            var attr = type.GetCustomAttribute<CreateDtoForAttribute>();
+            if (attr?.EntityType == childType) return type;
         }
         return null;
     }
 
     /// <summary>
-    /// Scans all loaded assemblies for a type decorated with <c>[UpdateDtoFor(typeof(childType))]</c>.
-    /// Returns the first match, or null if none is found.
+    /// Scans the child entity's assembly for a type decorated with <c>[UpdateDtoFor(typeof(childType))]</c>.
+    /// Only the child's own assembly is scanned — DTOs live in the same module as their entity.
     /// </summary>
     private static Type? FindUpdateDtoFor(Type childType)
     {
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        foreach (var type in childType.Assembly.GetTypes())
         {
-            Type[] types;
-            try { types = assembly.GetTypes(); }
-            catch { continue; }
-
-            foreach (var type in types)
-            {
-                var attr = type.GetCustomAttribute<UpdateDtoForAttribute>();
-                if (attr?.EntityType == childType) return type;
-            }
+            var attr = type.GetCustomAttribute<UpdateDtoForAttribute>();
+            if (attr?.EntityType == childType) return type;
         }
         return null;
     }
@@ -1265,14 +1250,9 @@ public static class CrudEndpointMapper
     {
         var parentType = typeof(TEntity);
 
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        // Only scan the parent entity's assembly — child entities live in the same module.
+        foreach (var childType in parentType.Assembly.GetTypes())
         {
-            Type[] types;
-            try { types = assembly.GetTypes(); }
-            catch { continue; }
-
-            foreach (var childType in types)
-            {
                 var childOfAttr = childType.GetCustomAttributes<ChildOfAttribute>()
                     .FirstOrDefault(a => a.ParentType == parentType);
 
@@ -1299,7 +1279,6 @@ public static class CrudEndpointMapper
 
                 method.Invoke(null, [app, route, detailRoute, foreignKey, group]);
             }
-        }
     }
 
     /// <summary>
@@ -1492,25 +1471,19 @@ public static class CrudEndpointMapper
 
         var descriptors = services.GetService<IServiceCollection>();
 
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        // Only scan the entity's own assembly for mapper implementations.
+        foreach (var type in entityType.Assembly.GetTypes())
         {
-            Type[] types;
-            try { types = assembly.GetTypes(); }
-            catch { continue; }
+            var iface = type.GetInterfaces()
+                .FirstOrDefault(i => i.IsGenericType
+                    && i.GetGenericTypeDefinition() == mapperInterfaceBase
+                    && i.GetGenericArguments()[0] == entityType);
 
-            foreach (var type in types)
-            {
-                var iface = type.GetInterfaces()
-                    .FirstOrDefault(i => i.IsGenericType
-                        && i.GetGenericTypeDefinition() == mapperInterfaceBase
-                        && i.GetGenericArguments()[0] == entityType);
+            if (iface is null) continue;
 
-                if (iface is null) continue;
-
-                // Try to resolve this specific interface from DI
-                var resolved = services.GetService(iface);
-                if (resolved is not null) return resolved;
-            }
+            // Try to resolve this specific interface from DI
+            var resolved = services.GetService(iface);
+            if (resolved is not null) return resolved;
         }
 
         return null;
