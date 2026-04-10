@@ -169,6 +169,7 @@ public static class CrudKitDbContextHelper
         TimeProvider timeProvider)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
+        var deleteBatchId = Guid.NewGuid();
 
         // Step 1: Generate IDs for new entities first (needed by audit log)
         foreach (var entry in changeTracker.Entries<IEntity>()
@@ -206,6 +207,7 @@ public static class CrudKitDbContextHelper
                     {
                         entry.State = EntityState.Modified;
                         sd.DeletedAt = now;
+                        sd.DeleteBatchId = deleteBatchId;
                         entry.Entity.UpdatedAt = now;
                         TrySetUserField(entry, "DeletedById", currentUser);
                     }
@@ -213,7 +215,7 @@ public static class CrudKitDbContextHelper
             }
         }
 
-        return CollectCascadeSoftDeleteOps(changeTracker, now);
+        return CollectCascadeSoftDeleteOps(changeTracker, now, deleteBatchId);
     }
 
     /// <summary>
@@ -223,7 +225,7 @@ public static class CrudKitDbContextHelper
     {
         foreach (var (sql, parameters) in ops)
         {
-            database.ExecuteSqlRaw(sql, parameters[0], parameters[1], parameters[2]);
+            database.ExecuteSqlRaw(sql, parameters);
         }
     }
 
@@ -625,7 +627,7 @@ public static class CrudKitDbContextHelper
     // ---- Private helpers ----
 
     private static List<(string Sql, object[] Params)> CollectCascadeSoftDeleteOps(
-        ChangeTracker changeTracker, DateTime now)
+        ChangeTracker changeTracker, DateTime now, Guid deleteBatchId)
     {
         var ops = new List<(string Sql, object[] Params)>();
 
@@ -655,16 +657,27 @@ public static class CrudKitDbContextHelper
                 var fkColumn = childEntityType.FindProperty(attr.ForeignKeyProperty)?.GetColumnName(storeObject);
                 var deletedAtColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeletedAt))?.GetColumnName(storeObject);
                 var updatedAtColumn = childEntityType.FindProperty(nameof(IAuditableEntity.UpdatedAt))?.GetColumnName(storeObject);
+                var deleteBatchIdColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeleteBatchId))?.GetColumnName(storeObject);
 
                 if (fkColumn is null || deletedAtColumn is null || updatedAtColumn is null)
                     continue;
 
-                // {0},{1},{2},{3} = string.Format positional args (table/column names from EF metadata — safe)
-                // {{0}},{{1}},{{2}} = escaped braces that become {0},{1},{2} SQL parameters after Format — parameterized values
-                var sql = string.Format(
-                    "UPDATE \"{0}\" SET \"{1}\" = {{0}}, \"{2}\" = {{1}} WHERE \"{3}\" = {{2}} AND \"{1}\" IS NULL",
-                    tableName, deletedAtColumn, updatedAtColumn, fkColumn);
-                ops.Add((sql, new object[] { now, now, entry.Entity.Id }));
+                if (deleteBatchIdColumn is not null)
+                {
+                    // Include DeleteBatchId in cascade soft-delete so children can be restored with the parent
+                    var sql = string.Format(
+                        "UPDATE \"{0}\" SET \"{1}\" = {{0}}, \"{2}\" = {{1}}, \"{3}\" = {{2}} WHERE \"{4}\" = {{3}} AND \"{1}\" IS NULL",
+                        tableName, deletedAtColumn, updatedAtColumn, deleteBatchIdColumn, fkColumn);
+                    ops.Add((sql, new object[] { now, now, deleteBatchId, entry.Entity.Id }));
+                }
+                else
+                {
+                    // Fallback for children without DeleteBatchId
+                    var sql = string.Format(
+                        "UPDATE \"{0}\" SET \"{1}\" = {{0}}, \"{2}\" = {{1}} WHERE \"{3}\" = {{2}} AND \"{1}\" IS NULL",
+                        tableName, deletedAtColumn, updatedAtColumn, fkColumn);
+                    ops.Add((sql, new object[] { now, now, entry.Entity.Id }));
+                }
             }
         }
 

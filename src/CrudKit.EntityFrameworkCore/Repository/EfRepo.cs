@@ -5,6 +5,7 @@ using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CrudKit.EntityFrameworkCore.Repository;
@@ -181,7 +182,11 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
                 .FirstOrDefaultAsync(e => e.Id == id, ct)
                 ?? throw AppError.NotFound($"Deleted {typeof(T).Name} with id '{id}' was not found.");
 
+            // Capture the batch ID before clearing soft-delete state
+            var deleteBatchId = ((ISoftDeletable)entity).DeleteBatchId;
+
             ((ISoftDeletable)entity).DeletedAt = null;
+            ((ISoftDeletable)entity).DeleteBatchId = null;
 
             // Check [Unique] properties — re-enable soft-delete filter to check only active records
             using (_softDeleteFilter.Enable())
@@ -214,11 +219,46 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
             await _db.SaveChangesAsync(ct);
 
-            // No cascade restore — only the parent entity is restored.
-            // Child entities must be restored individually by the user.
-            // Reason: cascade delete marks ALL children as deleted, but some children
-            // may have been deleted intentionally before the parent was deleted.
-            // Restoring them would undo deliberate user actions.
+            // Cascade restore: restore child entities that were deleted in the same batch as the parent
+            if (deleteBatchId is not null)
+            {
+                var cascadeAttributes = typeof(T).GetCustomAttributes<CascadeSoftDeleteAttribute>();
+                foreach (var attr in cascadeAttributes)
+                {
+                    var childEntityType = _db.Model.FindEntityType(attr.ChildType);
+                    if (childEntityType is null) continue;
+
+                    var tableName = childEntityType.GetTableName();
+                    var schema = childEntityType.GetSchema();
+                    if (tableName is null) continue;
+
+                    var storeObject = StoreObjectIdentifier.Table(tableName, schema);
+                    var fkColumn = childEntityType.FindProperty(attr.ForeignKeyProperty)?.GetColumnName(storeObject);
+                    var deletedAtColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeletedAt))?.GetColumnName(storeObject);
+                    var updatedAtColumn = childEntityType.FindProperty(nameof(IAuditableEntity.UpdatedAt))?.GetColumnName(storeObject);
+                    var batchIdColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeleteBatchId))?.GetColumnName(storeObject);
+
+                    if (fkColumn is null || deletedAtColumn is null || batchIdColumn is null) continue;
+
+                    var now = DateTime.UtcNow;
+
+                    if (updatedAtColumn is not null)
+                    {
+                        // Restore only children deleted in the same batch — set DeletedAt and DeleteBatchId to NULL
+                        var sql = string.Format(
+                            "UPDATE \"{0}\" SET \"{1}\" = NULL, \"{2}\" = NULL, \"{3}\" = {{2}} WHERE \"{4}\" = {{0}} AND \"{2}\" = {{1}}",
+                            tableName, deletedAtColumn, batchIdColumn, updatedAtColumn, fkColumn);
+                        _db.Database.ExecuteSqlRaw(sql, id, deleteBatchId, now);
+                    }
+                    else
+                    {
+                        var sql = string.Format(
+                            "UPDATE \"{0}\" SET \"{1}\" = NULL, \"{2}\" = NULL WHERE \"{3}\" = {{0}} AND \"{2}\" = {{1}}",
+                            tableName, deletedAtColumn, batchIdColumn, fkColumn);
+                        _db.Database.ExecuteSqlRaw(sql, id, deleteBatchId);
+                    }
+                }
+            }
         } // soft-delete filter re-enabled
     }
 

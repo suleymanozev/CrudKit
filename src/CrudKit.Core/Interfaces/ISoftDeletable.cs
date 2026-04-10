@@ -4,4 +4,5 @@ namespace CrudKit.Core.Interfaces;
 public interface ISoftDeletable
 {
     DateTime? DeletedAt { get; set; }
+    Guid? DeleteBatchId { get; set; }
 }

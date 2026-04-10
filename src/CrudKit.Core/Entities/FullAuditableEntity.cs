@@ -9,6 +9,7 @@ public abstract class FullAuditableEntity<TKey> : AuditableEntity<TKey>, ISoftDe
     where TKey : notnull
 {
     public DateTime? DeletedAt { get; set; }
+    public Guid? DeleteBatchId { get; set; }
 }
 
 /// <summary>
@@ -25,6 +26,7 @@ public abstract class FullAuditableEntityWithUser<TKey, TUser, TUserKey> : Audit
     where TUserKey : notnull
 {
     public DateTime? DeletedAt { get; set; }
+    public Guid? DeleteBatchId { get; set; }
     public TUserKey? DeletedById { get; set; }
     public TUser? DeletedBy { get; set; }
 }

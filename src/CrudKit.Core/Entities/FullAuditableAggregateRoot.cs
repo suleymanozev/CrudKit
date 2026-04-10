@@ -10,6 +10,7 @@ public abstract class FullAuditableAggregateRoot<TKey> : AuditableEntity<TKey>, 
     where TKey : notnull
 {
     public DateTime? DeletedAt { get; set; }
+    public Guid? DeleteBatchId { get; set; }
 
     private readonly List<IDomainEvent> _domainEvents = [];
 
@@ -33,6 +34,7 @@ public abstract class FullAuditableAggregateRootWithUser<TKey, TUser, TUserKey>
     where TUserKey : notnull
 {
     public DateTime? DeletedAt { get; set; }
+    public Guid? DeleteBatchId { get; set; }
     public TUserKey? DeletedById { get; set; }
     public TUser? DeletedBy { get; set; }
 

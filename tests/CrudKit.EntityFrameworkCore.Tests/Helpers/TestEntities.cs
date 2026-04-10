@@ -23,6 +23,7 @@ public class SoftPersonEntity : IAuditableEntity, ISoftDeletable
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
+    public Guid? DeleteBatchId { get; set; }
 }
 
 /// <summary>IMultiTenant entity.</summary>
@@ -143,6 +144,7 @@ public class UniqueCodeEntity : IAuditableEntity, ISoftDeletable
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
+    public Guid? DeleteBatchId { get; set; }
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +160,7 @@ public class ParentItemEntity : IAuditableEntity, ISoftDeletable
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
+    public Guid? DeleteBatchId { get; set; }
     public List<ChildItemEntity> Children { get; set; } = new();
 }
 
@@ -170,6 +173,7 @@ public class ChildItemEntity : IAuditableEntity, ISoftDeletable
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
+    public Guid? DeleteBatchId { get; set; }
 }
 
 // ---------------------------------------------------------------------------
@@ -265,6 +269,7 @@ public class SoftDeleteTrackedEntity : IAuditableEntity, ISoftDeletable
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
+    public Guid? DeleteBatchId { get; set; }
 
     // User tracking fields — populated by TrySetUserField in BeforeSaveChanges
     public Guid? CreatedById { get; set; }

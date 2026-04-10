@@ -19,6 +19,7 @@ public class MapperGeneratorTests
                 public DateTime CreatedAt { get; set; }
                 public DateTime UpdatedAt { get; set; }
                 public DateTime? DeletedAt { get; set; }
+                public Guid? DeleteBatchId { get; set; }
 
                 public string Number { get; set; } = string.Empty;
                 public decimal Amount { get; set; }

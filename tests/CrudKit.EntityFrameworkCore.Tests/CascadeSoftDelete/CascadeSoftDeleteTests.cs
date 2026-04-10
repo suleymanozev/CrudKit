@@ -64,6 +64,9 @@ public class CascadeSoftDeleteTests
 
         Assert.Equal(2, children.Count);
         Assert.All(children, c => Assert.NotNull(c.DeletedAt));
+        // All cascade-deleted children share the same DeleteBatchId
+        Assert.All(children, c => Assert.NotNull(c.DeleteBatchId));
+        Assert.Equal(children[0].DeleteBatchId, children[1].DeleteBatchId);
     }
 
     [Fact]
@@ -100,7 +103,7 @@ public class CascadeSoftDeleteTests
     }
 
     [Fact]
-    public async Task Restore_DoesNotCascadeToChildren()
+    public async Task Restore_CascadeRestoresOnlyBatchDeletedChildren()
     {
         var (db, repo) = CreateParentRepo();
 
@@ -115,38 +118,38 @@ public class CascadeSoftDeleteTests
         await db.SaveChangesAsync();
 
         var parentId = parent.Id;
+        var child1Id = child1.Id;
+        var child2Id = child2.Id;
 
-        // Soft-delete the parent (cascades to children)
-        db.ParentItems.Remove(parent);
+        // Manually delete child2 first (individual delete, different batch)
+        db.ChildItems.Remove(child2);
         await db.SaveChangesAsync();
 
         DetachAll(db);
 
-        // Restore the parent only — children stay deleted
+        // Now delete the parent (cascade deletes child1, same batch)
+        var parentEntity = await db.ParentItems.FindAsync(parentId);
+        db.ParentItems.Remove(parentEntity!);
+        await db.SaveChangesAsync();
+
+        DetachAll(db);
+
+        // Restore the parent
         await repo.Restore(parentId);
 
         DetachAll(db);
 
-        // Parent is restored
-        var restoredParent = await db.ParentItems.FindAsync(parentId);
-        Assert.NotNull(restoredParent);
-        Assert.Null(restoredParent!.DeletedAt);
-
-        // Children remain soft-deleted — no cascade restore
-        // (some children may have been deleted intentionally before parent deletion)
-        var (db2, _) = CreateParentRepo();
-        // Use a fresh context sharing the same DB but with soft-delete filter disabled
-        // Actually, reuse same db — just need to see deleted children
-        var softDeleteFilter = new DataFilter<ISoftDeletable>();
-        using (softDeleteFilter.Disable())
-        {
-            // We can't disable filter on existing db, so query raw
-        }
-        // Query via raw SQL to check children are still deleted
-        var deletedCount = await db.Database
-            .SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"ChildItems\" WHERE \"ParentItemId\" = {0} AND \"DeletedAt\" IS NOT NULL", parentId)
+        // child1 should be restored (same DeleteBatchId as parent)
+        var child1RestoredCount = await db.Database
+            .SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"ChildItems\" WHERE \"Id\" = {0} AND \"DeletedAt\" IS NULL", child1Id)
             .SingleAsync();
-        Assert.Equal(2, deletedCount);
+        Assert.Equal(1, child1RestoredCount);
+
+        // child2 should remain deleted (different DeleteBatchId — individually deleted before parent)
+        var child2DeletedCount = await db.Database
+            .SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"ChildItems\" WHERE \"Id\" = {0} AND \"DeletedAt\" IS NOT NULL", child2Id)
+            .SingleAsync();
+        Assert.Equal(1, child2DeletedCount);
     }
 
     [Fact]
@@ -179,6 +182,12 @@ public class CascadeSoftDeleteTests
         await repo.Restore(parent1Id);
 
         DetachAll(db);
+
+        // parent1's child should be restored (cascade restore with matching DeleteBatchId)
+        var parent1ChildRestoredCount = await db.Database
+            .SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"ChildItems\" WHERE \"ParentItemId\" = {0} AND \"DeletedAt\" IS NULL", parent1Id)
+            .SingleAsync();
+        Assert.Equal(1, parent1ChildRestoredCount);
 
         // parent2's child should remain soft-deleted
         var parent2Children = await db.ChildItems.IgnoreQueryFilters()

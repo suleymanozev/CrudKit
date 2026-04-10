@@ -118,6 +118,7 @@ public static class GeneratorTestHelper
             public interface ISoftDeletable
             {
                 DateTime? DeletedAt { get; set; }
+                Guid? DeleteBatchId { get; set; }
             }
 
             public interface IMultiTenant

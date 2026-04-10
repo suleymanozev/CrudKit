@@ -14,7 +14,7 @@ internal static class EntityParser
     // System fields automatically excluded from generated DTOs.
     private static readonly HashSet<string> SystemFields = new HashSet<string>(System.StringComparer.Ordinal)
     {
-        "Id", "CreatedAt", "UpdatedAt", "DeletedAt", "TenantId", "RowVersion"
+        "Id", "CreatedAt", "UpdatedAt", "DeletedAt", "DeleteBatchId", "TenantId", "RowVersion"
     };
 
     private const string CrudEntityAttributeFqn = "CrudKit.Core.Attributes.CrudEntityAttribute";
