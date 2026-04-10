@@ -50,7 +50,7 @@ using (var scope = app.Services.CreateScope())
 
 app.UseCrudKit();
 
-// Route-less — route derived from [CrudEntity(Table = ...)]
+// Route-less — route derived from [CrudEntity(Resource = ...)]
 app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
 app.MapCrudEndpoints<Category, CreateCategory, UpdateCategory>();
 // [ChildOf] + [CreateDtoFor] on OrderLine/CreateOrderLine handles List/Get/Delete/POST automatically

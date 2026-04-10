@@ -50,15 +50,15 @@ Property attribute > Entity attribute > Global flag
 
 ```csharp
 // Read-only entity — List + Get only
-[CrudEntity(Table = "currencies", ReadOnly = true)]
+[CrudEntity(Resource = "currencies", ReadOnly = true)]
 public class Currency : Entity { }
 
 // No delete allowed
-[CrudEntity(Table = "audit_entries", EnableDelete = false, EnableUpdate = false)]
+[CrudEntity(Resource = "audit_entries", EnableDelete = false, EnableUpdate = false)]
 public class AuditEntry : AuditableEntity { }
 
 // Bulk operations enabled
-[CrudEntity(Table = "products", EnableBulkDelete = true, EnableBulkUpdate = true)]
+[CrudEntity(Resource = "products", EnableBulkDelete = true, EnableBulkUpdate = true)]
 public class Product : AuditableEntity { }
 ```
 
@@ -71,21 +71,21 @@ Enable features globally, then opt-out individual entities. This keeps your enti
 ```csharp
 opts.UseAuditTrail(); // only audit trail is global
 
-[CrudEntity(Table = "invoices")]
+[CrudEntity(Resource = "invoices")]
 [Audited]        // redundant — already global
 [Exportable]     // per-entity
 [Importable]     // per-entity
 [RequireAuth]    // per-entity
 public class Invoice : FullAuditableAggregateRoot { }
 
-[CrudEntity(Table = "products")]
+[CrudEntity(Resource = "products")]
 [Audited]        // redundant
 [Exportable]     // per-entity
 [Importable]     // per-entity
 [RequireAuth]    // per-entity
 public class Product : FullAuditableAggregateRoot { }
 
-[CrudEntity(Table = "currencies", ReadOnly = true)]
+[CrudEntity(Resource = "currencies", ReadOnly = true)]
 [Audited]        // redundant
 public class Currency : AuditableAggregateRoot { }
 ```

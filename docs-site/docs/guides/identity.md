@@ -124,7 +124,7 @@ All CrudKit logic lives in the 8-param base class. The 1-param and 3-param varia
 Use `FullAuditableEntityWithUser<TUser>` for entities that need user-tracked audit fields:
 
 ```csharp
-[CrudEntity(Table = "invoices")]
+[CrudEntity(Resource = "invoices")]
 [Audited]
 public class Invoice : FullAuditableEntityWithUser<AppUser>
 {

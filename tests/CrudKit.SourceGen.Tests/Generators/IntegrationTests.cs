@@ -17,7 +17,7 @@ public class IntegrationTests
         namespace Acme.Domain.Entities
         {
             [CrudEntity(
-                Table = "Products",
+                Resource = "Products",
                 EnableBulkUpdate = true)]
             public class Product : IAuditableEntity, ISoftDeletable, IMultiTenant
             {

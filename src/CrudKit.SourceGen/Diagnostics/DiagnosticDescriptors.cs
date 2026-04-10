@@ -23,12 +23,12 @@ internal static class DiagnosticDescriptors
         helpLinkUri: "https://crudkit.dev/diagnostics/CRUD001");
 
     /// <summary>
-    /// CRUD010: CrudEntityAttribute.Table is explicitly set to an empty string.
+    /// CRUD010: CrudEntityAttribute.Resource is explicitly set to an empty string.
     /// </summary>
     public static readonly DiagnosticDescriptor EmptyTableName = new DiagnosticDescriptor(
         id: "CRUD010",
-        title: "CrudEntity Table name is empty",
-        messageFormat: "'{0}' has an empty Table name in [CrudEntity]. Provide a non-empty table name or omit it to use the default (entity name + 's').",
+        title: "CrudEntity Resource name is empty",
+        messageFormat: "'{0}' has an empty Resource name in [CrudEntity]. Provide a non-empty resource name or omit it to use the default (entity name kebab-cased + 's').",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,

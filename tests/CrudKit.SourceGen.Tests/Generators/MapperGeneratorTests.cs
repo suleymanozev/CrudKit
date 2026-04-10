@@ -12,7 +12,7 @@ public class MapperGeneratorTests
 
         namespace Billing.Entities
         {
-            [CrudEntity(Table = "Invoices")]
+            [CrudEntity(Resource = "Invoices")]
             public class Invoice : IAuditableEntity, ISoftDeletable
             {
                 public Guid Id { get; set; }
@@ -49,7 +49,7 @@ public class MapperGeneratorTests
 
             namespace Billing.Entities
             {
-                [CrudEntity(Table = "Summaries", ReadOnly = true)]
+                [CrudEntity(Resource = "Summaries", ReadOnly = true)]
                 public class Summary : IAuditableEntity
                 {
                     public Guid Id { get; set; }
@@ -162,7 +162,7 @@ public class MapperGeneratorTests
 
             namespace Billing.Entities
             {
-                [CrudEntity(Table = "Logs", EnableCreate = false)]
+                [CrudEntity(Resource = "Logs", EnableCreate = false)]
                 public class Log : IAuditableEntity
                 {
                     public Guid Id { get; set; }
@@ -193,7 +193,7 @@ public class MapperGeneratorTests
 
             namespace Billing.Entities
             {
-                [CrudEntity(Table = "Immutable", EnableUpdate = false)]
+                [CrudEntity(Resource = "Immutable", EnableUpdate = false)]
                 public class ImmutableLog : IAuditableEntity
                 {
                     public Guid Id { get; set; }

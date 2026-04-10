@@ -178,7 +178,7 @@ public static class GeneratorTestHelper
             [AttributeUsage(AttributeTargets.Class)]
             public class CrudEntityAttribute : Attribute
             {
-                public string Table { get; set; } = string.Empty;
+                public string Resource { get; set; } = string.Empty;
                 public string? Workflow { get; set; }
                 public string[]? WorkflowProtected { get; set; }
                 public bool EnableBulkUpdate { get; set; }

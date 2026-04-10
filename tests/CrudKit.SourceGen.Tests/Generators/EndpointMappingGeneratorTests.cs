@@ -12,7 +12,7 @@ public class EndpointMappingGeneratorTests
 
         namespace App.Entities
         {
-            [CrudEntity(Table = "Products")]
+            [CrudEntity(Resource = "Products")]
             public class Product : IAuditableEntity
             {
                 public Guid Id { get; set; }
@@ -21,7 +21,7 @@ public class EndpointMappingGeneratorTests
                 public string Name { get; set; } = string.Empty;
             }
 
-            [CrudEntity(Table = "Catalogs", ReadOnly = true)]
+            [CrudEntity(Resource = "Catalogs", ReadOnly = true)]
             public class Catalog : IAuditableEntity
             {
                 public Guid Id { get; set; }

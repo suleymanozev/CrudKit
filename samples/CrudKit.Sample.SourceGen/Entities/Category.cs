@@ -4,7 +4,7 @@ using CrudKit.Core.Entities;
 
 namespace CrudKit.Sample.SourceGen.Entities;
 
-[CrudEntity(Table = "categories")]
+[CrudEntity(Resource = "categories")]
 [Audited]
 [RequireAuth]
 public class Category : FullAuditableEntity

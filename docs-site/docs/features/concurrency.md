@@ -10,7 +10,7 @@ Implement `IConcurrent` to enable automatic concurrency conflict detection.
 ## Entity Setup
 
 ```csharp
-[CrudEntity(Table = "products")]
+[CrudEntity(Resource = "products")]
 public class Product : AuditableEntity, IConcurrent
 {
     public string Name { get; set; } = string.Empty;

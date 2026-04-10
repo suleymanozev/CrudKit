@@ -7,7 +7,7 @@ title: Endpoints Table
 
 ## Standard CRUD Endpoints
 
-For an entity with `[CrudEntity(Table = "products")]`:
+For an entity with `[CrudEntity(Resource = "products")]`:
 
 | Method | Route | Description | Condition |
 |--------|-------|-------------|-----------|

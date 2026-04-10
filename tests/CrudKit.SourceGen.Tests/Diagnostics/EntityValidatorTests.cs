@@ -10,8 +10,8 @@ public class EntityValidatorTests
         bool implementsIEntity = true,
         bool implementsISoftDeletable = false,
         bool implementsIMultiTenant = false,
-        string table = "test_table") =>
-        new EntityMetadata("Test", "TestNs", "TestNs.Test", table,
+        string resource = "test-tables") =>
+        new EntityMetadata("Test", "TestNs", "TestNs.Test", resource,
             false, true, true, true, false, false, null,
             implementsIEntity, implementsISoftDeletable, implementsIMultiTenant, []);
 
@@ -24,9 +24,9 @@ public class EntityValidatorTests
     }
 
     [Fact]
-    public void CRUD010_EmptyTableName()
+    public void CRUD010_EmptyResourceName()
     {
-        var entity = MakeEntity(table: "");
+        var entity = MakeEntity(resource: "");
         var diags = EntityValidator.Validate(entity, null);
         Assert.Contains(diags, d => d.Id == "CRUD010");
     }

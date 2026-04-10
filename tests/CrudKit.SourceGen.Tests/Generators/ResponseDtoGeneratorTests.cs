@@ -12,7 +12,7 @@ public class ResponseDtoGeneratorTests
 
         namespace Store.Entities
         {
-            [CrudEntity(Table = "Categories")]
+            [CrudEntity(Resource = "Categories")]
             public class Category : IAuditableEntity, ISoftDeletable
             {
                 public Guid Id { get; set; }
@@ -79,7 +79,7 @@ public class ResponseDtoGeneratorTests
 
             namespace Store.Entities
             {
-                [CrudEntity(Table = "ReadViews", ReadOnly = true)]
+                [CrudEntity(Resource = "ReadViews", ReadOnly = true)]
                 public class ReadView : IAuditableEntity
                 {
                     public Guid Id { get; set; }
@@ -108,7 +108,7 @@ public class ResponseDtoGeneratorTests
 
             namespace Store.Entities
             {
-                [CrudEntity(Table = "Tenanted")]
+                [CrudEntity(Resource = "Tenanted")]
                 public class Tenanted : IAuditableEntity, IMultiTenant
                 {
                     public Guid Id { get; set; }

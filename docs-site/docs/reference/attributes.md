@@ -13,7 +13,7 @@ Required on every entity managed by CrudKit. Controls route generation, endpoint
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `Table` | `string` | — | Database table name and route segment (e.g. `"products"` → `/api/products`) |
+| `Resource` | `string` | entity name kebab-cased + "s" | API resource name used as the URL route segment (e.g. `"products"` → `/api/products`) |
 | `ReadOnly` | `bool` | `false` | Generate List + Get only; no write endpoints |
 | `EnableCreate` | `bool` | `true` | Generate POST endpoint |
 | `EnableUpdate` | `bool` | `true` | Generate PUT endpoint |
@@ -25,7 +25,7 @@ Required on every entity managed by CrudKit. Controls route generation, endpoint
 
 ```csharp
 [CrudEntity(
-    Table = "orders",
+    Resource = "orders",
     EnableBulkDelete = true,
     BulkLimit = 500)]
 public class Order : FullAuditableEntity { }
@@ -51,7 +51,7 @@ public class Order : FullAuditableEntity { }
 All endpoints on this entity require an authenticated user. Unauthenticated requests return `401`.
 
 ```csharp
-[CrudEntity(Table = "orders")]
+[CrudEntity(Resource = "orders")]
 [RequireAuth]
 public class Order : FullAuditableEntity { }
 ```
@@ -61,18 +61,18 @@ public class Order : FullAuditableEntity { }
 All endpoints require membership in the specified role.
 
 ```csharp
-[CrudEntity(Table = "admin_settings")]
+[CrudEntity(Resource = "admin_settings")]
 [RequireRole("admin")]
 public class AdminSetting : AuditableEntity { }
 ```
 
 ### [RequirePermissions]
 
-Auto-derives convention-based permission names from the table name. For `Table = "products"`, requires:
+Auto-derives convention-based permission names from the resource name. For `Resource = "products"`, requires:
 `products:read`, `products:create`, `products:update`, `products:delete`.
 
 ```csharp
-[CrudEntity(Table = "products")]
+[CrudEntity(Resource = "products")]
 [RequirePermissions]
 public class Product : AuditableEntity { }
 ```
@@ -82,7 +82,7 @@ public class Product : AuditableEntity { }
 Applies a role restriction to a specific operation only. Operations: `"Read"`, `"Create"`, `"Update"`, `"Delete"`.
 
 ```csharp
-[CrudEntity(Table = "invoices")]
+[CrudEntity(Resource = "invoices")]
 [RequireAuth]
 [AuthorizeOperation("Create", "manager")]
 [AuthorizeOperation("Delete", "admin")]
@@ -94,7 +94,7 @@ public class Invoice : FullAuditableEntity { }
 When the parent is soft-deleted, all matching child records are soft-deleted in the same operation using a raw SQL `UPDATE` (no N+1 queries). Restore also cascades.
 
 ```csharp
-[CrudEntity(Table = "orders")]
+[CrudEntity(Resource = "orders")]
 [CascadeSoftDelete(typeof(OrderLine), nameof(OrderLine.OrderId))]
 public class Order : FullAuditableEntity { }
 ```
@@ -122,7 +122,7 @@ public class OrderLine : AuditableEntity
 public class OrderItem : AuditableEntity { }
 ```
 
-Auto-generated endpoints (assuming `[CrudEntity(Table = "orders")]` on parent):
+Auto-generated endpoints (assuming `[CrudEntity(Resource = "orders")]` on parent):
 
 | Method | Route |
 |--------|-------|
@@ -168,7 +168,7 @@ Use this when the default generated DTO doesn't match your API contract — you 
 | `[DefaultInclude]` | Class | Auto-includes a navigation property in queries. Supports `IncludeScope.All` or `IncludeScope.DetailOnly`. |
 
 ```csharp
-[CrudEntity(Table = "users")]
+[CrudEntity(Resource = "users")]
 [Audited]
 public class User : FullAuditableEntity
 {

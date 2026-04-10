@@ -60,7 +60,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 var app = builder.Build();
 app.UseCrudKit();
 
-// Route auto-derived from [CrudEntity(Table = "products")]
+// Route auto-derived from [CrudEntity(Resource = "products")]
 app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
 
 // Or with SourceGen — maps all [CrudEntity] types in one call
@@ -72,7 +72,7 @@ app.Run();
 **3. Define an entity**
 
 ```csharp
-[CrudEntity(Table = "products")]
+[CrudEntity(Resource = "products")]
 [Audited]
 [RequirePermissions]  // auto-convention: products:read, products:create, ...
 public class Product : FullAuditableEntity

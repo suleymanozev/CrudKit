@@ -10,7 +10,7 @@ CrudKit supports CSV export and import with per-entity and per-property control.
 ## Entity Setup
 
 ```csharp
-[CrudEntity(Table = "products")]
+[CrudEntity(Resource = "products")]
 [Exportable]
 [Importable]
 public class Product : AuditableEntity

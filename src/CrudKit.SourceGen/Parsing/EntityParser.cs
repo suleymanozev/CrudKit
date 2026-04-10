@@ -40,7 +40,7 @@ internal static class EntityParser
         string name      = classSymbol.Name;
         string ns        = classSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
         string fullName  = string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
-        string table     = GetString(attrArgs, "Table", name + "s");
+        string resource  = GetString(attrArgs, "Resource", ToKebabCase(name) + "s");
         bool readOnly    = GetBool(attrArgs, "ReadOnly");
         bool enableCreate  = GetBool(attrArgs, "EnableCreate", defaultValue: true);
         bool enableUpdate  = GetBool(attrArgs, "EnableUpdate", defaultValue: true);
@@ -60,7 +60,7 @@ internal static class EntityParser
             name: name,
             @namespace: ns,
             fullName: fullName,
-            table: table,
+            resource: resource,
             readOnly: readOnly,
             isCreateEnabled: !readOnly && enableCreate,
             isUpdateEnabled: !readOnly && enableUpdate,
@@ -205,4 +205,24 @@ internal static class EntityParser
 
     private static string? GetNullableString(Dictionary<string, object?> args, string key)
         => args.TryGetValue(key, out var v) ? v as string : null;
+
+    // ---------------------------------------------------------------------------
+    // String helpers
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Converts a PascalCase name to kebab-case.
+    /// Example: OrderLine → order-line, ProductAttribute → product-attribute.
+    /// </summary>
+    private static string ToKebabCase(string name)
+    {
+        var result = new System.Text.StringBuilder();
+        for (var i = 0; i < name.Length; i++)
+        {
+            if (char.IsUpper(name[i]) && i > 0)
+                result.Append('-');
+            result.Append(char.ToLowerInvariant(name[i]));
+        }
+        return result.ToString();
+    }
 }

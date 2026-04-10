@@ -4,7 +4,7 @@ using CrudKit.Core.Entities;
 
 namespace CrudKit.Sample.Api.Entities;
 
-[CrudEntity(Table = "products")]
+[CrudEntity(Resource = "products")]
 [Audited]
 [Exportable]
 [Importable]

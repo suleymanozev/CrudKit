@@ -7,7 +7,7 @@ namespace CrudKit.Sample.Api.Entities;
 
 public enum OrderStatus { Pending, Processing, Completed, Cancelled }
 
-[CrudEntity(Table = "orders")]
+[CrudEntity(Resource = "orders")]
 [Audited]
 [RequireAuth]
 [AuthorizeOperation("Delete", "admin")]

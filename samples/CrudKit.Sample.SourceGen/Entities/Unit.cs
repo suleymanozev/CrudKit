@@ -3,7 +3,7 @@ using CrudKit.Core.Entities;
 
 namespace CrudKit.Sample.SourceGen.Entities;
 
-[CrudEntity(Table = "units", ReadOnly = true)]
+[CrudEntity(Resource = "units", ReadOnly = true)]
 public class Unit : AuditableEntity
 {
     [Unique]

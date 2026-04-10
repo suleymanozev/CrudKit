@@ -117,25 +117,25 @@ public sealed class CrudKitSourceGenerator : IIncrementalGenerator
             var (((item, createSkipSet), updateSkipSet), naming) = data;
             var (symbol, location) = item;
 
-            // CRUD010 — check for explicit empty Table name before parsing
+            // CRUD010 — check for explicit empty Resource name before parsing
             var attr = symbol.GetAttributes()
                 .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == CrudEntityAttributeFqn);
 
             if (attr != null)
             {
-                var tableArg = attr.NamedArguments
-                    .FirstOrDefault(kv => kv.Key == "Table");
+                var resourceArg = attr.NamedArguments
+                    .FirstOrDefault(kv => kv.Key == "Resource");
 
                 // TypedConstant default is empty — only report if explicitly set to empty string
-                if (tableArg.Key == "Table"
-                    && tableArg.Value.Value is string tableVal
-                    && tableVal.Length == 0)
+                if (resourceArg.Key == "Resource"
+                    && resourceArg.Value.Value is string resourceVal
+                    && resourceVal.Length == 0)
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.EmptyTableName,
                         location,
                         symbol.Name));
-                    return; // Cannot generate safely without a table name
+                    return; // Cannot generate safely without a resource name
                 }
             }
 

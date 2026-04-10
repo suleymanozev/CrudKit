@@ -183,11 +183,11 @@ public class EntityAuthAttributeTests
             currentUser: new FakeCurrentUser(),
             configureEndpoints: web =>
             {
-                // No explicit route — should derive "auto-routed" from [CrudEntity(Table = "auto_routed")]
+                // No explicit route — should derive "auto-routed" from [CrudEntity(Resource = "auto-routed")]
                 web.MapCrudEndpoints<AutoRoutedEntity, CreateAutoRoutedDto, UpdateAutoRoutedDto>();
             });
 
-        // Underscores in table name are converted to dashes
+        // Resource name is used directly as the route segment
         var response = await app.Client.GetAsync("/api/auto-routed");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -199,7 +199,7 @@ public class EntityAuthAttributeTests
             currentUser: new FakeCurrentUser(),
             configureEndpoints: web =>
             {
-                // Read-only, no route — should derive "auto-routed" from [CrudEntity(Table = "auto_routed")]
+                // Read-only, no route — should derive "auto-routed" from [CrudEntity(Resource = "auto-routed")]
                 web.MapCrudEndpoints<AutoRoutedEntity>();
             });
 

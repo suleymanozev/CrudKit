@@ -74,7 +74,7 @@ Required on every entity managed by CrudKit. Controls route generation, endpoint
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `Table` | `string` | — | Database table name and route segment (e.g. `"products"` → `/api/products`) |
+| `Resource` | `string` | entity name kebab-cased + "s" | API resource name used as the URL route segment (e.g. `"products"` → `/api/products`) |
 | `ReadOnly` | `bool` | `false` | Generate List + Get only; no write endpoints |
 | `EnableCreate` | `bool` | `true` | Generate POST endpoint |
 | `EnableUpdate` | `bool` | `true` | Generate PUT endpoint |
@@ -86,7 +86,7 @@ Required on every entity managed by CrudKit. Controls route generation, endpoint
 
 ```csharp
 [CrudEntity(
-    Table = "orders",
+    Resource = "orders",
     EnableBulkDelete = true,
     BulkLimit = 500)]
 public class Order : FullAuditableEntity { }
@@ -112,7 +112,7 @@ public class Order : FullAuditableEntity { }
 All endpoints on this entity require an authenticated user. Unauthenticated requests return `401`.
 
 ```csharp
-[CrudEntity(Table = "orders")]
+[CrudEntity(Resource = "orders")]
 [RequireAuth]
 public class Order : FullAuditableEntity { }
 ```
@@ -122,18 +122,18 @@ public class Order : FullAuditableEntity { }
 All endpoints require membership in the specified role.
 
 ```csharp
-[CrudEntity(Table = "admin_settings")]
+[CrudEntity(Resource = "admin-settings")]
 [RequireRole("admin")]
 public class AdminSetting : AuditableEntity { }
 ```
 
 #### `[RequirePermissions]`
 
-Auto-derives convention-based permission names from the table name. For `Table = "products"`, requires:
+Auto-derives convention-based permission names from the resource name. For `Resource = "products"`, requires:
 `products:read`, `products:create`, `products:update`, `products:delete`.
 
 ```csharp
-[CrudEntity(Table = "products")]
+[CrudEntity(Resource = "products")]
 [RequirePermissions]
 public class Product : AuditableEntity { }
 ```
@@ -143,7 +143,7 @@ public class Product : AuditableEntity { }
 Applies a role restriction to a specific operation only. Operations: `"Read"`, `"Create"`, `"Update"`, `"Delete"`.
 
 ```csharp
-[CrudEntity(Table = "invoices")]
+[CrudEntity(Resource = "invoices")]
 [RequireAuth]
 [AuthorizeOperation("Create", "manager")]
 [AuthorizeOperation("Delete", "admin")]
@@ -155,7 +155,7 @@ public class Invoice : FullAuditableEntity { }
 When the parent is soft-deleted, all matching child records are soft-deleted in the same operation using a raw SQL `UPDATE` (no N+1 queries). Restore also cascades — restoring the parent restores all its children.
 
 ```csharp
-[CrudEntity(Table = "orders")]
+[CrudEntity(Resource = "orders")]
 [CascadeSoftDelete(typeof(OrderLine), nameof(OrderLine.OrderId))]
 public class Order : FullAuditableEntity { }
 ```
@@ -220,7 +220,7 @@ public record UpdateOrder
 | `[DefaultInclude]` | Class | Auto-includes a navigation property in queries. Supports `IncludeScope.All` or `IncludeScope.DetailOnly`. |
 
 ```csharp
-[CrudEntity(Table = "users")]
+[CrudEntity(Resource = "users")]
 [Audited]
 public class User : FullAuditableEntity
 {
@@ -477,7 +477,7 @@ public interface IModule
 ### Overloads
 
 ```csharp
-// Full CRUD — route derived from [CrudEntity(Table = ...)]
+// Full CRUD — route derived from [CrudEntity(Resource = ...)]
 app.MapCrudEndpoints<TEntity, TCreate, TUpdate>();
 
 // ReadOnly — List + Get only
@@ -490,7 +490,7 @@ app.MapCrudEndpoints<TEntity>("units");
 
 ### Generated Endpoints
 
-For an entity with `[CrudEntity(Table = "products")]`:
+For an entity with `[CrudEntity(Resource = "products")]`:
 
 | Method | Route | Description |
 |--------|-------|-------------|
@@ -692,7 +692,7 @@ opts.UseMultiTenancy()
 Use `FullAuditableEntity` (or implement `ISoftDeletable` directly) for soft-delete behavior. `DELETE` sets `DeletedAt` instead of removing the row. Soft-deleted records are excluded from all queries automatically via a global query filter.
 
 ```csharp
-[CrudEntity(Table = "categories")]
+[CrudEntity(Resource = "categories")]
 public class Category : FullAuditableEntity
 {
     public string Name { get; set; } = string.Empty;
@@ -704,7 +704,7 @@ The restore endpoint is mapped automatically: `POST /api/categories/{id}/restore
 ### Cascade Soft Delete
 
 ```csharp
-[CrudEntity(Table = "orders")]
+[CrudEntity(Resource = "orders")]
 [CascadeSoftDelete(typeof(OrderLine), nameof(OrderLine.OrderId))]
 public class Order : FullAuditableEntity { }
 ```
@@ -745,7 +745,7 @@ opts.UseAuditTrail();
 **2. Opt entities in:**
 
 ```csharp
-[CrudEntity(Table = "orders")]
+[CrudEntity(Resource = "orders")]
 [Audited]
 public class Order : FullAuditableEntity { }
 ```
@@ -1012,7 +1012,7 @@ Loads navigation properties. Configure defaults with `[DefaultInclude]` on the e
 ### Entity Setup
 
 ```csharp
-[CrudEntity(Table = "products")]
+[CrudEntity(Resource = "products")]
 [Exportable]
 [Importable]
 public class Product : AuditableEntity
@@ -1079,7 +1079,7 @@ opts.MaxImportFileSize = 10 * 1024 * 1024;
 Enable bulk endpoints per entity:
 
 ```csharp
-[CrudEntity(Table = "products", EnableBulkDelete = true, EnableBulkUpdate = true, BulkLimit = 500)]
+[CrudEntity(Resource = "products", EnableBulkDelete = true, EnableBulkUpdate = true, BulkLimit = 500)]
 public class Product : AuditableEntity { }
 ```
 
@@ -1102,7 +1102,7 @@ Implement `IStateMachine<TState>` to add state transition endpoints. CrudKit map
 ```csharp
 public enum OrderStatus { Pending, Processing, Completed, Cancelled }
 
-[CrudEntity(Table = "orders")]
+[CrudEntity(Resource = "orders")]
 public class Order : FullAuditableEntity, IStateMachine<OrderStatus>
 {
     public string CustomerName { get; set; } = string.Empty;
@@ -1132,7 +1132,7 @@ Invalid transitions return `400`. Use `[Protected]` on the `Status` field to pre
 Implement `IConcurrent` to enable automatic concurrency conflict detection.
 
 ```csharp
-[CrudEntity(Table = "products")]
+[CrudEntity(Resource = "products")]
 public class Product : AuditableEntity, IConcurrent
 {
     public string Name { get; set; } = string.Empty;

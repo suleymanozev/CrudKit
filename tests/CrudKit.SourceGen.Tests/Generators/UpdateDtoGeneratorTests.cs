@@ -13,7 +13,7 @@ public class UpdateDtoGeneratorTests
 
         namespace Store.Entities
         {
-            [CrudEntity(Table = "Orders")]
+            [CrudEntity(Resource = "Orders")]
             public class Order : IAuditableEntity
             {
                 public Guid Id { get; set; }
@@ -95,7 +95,7 @@ public class UpdateDtoGeneratorTests
 
             namespace Store.Entities
             {
-                [CrudEntity(Table = "Immutable", EnableUpdate = false)]
+                [CrudEntity(Resource = "Immutable", EnableUpdate = false)]
                 public class ImmutableRecord : IAuditableEntity
                 {
                     public Guid Id { get; set; }
@@ -130,7 +130,7 @@ public class UpdateDtoGeneratorTests
 
             namespace TestApp
             {
-                [CrudEntity(Table = "Orders")]
+                [CrudEntity(Resource = "Orders")]
                 public class Order : IEntity, IAuditableEntity
                 {
                     public Guid Id { get; set; }
@@ -167,7 +167,7 @@ public class UpdateDtoGeneratorTests
 
             namespace TestApp
             {
-                [CrudEntity(Table = "Products")]
+                [CrudEntity(Resource = "Products")]
                 public class Product : IEntity, IAuditableEntity
                 {
                     public Guid Id { get; set; }

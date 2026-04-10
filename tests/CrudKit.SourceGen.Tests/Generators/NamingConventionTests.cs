@@ -15,7 +15,7 @@ public class NamingConventionTests
 
         namespace Store.Entities
         {
-            [CrudEntity(Table = "Products")]
+            [CrudEntity(Resource = "Products")]
             public class Product : IAuditableEntity
             {
                 public Guid Id { get; set; }

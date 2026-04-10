@@ -10,7 +10,7 @@ Enable bulk endpoints per entity via `[CrudEntity]` attributes.
 ## Entity Setup
 
 ```csharp
-[CrudEntity(Table = "products", EnableBulkDelete = true, EnableBulkUpdate = true, BulkLimit = 500)]
+[CrudEntity(Resource = "products", EnableBulkDelete = true, EnableBulkUpdate = true, BulkLimit = 500)]
 public class Product : AuditableEntity { }
 ```
 
@@ -33,7 +33,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 });
 
 // Entity-level override
-[CrudEntity(Table = "products", EnableBulkDelete = true, BulkLimit = 500)]
+[CrudEntity(Resource = "products", EnableBulkDelete = true, BulkLimit = 500)]
 public class Product : AuditableEntity { }
 ```
 

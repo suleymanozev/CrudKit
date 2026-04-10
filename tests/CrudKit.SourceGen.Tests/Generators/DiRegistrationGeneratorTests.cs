@@ -12,7 +12,7 @@ public class DiRegistrationGeneratorTests
 
         namespace App.Entities
         {
-            [CrudEntity(Table = "Products")]
+            [CrudEntity(Resource = "Products")]
             public class Product : IAuditableEntity
             {
                 public Guid Id { get; set; }
@@ -21,7 +21,7 @@ public class DiRegistrationGeneratorTests
                 public string Name { get; set; } = string.Empty;
             }
 
-            [CrudEntity(Table = "Categories")]
+            [CrudEntity(Resource = "Categories")]
             public class Category : IAuditableEntity
             {
                 public Guid Id { get; set; }
@@ -30,7 +30,7 @@ public class DiRegistrationGeneratorTests
                 public string Label { get; set; } = string.Empty;
             }
 
-            [CrudEntity(Table = "Brands")]
+            [CrudEntity(Resource = "Brands")]
             public class Brand : IAuditableEntity
             {
                 public Guid Id { get; set; }
@@ -85,7 +85,7 @@ public class DiRegistrationGeneratorTests
 
             namespace App.Entities
             {
-                [CrudEntity(Table = "Reports", ReadOnly = true)]
+                [CrudEntity(Resource = "Reports", ReadOnly = true)]
                 public class Report : IAuditableEntity
                 {
                     public Guid Id { get; set; }

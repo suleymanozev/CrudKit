@@ -31,13 +31,13 @@ internal static class EntityValidator
                 metadata.Name));
         }
 
-        // CRUD010 — explicit empty table name (default is auto-derived, so empty = user set it wrong)
-        // We detect this by checking: attribute has Table= but it's empty.
-        // EntityParser defaults to "EntityName + s" when Table is empty/omitted, so we need to
+        // CRUD010 — explicit empty resource name (default is auto-derived, so empty = user set it wrong)
+        // We detect this by checking: attribute has Resource= but it's empty.
+        // EntityParser defaults to kebab-case entity name + "s" when Resource is empty/omitted, so we need to
         // re-read the raw attribute here. This check is done in the generator before Parse().
-        // See EntityParser.Parse() — if you get an EntityMetadata back, Table is never empty.
+        // See EntityParser.Parse() — if you get an EntityMetadata back, Resource is never empty.
         // CRUD010 is raised in CrudKitSourceGenerator.cs before calling Parse() (see Task 10).
-        if (string.IsNullOrEmpty(metadata.Table))
+        if (string.IsNullOrEmpty(metadata.Resource))
         {
             diagnostics.Add(Diagnostic.Create(
                 DiagnosticDescriptors.EmptyTableName,

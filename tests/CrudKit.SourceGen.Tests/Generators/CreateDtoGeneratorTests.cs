@@ -13,7 +13,7 @@ public class CreateDtoGeneratorTests
 
         namespace Store.Entities
         {
-            [CrudEntity(Table = "Products")]
+            [CrudEntity(Resource = "Products")]
             public class Product : IAuditableEntity
             {
                 public Guid Id { get; set; }
@@ -78,7 +78,7 @@ public class CreateDtoGeneratorTests
 
             namespace Store.Entities
             {
-                [CrudEntity(Table = "Logs", EnableCreate = false)]
+                [CrudEntity(Resource = "Logs", EnableCreate = false)]
                 public class Log : IAuditableEntity
                 {
                     public Guid Id { get; set; }
@@ -104,7 +104,7 @@ public class CreateDtoGeneratorTests
 
             namespace Store.Entities
             {
-                [CrudEntity(Table = "Views", ReadOnly = true)]
+                [CrudEntity(Resource = "Views", ReadOnly = true)]
                 public class View : IAuditableEntity
                 {
                     public Guid Id { get; set; }
@@ -140,7 +140,7 @@ public class CreateDtoGeneratorTests
 
             namespace TestApp
             {
-                [CrudEntity(Table = "Orders")]
+                [CrudEntity(Resource = "Orders")]
                 public class Order : IEntity, IAuditableEntity
                 {
                     public Guid Id { get; set; }
@@ -176,7 +176,7 @@ public class CreateDtoGeneratorTests
 
             namespace TestApp
             {
-                [CrudEntity(Table = "Invoices")]
+                [CrudEntity(Resource = "Invoices")]
                 public class Invoice : IEntity, IAuditableEntity
                 {
                     public Guid Id { get; set; }

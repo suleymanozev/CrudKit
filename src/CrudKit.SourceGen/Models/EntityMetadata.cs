@@ -13,8 +13,8 @@ internal sealed class EntityMetadata
     /// <summary>Fully-qualified class name (Namespace.Name).</summary>
     public string FullName { get; }
 
-    /// <summary>Database table name from CrudEntityAttribute.Table.</summary>
-    public string Table { get; }
+    /// <summary>API resource name (URL route segment) from CrudEntityAttribute.Resource.</summary>
+    public string Resource { get; }
 
     // CrudEntityAttribute flags
     public bool ReadOnly { get; }
@@ -39,7 +39,7 @@ internal sealed class EntityMetadata
         string name,
         string @namespace,
         string fullName,
-        string table,
+        string resource,
         bool readOnly,
         bool isCreateEnabled,
         bool isUpdateEnabled,
@@ -55,7 +55,7 @@ internal sealed class EntityMetadata
         Name = name;
         Namespace = @namespace;
         FullName = fullName;
-        Table = table;
+        Resource = resource;
         ReadOnly = readOnly;
         IsCreateEnabled = isCreateEnabled;
         IsUpdateEnabled = isUpdateEnabled;

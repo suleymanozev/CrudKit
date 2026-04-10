@@ -452,7 +452,7 @@ public static class CrudEndpointMapper
 
     /// <summary>
     /// Maps read-only endpoints without an explicit route.
-    /// Route is derived from [CrudEntity(Table=...)] or falls back to entity name + "s".
+    /// Route is derived from [CrudEntity(Resource=...)] or falls back to entity name kebab-cased + "s".
     /// </summary>
     public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity>(
         this WebApplication app)
@@ -931,7 +931,7 @@ public static class CrudEndpointMapper
 
     /// <summary>
     /// Maps full CRUD endpoints without an explicit route.
-    /// Route is derived from [CrudEntity(Table=...)] or falls back to entity name + "s".
+    /// Route is derived from [CrudEntity(Resource=...)] or falls back to entity name kebab-cased + "s".
     /// </summary>
     public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity, TCreate, TUpdate>(
         this WebApplication app)
@@ -944,7 +944,6 @@ public static class CrudEndpointMapper
     }
 
     /// <summary>
-    /// Resolves the route from [CrudEntity(Table=...)] or falls back to entity name + "s".
     /// Throws at startup if the entity type is not decorated with [CrudEntity].
     /// This is a design-time guard — CrudKit features require explicit opt-in.
     /// </summary>
@@ -957,17 +956,16 @@ public static class CrudEndpointMapper
     }
 
     /// <summary>
-    /// Resolves the route from [CrudEntity(Table=...)] or falls back to entity name + "s".
-    /// Converts underscores to dashes for URL convention.
+    /// Resolves the route from [CrudEntity(Resource=...)] or falls back to entity name in kebab-case + "s".
+    /// Example: ProductAttribute → product-attributes.
     /// </summary>
     private static string ResolveRoute<TEntity>()
     {
         var attr = typeof(TEntity).GetCustomAttribute<CrudEntityAttribute>();
-        var table = attr?.Table;
-        if (string.IsNullOrEmpty(table))
-            table = typeof(TEntity).Name.ToLowerInvariant() + "s";
-        // Convert underscores to dashes for URL convention
-        return table.Replace('_', '-');
+        if (!string.IsNullOrEmpty(attr?.Resource))
+            return attr.Resource;
+        // Default: entity name in kebab-case + "s" (e.g. ProductAttribute → product-attributes)
+        return ToKebabCase(typeof(TEntity).Name) + "s";
     }
 
     /// <summary>

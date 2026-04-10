@@ -58,12 +58,12 @@ internal static class EndpointMappingGenerator
             // Determine which mapper overload to call
             if (entity.ReadOnly || (!entity.IsCreateEnabled && !entity.IsUpdateEnabled))
             {
-                // Read-only: 1 type param, no route (derived from [CrudEntity(Table=...)])
+                // Read-only: 1 type param, no route (derived from [CrudEntity(Resource=...)])
                 sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}>();");
             }
             else
             {
-                // Full CRUD: 3 type params, no route (derived from [CrudEntity(Table=...)])
+                // Full CRUD: 3 type params, no route (derived from [CrudEntity(Resource=...)])
                 sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}, {createDtoFqn}, {updateDtoFqn}>();");
             }
         }

@@ -174,7 +174,7 @@ public class UpdateOptOutDto { public string? Name { get; set; } }
 /// <summary>
 /// Entity requiring authentication for all endpoints via [RequireAuth].
 /// </summary>
-[CrudEntity(Table = "secured_items")]
+[CrudEntity(Resource = "secured_items")]
 [RequireAuth]
 public class SecuredEntity : IAuditableEntity
 {
@@ -190,7 +190,7 @@ public class UpdateSecuredDto { public string? Name { get; set; } }
 /// <summary>
 /// Entity requiring the "admin" role for all endpoints via [RequireRole].
 /// </summary>
-[CrudEntity(Table = "admin_items")]
+[CrudEntity(Resource = "admin_items")]
 [RequireRole("admin")]
 public class AdminEntity : IAuditableEntity
 {
@@ -206,7 +206,7 @@ public class UpdateAdminDto { public string? Name { get; set; } }
 /// <summary>
 /// Entity requiring convention-based permissions via [RequirePermissions].
 /// </summary>
-[CrudEntity(Table = "perm_items")]
+[CrudEntity(Resource = "perm_items")]
 [RequirePermissions]
 public class PermissionEntity : IAuditableEntity
 {
@@ -222,7 +222,7 @@ public class UpdatePermissionDto { public string? Name { get; set; } }
 /// <summary>
 /// Entity with per-operation auth via [AuthorizeOperation].
 /// </summary>
-[CrudEntity(Table = "op_items")]
+[CrudEntity(Resource = "op_items")]
 [AuthorizeOperation("Read", "user")]
 [AuthorizeOperation("Delete", "admin")]
 public class OpAuthEntity : IAuditableEntity
@@ -239,7 +239,7 @@ public class UpdateOpAuthDto { public string? Name { get; set; } }
 /// <summary>
 /// Entity used for route-less mapping tests.
 /// </summary>
-[CrudEntity(Table = "auto_routed")]
+[CrudEntity(Resource = "auto-routed")]
 public class AutoRoutedEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
