@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using CrudKit.Api.Endpoints;
 using CrudKit.Api.Tests.Helpers;
+using CrudKit.Core.Attributes;
 using CrudKit.Core.Entities;
 using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
@@ -12,6 +13,7 @@ using AppContext = CrudKit.Core.Context.AppContext;
 namespace CrudKit.Api.Tests.Events;
 
 // Test entities for domain events
+[CrudEntity]
 public class AggregateOrderEntity : AuditableAggregateRoot
 {
     public string Customer { get; set; } = string.Empty;

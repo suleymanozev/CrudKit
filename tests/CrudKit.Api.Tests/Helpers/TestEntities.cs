@@ -7,6 +7,7 @@ using CrudKit.EntityFrameworkCore.Concurrency;
 namespace CrudKit.Api.Tests.Helpers;
 
 // ---- Basic entity ----
+[CrudEntity]
 [Exportable]
 [Importable]
 public class ProductEntity : IAuditableEntity
@@ -35,6 +36,7 @@ public class UpdateProductDto
 public record ProductResponse(Guid Id, string Name, decimal Price, string DisplayName);
 
 // ---- Soft-deletable ----
+[CrudEntity]
 public class SoftProductEntity : IAuditableEntity, ISoftDeletable
 {
     public Guid Id { get; set; }
@@ -52,6 +54,7 @@ public class CreateSoftProductDto
 // ---- State machine ----
 public enum OrderStatus { Pending, Processing, Completed, Cancelled }
 
+[CrudEntity]
 public class OrderEntity : IAuditableEntity, IStateMachine<OrderStatus>
 {
     public Guid Id { get; set; }
@@ -80,6 +83,7 @@ public class UpdateOrderDto
 }
 
 // ---- Concurrent ----
+[CrudEntity]
 public class ConcurrentEntity : IAuditableEntity, IConcurrent
 {
     public Guid Id { get; set; }
@@ -101,6 +105,7 @@ public class UpdateConcurrentDto
 }
 
 // ---- Master-detail ----
+[CrudEntity]
 public class InvoiceEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
@@ -109,6 +114,7 @@ public class InvoiceEntity : IAuditableEntity
     public DateTime UpdatedAt { get; set; }
 }
 
+[CrudEntity]
 public class InvoiceLineEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
@@ -133,6 +139,7 @@ public class CreateInvoiceLineDto
 /// <summary>
 /// Entity with no export/import attributes — relies entirely on global flags.
 /// </summary>
+[CrudEntity]
 public class NoFlagEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
@@ -148,6 +155,7 @@ public class UpdateNoFlagDto { public string? Name { get; set; } }
 /// Entity explicitly opting out of export and import via class-level [NotExportable] / [NotImportable].
 /// Even with global UseExport()/UseImport(), these endpoints must not exist.
 /// </summary>
+[CrudEntity]
 [NotExportable]
 [NotImportable]
 public class OptOutEntity : IAuditableEntity
@@ -246,6 +254,7 @@ public class UpdateAutoRoutedDto { public string? Name { get; set; } }
 // ---- [ChildOf] auto-discovery test entities ----
 
 /// <summary>Master entity used to test [ChildOf] auto-discovery.</summary>
+[CrudEntity]
 public class ProjectEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
@@ -263,6 +272,7 @@ public class UpdateProjectDto { public string? Title { get; set; } }
 /// FK: "ProjectEntityId" would be wrong; we use ForeignKey = "ProjectId" explicitly
 /// to avoid ambiguity with the entity class name suffix.
 /// </summary>
+[CrudEntity]
 [ChildOf(typeof(ProjectEntity), ForeignKey = "ProjectId")]
 public class ProjectTaskEntity : IAuditableEntity
 {
@@ -277,6 +287,7 @@ public class ProjectTaskEntity : IAuditableEntity
 /// Child entity with a custom route and custom FK via [ChildOf].
 /// Route: "milestones", FK: "ParentProjectId"
 /// </summary>
+[CrudEntity]
 [ChildOf(typeof(ProjectEntity), Route = "milestones", ForeignKey = "ParentProjectId")]
 public class ProjectMilestoneEntity : IAuditableEntity
 {

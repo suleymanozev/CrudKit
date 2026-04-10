@@ -10,6 +10,7 @@ using Xunit;
 
 namespace CrudKit.Api.Tests.Sequencing;
 
+[CrudEntity]
 public class SeqInvoiceEntity : IAuditableEntity
 {
     public Guid Id { get; set; }

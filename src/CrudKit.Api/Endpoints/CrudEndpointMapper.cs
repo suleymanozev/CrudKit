@@ -369,6 +369,8 @@ public static class CrudEndpointMapper
         string route)
         where TEntity : class, IEntity
     {
+        EnsureCrudEntity<TEntity>();
+
         var tag = typeof(TEntity).Name.Replace("Entity", "");
         var group = app.MapGroup($"/api/{route}").WithTags(tag);
         group.AddEndpointFilter<AppErrorFilter>();
@@ -471,6 +473,8 @@ public static class CrudEndpointMapper
         where TCreate : class
         where TUpdate : class
     {
+        EnsureCrudEntity<TEntity>();
+
         var tag = typeof(TEntity).Name.Replace("Entity", "");
         var group = app.MapGroup($"/api/{route}").WithTags(tag);
         group.AddEndpointFilter<AppErrorFilter>();
@@ -937,6 +941,19 @@ public static class CrudEndpointMapper
     {
         var route = ResolveRoute<TEntity>();
         return app.MapCrudEndpoints<TEntity, TCreate, TUpdate>(route);
+    }
+
+    /// <summary>
+    /// Resolves the route from [CrudEntity(Table=...)] or falls back to entity name + "s".
+    /// Throws at startup if the entity type is not decorated with [CrudEntity].
+    /// This is a design-time guard — CrudKit features require explicit opt-in.
+    /// </summary>
+    private static void EnsureCrudEntity<TEntity>()
+    {
+        if (typeof(TEntity).GetCustomAttribute<CrudEntityAttribute>() is null)
+            throw new InvalidOperationException(
+                $"Entity '{typeof(TEntity).Name}' must be decorated with [CrudEntity] to use MapCrudEndpoints. " +
+                $"Add [CrudEntity] to the class definition.");
     }
 
     /// <summary>
