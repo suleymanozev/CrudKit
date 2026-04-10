@@ -57,6 +57,17 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
         _domainEventDispatcher = domainEventDispatcher;
     }
 
+    /// <summary>
+    /// Simplified constructor using bundled dependencies.
+    /// Preferred over the multi-parameter constructor for cleaner subclass definitions.
+    /// </summary>
+    protected CrudKitDbContext(
+        DbContextOptions options,
+        CrudKitDbContextDependencies deps)
+        : this(options, deps.CurrentUser, deps.TimeProvider, deps.EfOptions,
+               deps.TenantContext, deps.AuditWriter, deps.SoftDeleteFilter,
+               deps.TenantFilter, deps.DomainEventDispatcher) { }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

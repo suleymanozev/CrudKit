@@ -1,3 +1,4 @@
+using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore.Dialect;
 using CrudKit.EntityFrameworkCore.Query;
@@ -57,6 +58,19 @@ public static class ServiceCollectionExtensions
 
         // Runtime filter toggles — one scoped instance per filter type per request.
         services.TryAdd(ServiceDescriptor.Scoped(typeof(IDataFilter<>), typeof(DataFilter<>)));
+
+        // Bundled dependency bag — lets DbContext subclasses use a 2-param constructor.
+        services.TryAddScoped(sp => new CrudKitDbContextDependencies
+        {
+            CurrentUser = sp.GetRequiredService<ICurrentUser>(),
+            TimeProvider = sp.GetService<TimeProvider>() ?? TimeProvider.System,
+            EfOptions = sp.GetService<CrudKitEfOptions>(),
+            TenantContext = sp.GetService<ITenantContext>(),
+            AuditWriter = sp.GetService<IAuditWriter>(),
+            SoftDeleteFilter = sp.GetService<IDataFilter<ISoftDeletable>>(),
+            TenantFilter = sp.GetService<IDataFilter<IMultiTenant>>(),
+            DomainEventDispatcher = sp.GetService<IDomainEventDispatcher>(),
+        });
 
         return services;
     }

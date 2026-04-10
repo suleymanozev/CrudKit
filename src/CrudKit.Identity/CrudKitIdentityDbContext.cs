@@ -65,6 +65,17 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey, TUserClaim, T
         _domainEventDispatcher = domainEventDispatcher;
     }
 
+    /// <summary>
+    /// Simplified constructor using bundled dependencies.
+    /// Preferred over the multi-parameter constructor for cleaner subclass definitions.
+    /// </summary>
+    protected CrudKitIdentityDbContext(
+        DbContextOptions options,
+        CrudKitDbContextDependencies deps)
+        : this(options, deps.CurrentUser, deps.TimeProvider, deps.EfOptions,
+               deps.TenantContext, deps.AuditWriter, deps.SoftDeleteFilter,
+               deps.TenantFilter, deps.DomainEventDispatcher) { }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder); // Identity tables first
@@ -147,6 +158,15 @@ public abstract class CrudKitIdentityDbContext<TUser, TRole, TKey>
         IDataFilter<IMultiTenant>? tenantFilter = null,
         IDomainEventDispatcher? domainEventDispatcher = null)
         : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter, domainEventDispatcher) { }
+
+    /// <summary>
+    /// Simplified constructor using bundled dependencies.
+    /// Preferred over the multi-parameter constructor for cleaner subclass definitions.
+    /// </summary>
+    protected CrudKitIdentityDbContext(
+        DbContextOptions options,
+        CrudKitDbContextDependencies deps)
+        : base(options, deps) { }
 }
 
 // ============================================================
@@ -172,4 +192,13 @@ public abstract class CrudKitIdentityDbContext<TUser>
         IDataFilter<IMultiTenant>? tenantFilter = null,
         IDomainEventDispatcher? domainEventDispatcher = null)
         : base(options, currentUser, timeProvider, efOptions, tenantContext, auditWriter, softDeleteFilter, tenantFilter, domainEventDispatcher) { }
+
+    /// <summary>
+    /// Simplified constructor using bundled dependencies.
+    /// Preferred over the multi-parameter constructor for cleaner subclass definitions.
+    /// </summary>
+    protected CrudKitIdentityDbContext(
+        DbContextOptions options,
+        CrudKitDbContextDependencies deps)
+        : base(options, deps) { }
 }
