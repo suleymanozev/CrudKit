@@ -24,20 +24,31 @@ public class CrudKitApiOptions
     /// <summary>
     /// When true, failed SaveChanges operations are also logged to the audit trail
     /// with action prefixed as "Failed" (e.g. "FailedCreate"). Default: false.
-    /// Set via UseAuditTrail().EnableAuditFailedOperations().
+    /// Internal: only consumed by framework internals (CrudKitDbContextHelper).
+    /// Configured via <see cref="UseAuditTrail()"/> fluent API.
     /// </summary>
     internal bool AuditFailedOperations { get; set; }
 
     /// <summary>
     /// Custom <see cref="CrudKit.Core.Interfaces.IAuditWriter"/> implementation type.
     /// When null the default DbAuditWriter is used.
+    /// Internal: only consumed by framework DI registration.
+    /// Configured via <see cref="UseAuditTrail{TAuditWriter}()"/> fluent API.
     /// </summary>
     internal Type? CustomAuditWriterType { get; set; }
 
-    /// <summary>Schema for __crud_audit_logs table. Null = default schema.</summary>
+    /// <summary>
+    /// Schema for __crud_audit_logs table. Null = default schema.
+    /// Internal: only consumed by CrudKitDbContextHelper.ConfigureModel.
+    /// Configured via AuditTrailOptions.UseSchema() fluent API.
+    /// </summary>
     internal string? AuditSchema { get; set; }
 
-    /// <summary>Separate DbContext type for centralized audit. Null = use entity's own context.</summary>
+    /// <summary>
+    /// Separate DbContext type for centralized audit. Null = use entity's own context.
+    /// Internal: only consumed by framework DI registration.
+    /// Configured via AuditTrailOptions.UseSeparateContext() fluent API.
+    /// </summary>
     internal Type? AuditContextType { get; set; }
 
     /// <summary>Maximum file size for CSV import in bytes. Default: 10 MB.</summary>

@@ -122,6 +122,9 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
 
         var masterRoute = Route;
 
+        // NOTE: List/Get/Delete endpoints below are duplicated with RegisterChildEndpoints.
+        // Refactoring to share code is risky because WithChild has different autoGroupExists
+        // logic and endpoint naming (no __auto suffix). The duplication is intentional.
         if (!autoGroupExists)
         {
         // GET /api/{masterRoute}/{masterId}/{detailRoute} — List details by master
@@ -149,11 +152,11 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
 
             var entity = await detailRepo.FindByIdOrDefault(detailGuid, ct);
             if (entity is null)
-                return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TDetail).Name} with id '{id}' was not found." }, statusCode: 404);
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
 
             var fkValue = fkProp.GetValue(entity)?.ToString();
             if (fkValue != masterId)
-                return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TDetail).Name} with id '{id}' was not found." }, statusCode: 404);
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
 
             return Results.Ok(entity);
         })
@@ -393,7 +396,7 @@ public static class CrudEndpointMapper
             var guid = ParseGuid(id, typeof(TEntity).Name);
             var entity = await repo.FindByIdOrDefault(guid, ct);
             if (entity is null)
-                return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TEntity).Name} with id '{id}' was not found." }, statusCode: 404);
+                throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
 
             var mapped = TryMapSingle(httpCtx.RequestServices, entity);
             return Results.Ok(mapped);
@@ -404,16 +407,18 @@ public static class CrudEndpointMapper
         .ProducesProblem(500);
 
         // GET /api/{route}/export — Export (3-level: [NotExportable] class > [Exportable] class > global UseExport())
-        var exportOptsRo = app.Services.GetService<Configuration.CrudKitApiOptions>();
-        if (FeatureResolver.IsExportEnabled<TEntity>(exportOptsRo?.ExportEnabled ?? false))
+        var exportOptsRo = app.Services.GetRequiredService<Configuration.CrudKitApiOptions>();
+        if (FeatureResolver.IsExportEnabled<TEntity>(exportOptsRo.ExportEnabled))
         {
             group.MapGet("/export", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
             {
                 var listParams = ListParams.FromQuery(httpCtx.Request.Query);
                 var format = httpCtx.Request.Query["format"].FirstOrDefault() ?? "csv";
+                if (format is not "csv")
+                    throw AppError.BadRequest($"Unsupported export format: '{format}'. Supported: csv");
 
-                var apiOpts = httpCtx.RequestServices.GetService<Configuration.CrudKitApiOptions>();
-                var maxRows = apiOpts?.MaxExportRows ?? 50_000;
+                var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
+                var maxRows = apiOpts.MaxExportRows;
 
                 // Count first to prevent memory DoS
                 var count = await repo.BulkCount(listParams.Filters, ct);
@@ -424,16 +429,11 @@ public static class CrudEndpointMapper
                 listParams.PerPage = maxRows;
                 var result = await repo.List(listParams, ct);
 
-                if (format == "csv")
-                {
-                    var csv = CsvExportService.Export(result.Data);
-                    return Results.File(
-                        System.Text.Encoding.UTF8.GetBytes(csv),
-                        "text/csv",
-                        $"{route}-export.csv");
-                }
-
-                return Results.BadRequest(new { message = "Unsupported format. Use 'csv'." });
+                var csv = CsvExportService.Export(result.Data);
+                return Results.File(
+                    System.Text.Encoding.UTF8.GetBytes(csv),
+                    "text/csv",
+                    $"{route}-export.csv");
             })
             .WithName($"Export{tag}")
             .WithTags(tag)
@@ -497,7 +497,7 @@ public static class CrudEndpointMapper
             var guid = ParseGuid(id, typeof(TEntity).Name);
             var entity = await repo.FindByIdOrDefault(guid, ct);
             if (entity is null)
-                return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TEntity).Name} with id '{id}' was not found." }, statusCode: 404);
+                throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
 
             var mapped = TryMapSingle(httpCtx.RequestServices, entity);
             return Results.Ok(mapped);
@@ -799,16 +799,18 @@ public static class CrudEndpointMapper
         .ProducesProblem(500);
 
         // GET /api/{route}/export — Export (3-level: [NotExportable] class > [Exportable] class > global UseExport())
-        var exportOpts = app.Services.GetService<Configuration.CrudKitApiOptions>();
-        if (FeatureResolver.IsExportEnabled<TEntity>(exportOpts?.ExportEnabled ?? false))
+        var exportOpts = app.Services.GetRequiredService<Configuration.CrudKitApiOptions>();
+        if (FeatureResolver.IsExportEnabled<TEntity>(exportOpts.ExportEnabled))
         {
             group.MapGet("/export", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
             {
                 var listParams = ListParams.FromQuery(httpCtx.Request.Query);
                 var format = httpCtx.Request.Query["format"].FirstOrDefault() ?? "csv";
+                if (format is not "csv")
+                    throw AppError.BadRequest($"Unsupported export format: '{format}'. Supported: csv");
 
-                var apiOpts = httpCtx.RequestServices.GetService<Configuration.CrudKitApiOptions>();
-                var maxRows = apiOpts?.MaxExportRows ?? 50_000;
+                var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
+                var maxRows = apiOpts.MaxExportRows;
 
                 // Count first to prevent memory DoS
                 var count = await repo.BulkCount(listParams.Filters, ct);
@@ -819,16 +821,11 @@ public static class CrudEndpointMapper
                 listParams.PerPage = maxRows;
                 var result = await repo.List(listParams, ct);
 
-                if (format == "csv")
-                {
-                    var csv = CsvExportService.Export(result.Data);
-                    return Results.File(
-                        System.Text.Encoding.UTF8.GetBytes(csv),
-                        "text/csv",
-                        $"{route}-export.csv");
-                }
-
-                return Results.BadRequest(new { message = "Unsupported format. Use 'csv'." });
+                var csv = CsvExportService.Export(result.Data);
+                return Results.File(
+                    System.Text.Encoding.UTF8.GetBytes(csv),
+                    "text/csv",
+                    $"{route}-export.csv");
             })
             .WithName($"Export{tag}")
             .WithTags(tag)
@@ -837,8 +834,8 @@ public static class CrudEndpointMapper
         }
 
         // POST /api/{route}/import — Import (3-level: [NotImportable] class > [Importable] class > global UseImport())
-        var importOpts = app.Services.GetService<Configuration.CrudKitApiOptions>();
-        if (FeatureResolver.IsImportEnabled<TEntity>(importOpts?.ImportEnabled ?? false))
+        var importOpts = app.Services.GetRequiredService<Configuration.CrudKitApiOptions>();
+        if (FeatureResolver.IsImportEnabled<TEntity>(importOpts.ImportEnabled))
         {
             group.MapPost("/import", async (HttpContext httpCtx, CancellationToken ct) =>
             {
@@ -848,8 +845,8 @@ public static class CrudEndpointMapper
                 if (file == null || file.Length == 0)
                     throw AppError.BadRequest("No file uploaded.");
 
-                var apiOpts = httpCtx.RequestServices.GetService<Configuration.CrudKitApiOptions>();
-                if (apiOpts != null && file.Length > apiOpts.MaxImportFileSize)
+                var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
+                if (file.Length > apiOpts.MaxImportFileSize)
                     throw AppError.BadRequest($"File size ({file.Length / 1024 / 1024} MB) exceeds the limit of {apiOpts.MaxImportFileSize / 1024 / 1024} MB.");
 
                 using var reader = new StreamReader(file.OpenReadStream());
@@ -1052,11 +1049,11 @@ public static class CrudEndpointMapper
 
             var entity = await detailRepo.FindByIdOrDefault(detailGuid, ct);
             if (entity is null)
-                return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TDetail).Name} with id '{id}' was not found." }, statusCode: 404);
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
 
             var fkValue = fkProp.GetValue(entity)?.ToString();
             if (fkValue != masterId)
-                return Results.Json(new { status = 404, code = "NOT_FOUND", message = $"{typeof(TDetail).Name} with id '{id}' was not found." }, statusCode: 404);
+                throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
 
             return Results.Ok(entity);
         })
@@ -1395,9 +1392,14 @@ public static class CrudEndpointMapper
                 foreach (var t in (System.Collections.IEnumerable)transitions)
                 {
                     var tType = t.GetType();
-                    var from = tType.GetField("Item1")!.GetValue(t)!;
-                    var to = tType.GetField("Item2")!.GetValue(t)!;
-                    var act = (string)tType.GetField("Item3")!.GetValue(t)!;
+                    var fromField = tType.GetField("Item1");
+                    var toField = tType.GetField("Item2");
+                    var actField = tType.GetField("Item3");
+                    if (fromField is null || toField is null || actField is null)
+                        throw new InvalidOperationException($"Invalid Transitions format on {typeof(TEntity).Name}. Expected (TState From, TState To, string Action) tuples.");
+                    var from = fromField.GetValue(t)!;
+                    var to = toField.GetValue(t)!;
+                    var act = (string)actField.GetValue(t)!;
 
                     if (from.Equals(currentStatus) && string.Equals(act, action, StringComparison.OrdinalIgnoreCase))
                     {
@@ -1475,14 +1477,7 @@ public static class CrudEndpointMapper
         where TEntity : class, IEntity
     {
         var mapperInterfaceBase = typeof(IResponseMapper<,>);
-
-        using var scope = services.CreateScope();
-        var serviceCollection = services.GetService<IServiceProviderIsService>();
-        if (serviceCollection is null) return null;
-
         var entityType = typeof(TEntity);
-
-        var descriptors = services.GetService<IServiceCollection>();
 
         // Only scan the entity's own assembly for mapper implementations.
         foreach (var type in entityType.Assembly.GetTypes())

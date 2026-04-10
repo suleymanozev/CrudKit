@@ -59,14 +59,13 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
     }
 
     /// <summary>
-    /// Builds a minimal AppContext for hook calls. Services is null because EfRepo
-    /// does not hold a reference to IServiceProvider.
+    /// Builds a minimal AppContext for hook calls.
     /// </summary>
     private CrudKit.Core.Context.AppContext BuildAppContext()
     {
         return new CrudKit.Core.Context.AppContext
         {
-            Services = null!,
+            Services = _services,
             CurrentUser = _db.CurrentUser,
             TenantContext = _db.TenantCtx,
         };
@@ -110,9 +109,9 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         if (prop == null) return [];
 
         object? converted;
+        var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
         try
         {
-            var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
             if (targetType == typeof(Guid) && value is string s)
                 converted = Guid.Parse(s);
             else
@@ -120,7 +119,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         }
         catch
         {
-            return [];
+            throw AppError.BadRequest($"Invalid filter value '{value}' for field '{fieldName}'. Expected type: {targetType.Name}");
         }
 
         var param = Expression.Parameter(typeof(T), "e");
@@ -172,7 +171,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
     public async Task Restore(Guid id, CancellationToken ct = default)
     {
         EnsureTenantContext();
-        if (typeof(T).IsAssignableTo(typeof(ISoftDeletable)) == false)
+        if (!typeof(ISoftDeletable).IsAssignableFrom(typeof(T)))
             throw new InvalidOperationException($"{typeof(T).Name} does not implement ISoftDeletable.");
 
         // Disable only soft-delete filter — tenant filter stays active (no cross-tenant leak)
@@ -235,6 +234,8 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
                     continue;
 
                 var now = (entity as IAuditableEntity)?.UpdatedAt ?? DateTime.UtcNow;
+                // {0},{1},{2},{3} = string.Format positional args (table/column names from EF metadata — safe)
+                // {{0}},{{1}} = escaped braces that become {0},{1} SQL parameters after Format — parameterized values
                 var sql = string.Format(
                     "UPDATE \"{0}\" SET \"{1}\" = NULL, \"{2}\" = {{0}} WHERE \"{3}\" = {{1}} AND \"{1}\" IS NOT NULL",
                     tableName, deletedAtColumn, updatedAtColumn, fkColumn);
@@ -353,7 +354,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             }
             catch
             {
-                continue;
+                throw AppError.BadRequest($"Invalid value for property '{fieldName}'. Expected type: {prop.PropertyType.Name}");
             }
 
             var propAccess = Expression.Property(entityParam, prop);

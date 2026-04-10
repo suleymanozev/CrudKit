@@ -240,14 +240,15 @@ public class EfRepoTests
     }
 
     [Fact]
-    public async Task FindByField_InvalidConversion_ReturnsEmptyList()
+    public async Task FindByField_InvalidConversion_ThrowsBadRequest()
     {
         var (_, repo) = CreatePersonRepo();
         await repo.Create(new { Name = "Alice", Age = 30 });
 
-        // "not-a-number" cannot be converted to int — should return empty
-        var result = await repo.FindByField("Age", "not-a-number");
-        Assert.Empty(result);
+        // "not-a-number" cannot be converted to int — should throw BadRequest
+        var ex = await Assert.ThrowsAsync<AppError>(() => repo.FindByField("Age", "not-a-number"));
+        Assert.Contains("Invalid filter value", ex.Message);
+        Assert.Contains("Int32", ex.Message);
     }
 
     [Fact]

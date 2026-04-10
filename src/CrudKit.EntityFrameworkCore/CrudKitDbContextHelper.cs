@@ -332,6 +332,7 @@ public static class CrudKitDbContextHelper
             var result = baseSaveChanges(acceptAllChangesOnSuccess);
             ExecuteCascadeOps(context.Database, cascadeOps);
 
+            // Sync path has no cancellation token — use None
             if (auditEntries.Count > 0 && auditWriter != null)
                 auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
 
@@ -358,6 +359,7 @@ public static class CrudKitDbContextHelper
         catch when (efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && auditWriter != null)
         {
             foreach (var e in auditEntries) e.Action = $"Failed{e.Action}";
+            // Sync path has no cancellation token — use None
             auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
             throw;
         }
@@ -657,6 +659,8 @@ public static class CrudKitDbContextHelper
                 if (fkColumn == null || deletedAtColumn == null || updatedAtColumn == null)
                     continue;
 
+                // {0},{1},{2},{3} = string.Format positional args (table/column names from EF metadata — safe)
+                // {{0}},{{1}},{{2}} = escaped braces that become {0},{1},{2} SQL parameters after Format — parameterized values
                 var sql = string.Format(
                     "UPDATE \"{0}\" SET \"{1}\" = {{0}}, \"{2}\" = {{1}} WHERE \"{3}\" = {{2}} AND \"{1}\" IS NULL",
                     tableName, deletedAtColumn, updatedAtColumn, fkColumn);
