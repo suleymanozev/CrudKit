@@ -230,7 +230,7 @@ internal static class EntityParser
     {
         if (name.EndsWith("y") && !name.EndsWith("ay") && !name.EndsWith("ey")
             && !name.EndsWith("oy") && !name.EndsWith("uy"))
-            return name[..^1] + "ies";
+            return name.Substring(0, name.Length - 1) + "ies";
         if (name.EndsWith("s") || name.EndsWith("sh") || name.EndsWith("ch")
             || name.EndsWith("x") || name.EndsWith("z"))
             return name + "es";
