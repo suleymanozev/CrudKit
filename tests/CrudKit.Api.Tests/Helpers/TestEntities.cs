@@ -306,7 +306,7 @@ public class CreateProjectMilestoneDto
 
 /// <summary>
 /// Create DTO for ProjectTaskEntity — decorated with [CreateDtoFor] so auto-discovery
-/// registers a POST endpoint under /api/projects/{masterId}/project-task-entitys.
+/// registers a POST endpoint under /api/projects/{masterId}/project-task-entities.
 /// </summary>
 [CreateDtoFor(typeof(ProjectTaskEntity))]
 public class CreateProjectTaskDto

@@ -40,7 +40,7 @@ internal static class EntityParser
         string name      = classSymbol.Name;
         string ns        = classSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
         string fullName  = string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
-        string resource  = GetString(attrArgs, "Resource", ToKebabCase(name) + "s");
+        string resource  = GetString(attrArgs, "Resource", Pluralize(ToKebabCase(name)));
         bool readOnly    = GetBool(attrArgs, "ReadOnly");
         bool enableCreate  = GetBool(attrArgs, "EnableCreate", defaultValue: true);
         bool enableUpdate  = GetBool(attrArgs, "EnableUpdate", defaultValue: true);
@@ -224,5 +224,16 @@ internal static class EntityParser
             result.Append(char.ToLowerInvariant(name[i]));
         }
         return result.ToString();
+    }
+
+    private static string Pluralize(string name)
+    {
+        if (name.EndsWith("y") && !name.EndsWith("ay") && !name.EndsWith("ey")
+            && !name.EndsWith("oy") && !name.EndsWith("uy"))
+            return name[..^1] + "ies";
+        if (name.EndsWith("s") || name.EndsWith("sh") || name.EndsWith("ch")
+            || name.EndsWith("x") || name.EndsWith("z"))
+            return name + "es";
+        return name + "s";
     }
 }

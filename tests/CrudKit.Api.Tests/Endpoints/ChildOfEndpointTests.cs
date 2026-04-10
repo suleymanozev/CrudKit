@@ -34,9 +34,9 @@ public class ChildOfEndpointTests
     }
 
     // ---- ProjectTaskEntity — default FK convention, derived route "project-task-entities" ----
-    // Route derived: ProjectTaskEntity → "project-task-entity" + "s" = "project-task-entitys" (raw convention)
+    // Route derived: ProjectTaskEntity → "project-task-entity" + "s" = "project-task-entities" (raw convention)
     // We set ForeignKey = "ProjectId" explicitly. Route = default → ToKebabCase("ProjectTaskEntity") + "s"
-    // = "project-task-entitys". Let's verify this in the test rather than hard-code expectations.
+    // = "project-task-entities". Let's verify this in the test rather than hard-code expectations.
 
     [Fact]
     public async Task ChildOf_AutoRegistersListEndpoint()
@@ -44,8 +44,8 @@ public class ChildOfEndpointTests
         await using var app = await CreateApp();
         var projectId = await CreateProject(app);
 
-        // ProjectTaskEntity uses ForeignKey = "ProjectId", route = "project-task-entitys"
-        var response = await app.Client.GetAsync($"/api/projects/{projectId}/project-task-entitys");
+        // ProjectTaskEntity uses ForeignKey = "ProjectId", route = "project-task-entities"
+        var response = await app.Client.GetAsync($"/api/projects/{projectId}/project-task-entities");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -59,7 +59,7 @@ public class ChildOfEndpointTests
         var projectId = await CreateProject(app);
         var nonExistentId = Guid.NewGuid().ToString();
 
-        var response = await app.Client.GetAsync($"/api/projects/{projectId}/project-task-entitys/{nonExistentId}");
+        var response = await app.Client.GetAsync($"/api/projects/{projectId}/project-task-entities/{nonExistentId}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -70,7 +70,7 @@ public class ChildOfEndpointTests
         var fakeMasterId = Guid.NewGuid().ToString();
         var fakeDetailId = Guid.NewGuid().ToString();
 
-        var response = await app.Client.DeleteAsync($"/api/projects/{fakeMasterId}/project-task-entitys/{fakeDetailId}");
+        var response = await app.Client.DeleteAsync($"/api/projects/{fakeMasterId}/project-task-entities/{fakeDetailId}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -143,12 +143,12 @@ public class ChildOfEndpointTests
     {
         // ProjectTaskEntity has [ChildOf(typeof(ProjectEntity), ForeignKey = "ProjectId")]
         // CreateProjectTaskDto has [CreateDtoFor(typeof(ProjectTaskEntity))]
-        // Auto-discovery should register POST under /api/projects/{masterId}/project-task-entitys
+        // Auto-discovery should register POST under /api/projects/{masterId}/project-task-entities
         await using var app = await CreateApp();
         var projectId = await CreateProject(app, "Task Project");
 
         var createResponse = await app.Client.PostAsJsonAsync(
-            $"/api/projects/{projectId}/project-task-entitys",
+            $"/api/projects/{projectId}/project-task-entities",
             new { Name = "First Task" });
 
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
@@ -161,7 +161,7 @@ public class ChildOfEndpointTests
         Assert.Equal(projectId, fk);
 
         // Verify the item is retrievable via List
-        var listResponse = await app.Client.GetAsync($"/api/projects/{projectId}/project-task-entitys");
+        var listResponse = await app.Client.GetAsync($"/api/projects/{projectId}/project-task-entities");
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         var listDoc = JsonDocument.Parse(await listResponse.Content.ReadAsStringAsync());
         Assert.Equal(1, listDoc.RootElement.GetArrayLength());
@@ -174,7 +174,7 @@ public class ChildOfEndpointTests
         var fakeMasterId = Guid.NewGuid().ToString();
 
         var response = await app.Client.PostAsJsonAsync(
-            $"/api/projects/{fakeMasterId}/project-task-entitys",
+            $"/api/projects/{fakeMasterId}/project-task-entities",
             new { Name = "Task" });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -188,7 +188,7 @@ public class ChildOfEndpointTests
 
         // Name is [Required] — send empty string to trigger validation
         var response = await app.Client.PostAsJsonAsync(
-            $"/api/projects/{projectId}/project-task-entitys",
+            $"/api/projects/{projectId}/project-task-entities",
             new { Name = "" });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);

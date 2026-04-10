@@ -964,8 +964,23 @@ public static class CrudEndpointMapper
         var attr = typeof(TEntity).GetCustomAttribute<CrudEntityAttribute>();
         if (!string.IsNullOrEmpty(attr?.Resource))
             return attr.Resource;
-        // Default: entity name in kebab-case + "s" (e.g. ProductAttribute → product-attributes)
-        return ToKebabCase(typeof(TEntity).Name) + "s";
+        // Default: entity name in kebab-case, pluralized (e.g. ProductAttribute → product-attributes, Category → categories)
+        return Pluralize(ToKebabCase(typeof(TEntity).Name));
+    }
+
+    /// <summary>
+    /// Simple English pluralization. Handles common suffixes: -y → -ies, -s/-sh/-ch/-x/-z → -es, otherwise -s.
+    /// Irregular plurals (person→people) are not handled — use [CrudEntity(Resource = "people")] for those.
+    /// </summary>
+    internal static string Pluralize(string name)
+    {
+        if (name.EndsWith("y") && !name.EndsWith("ay") && !name.EndsWith("ey")
+            && !name.EndsWith("oy") && !name.EndsWith("uy"))
+            return name[..^1] + "ies";
+        if (name.EndsWith('s') || name.EndsWith("sh") || name.EndsWith("ch")
+            || name.EndsWith('x') || name.EndsWith('z'))
+            return name + "es";
+        return name + "s";
     }
 
     /// <summary>
@@ -1263,7 +1278,7 @@ public static class CrudEndpointMapper
                 group.RegisteredDetailTypes.Add(childType);
 
                 var detailRoute = childOfAttr.Route
-                    ?? ToKebabCase(childType.Name) + "s";
+                    ?? Pluralize(ToKebabCase(childType.Name));
 
                 var foreignKey = childOfAttr.ForeignKey
                     ?? parentType.Name + "Id";
