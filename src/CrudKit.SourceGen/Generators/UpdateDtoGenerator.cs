@@ -27,6 +27,27 @@ internal static class UpdateDtoGenerator
                 props.Add(p);
         }
 
+        // Collect additional usings from property types (e.g. enum namespaces)
+        var additionalUsings = new HashSet<string>();
+        foreach (var p in props)
+        {
+            if (p.FullTypeName != p.TypeName && p.FullTypeName.Contains("."))
+            {
+                var ns = p.FullTypeName.Substring(0, p.FullTypeName.LastIndexOf('.'));
+                if (!ns.StartsWith("System") && ns != entity.Namespace)
+                    additionalUsings.Add(ns);
+            }
+            // Also handle nullable enum types: Namespace.EnumType? → Namespace
+            var cleanFullType = p.FullTypeName.TrimEnd('?');
+            var cleanTypeName = p.TypeName.TrimEnd('?');
+            if (cleanFullType != cleanTypeName && cleanFullType.Contains("."))
+            {
+                var ns = cleanFullType.Substring(0, cleanFullType.LastIndexOf('.'));
+                if (!ns.StartsWith("System") && ns != entity.Namespace)
+                    additionalUsings.Add(ns);
+            }
+        }
+
         string className = naming.FormatUpdateDtoName(entity.Name);
 
         var sb = new StringBuilder();
@@ -36,6 +57,8 @@ internal static class UpdateDtoGenerator
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
         sb.AppendLine("using CrudKit.Core.Models;");
+        foreach (var ns in additionalUsings)
+            sb.AppendLine($"using {ns};");
         sb.AppendLine();
         sb.AppendLine($"namespace {entity.Namespace}.Dtos;");
         sb.AppendLine();
