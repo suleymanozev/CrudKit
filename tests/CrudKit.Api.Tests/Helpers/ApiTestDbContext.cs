@@ -1,6 +1,7 @@
 using CrudKit.Api.Models;
 using CrudKit.Api.Tests.Events;
 using CrudKit.Api.Tests.Sequencing;
+using CrudKit.Api.Tests.ValueObjects;
 using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore;
@@ -41,9 +42,16 @@ public class ApiTestDbContext : CrudKitDbContext
     public DbSet<ProjectMilestoneEntity> ProjectMilestones => Set<ProjectMilestoneEntity>();
     public DbSet<AggregateOrderEntity> AggregateOrders => Set<AggregateOrderEntity>();
     public DbSet<SeqInvoiceEntity> SeqInvoices => Set<SeqInvoiceEntity>();
+    public DbSet<PricedItem> PricedItems => Set<PricedItem>();
 
     protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<PricedItem>(b =>
+        {
+            b.OwnsOne(e => e.Price);
+            b.OwnsOne(e => e.Tax);
+        });
+
         modelBuilder.Entity<IdempotencyRecord>(b =>
         {
             b.ToTable("__crud_idempotency");

@@ -78,6 +78,9 @@ internal static class EntityParser
     // Property parsing
     // ---------------------------------------------------------------------------
 
+    private const string FlattenAttributeFqn     = "CrudKit.Core.Attributes.FlattenAttribute";
+    private const string ValueObjectAttributeFqn = "CrudKit.Core.Attributes.ValueObjectAttribute";
+
     private static IReadOnlyList<PropertyMetadata> ParseProperties(INamedTypeSymbol classSymbol)
     {
         var result = new List<PropertyMetadata>();
@@ -91,10 +94,84 @@ internal static class EntityParser
             if (SystemFields.Contains(prop.Name))
                 continue;
 
-            result.Add(ParseProperty(prop));
+            bool isFlatten = HasAttribute(prop, FlattenAttributeFqn);
+
+            if (isFlatten && prop.Type is INamedTypeSymbol voType && HasAttribute(voType, ValueObjectAttributeFqn))
+            {
+                // Expand value object properties with prefixed names
+                foreach (var voMember in voType.GetMembers())
+                {
+                    if (voMember is not IPropertySymbol voProp) continue;
+                    if (voProp.IsStatic || voProp.IsIndexer || voProp.DeclaredAccessibility != Accessibility.Public)
+                        continue;
+
+                    string flatName = prop.Name + voProp.Name;
+                    result.Add(ParsePropertyWithOverrides(voProp, flatName, isFlatten: true));
+                }
+            }
+            else
+            {
+                result.Add(ParseProperty(prop));
+            }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Creates a PropertyMetadata for a value object sub-property with an overridden name.
+    /// </summary>
+    private static PropertyMetadata ParsePropertyWithOverrides(IPropertySymbol prop, string nameOverride, bool isFlatten)
+    {
+        bool isNullable = prop.NullableAnnotation == NullableAnnotation.Annotated
+                          || IsNullableValueType(prop.Type);
+
+        string typeName     = GetTypeName(prop.Type);
+        string fullTypeName = prop.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+        // Attribute flags — carry forward from VO property
+        bool isRequired    = HasAttribute(prop, "System.ComponentModel.DataAnnotations.RequiredAttribute");
+
+        // [MaxLength(n)]
+        bool hasMaxLength = false;
+        int  maxLength    = 0;
+        var  mlAttr       = GetAttribute(prop, "System.ComponentModel.DataAnnotations.MaxLengthAttribute");
+        if (mlAttr != null && mlAttr.ConstructorArguments.Length > 0)
+        {
+            hasMaxLength = true;
+            maxLength    = (int)(mlAttr.ConstructorArguments[0].Value ?? 0);
+        }
+
+        // [Range(min, max)]
+        bool   hasRange  = false;
+        string rangeMin  = "0";
+        string rangeMax  = "0";
+        var    rangeAttr = GetAttribute(prop, "System.ComponentModel.DataAnnotations.RangeAttribute");
+        if (rangeAttr != null && rangeAttr.ConstructorArguments.Length >= 2)
+        {
+            hasRange = true;
+            rangeMin = rangeAttr.ConstructorArguments[0].Value?.ToString() ?? "0";
+            rangeMax = rangeAttr.ConstructorArguments[1].Value?.ToString() ?? "0";
+        }
+
+        return new PropertyMetadata(
+            name: nameOverride,
+            typeName: typeName,
+            fullTypeName: fullTypeName,
+            isNullable: isNullable,
+            isRequired: isRequired,
+            hasMaxLength: hasMaxLength,
+            maxLength: maxLength,
+            hasRange: hasRange,
+            rangeMin: rangeMin,
+            rangeMax: rangeMax,
+            isHashed: false,
+            isProtected: false,
+            isSkipUpdate: false,
+            isSkipResponse: false,
+            isUnique: false,
+            isSearchable: false,
+            isFlatten: isFlatten);
     }
 
     private static PropertyMetadata ParseProperty(IPropertySymbol prop)

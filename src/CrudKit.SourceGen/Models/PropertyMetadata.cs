@@ -30,6 +30,9 @@ internal sealed class PropertyMetadata
     public bool IsUnique { get; }
     public bool IsSearchable { get; }
 
+    /// <summary>True when the property was expanded from a [Flatten] value object.</summary>
+    public bool IsFlatten { get; }
+
     public PropertyMetadata(
         string name,
         string typeName,
@@ -46,7 +49,8 @@ internal sealed class PropertyMetadata
         bool isSkipUpdate,
         bool isSkipResponse,
         bool isUnique,
-        bool isSearchable)
+        bool isSearchable,
+        bool isFlatten = false)
     {
         Name = name;
         TypeName = typeName;
@@ -64,5 +68,6 @@ internal sealed class PropertyMetadata
         IsSkipResponse = isSkipResponse;
         IsUnique = isUnique;
         IsSearchable = isSearchable;
+        IsFlatten = isFlatten;
     }
 }

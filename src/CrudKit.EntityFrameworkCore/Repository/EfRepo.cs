@@ -420,6 +420,46 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
             entityProp.SetValue(entity, dtoValue);
         }
+
+        // Handle [Flatten] value object properties
+        // DTO has: PurchasePriceAmount, PurchasePriceCurrency
+        // Entity has: PurchasePrice (Money with Amount, Currency)
+        foreach (var entityProp in entityProps)
+        {
+            if (entityProp.GetCustomAttribute<FlattenAttribute>() is null) continue;
+            if (entityProp.PropertyType.GetCustomAttribute<ValueObjectAttribute>() is null) continue;
+
+            var vo = entityProp.GetValue(entity) ?? Activator.CreateInstance(entityProp.PropertyType);
+            var voType = entityProp.PropertyType;
+            bool anySet = false;
+
+            foreach (var voProp in voType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                var flatName = entityProp.Name + voProp.Name;
+                var dtoProp = dto.GetType().GetProperty(flatName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                if (dtoProp is null) continue;
+
+                var dtoValue = dtoProp.GetValue(dto);
+
+                // Handle Optional<T> for update DTOs
+                if (IsOptionalType(dtoProp.PropertyType))
+                {
+                    var hasValue = (bool)dtoProp.PropertyType.GetProperty("HasValue")!.GetValue(dtoValue)!;
+                    if (!hasValue) continue;
+                    dtoValue = dtoProp.PropertyType.GetProperty("Value")!.GetValue(dtoValue);
+                }
+                else if (!isCreate && dtoValue is null)
+                {
+                    continue;
+                }
+
+                voProp.SetValue(vo, dtoValue);
+                anySet = true;
+            }
+
+            if (anySet)
+                entityProp.SetValue(entity, vo);
+        }
     }
 
     private static bool IsOptionalType(Type type)
