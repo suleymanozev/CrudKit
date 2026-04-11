@@ -402,10 +402,16 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         {
             if (!entityPropMap.TryGetValue(dtoProp.Name, out var entityProp)) continue;
 
+            // Skip read-only properties (no setter)
+            if (!entityProp.CanWrite) continue;
+
             // Skip system/infrastructure fields (managed by DbContext)
             if (entityProp.Name is nameof(IAuditableEntity.Id)
                 or nameof(IAuditableEntity.CreatedAt)
-                or nameof(IAuditableEntity.UpdatedAt)) continue;
+                or nameof(IAuditableEntity.UpdatedAt)
+                or nameof(ISoftDeletable.DeletedAt)
+                or nameof(ISoftDeletable.DeleteBatchId)
+                or "TenantId") continue;
 
             if (!isCreate)
             {
