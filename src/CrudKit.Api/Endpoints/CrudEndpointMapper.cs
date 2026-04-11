@@ -1,10 +1,8 @@
 using System.Reflection;
-using System.Text.Json;
 using CrudKit.Api.Configuration;
+using CrudKit.Api.Endpoints.Handlers;
 using CrudKit.Api.Filters;
 using CrudKit.Api.Helpers;
-using CrudKit.Api.Models;
-using CrudKit.Api.Services;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
@@ -409,455 +407,46 @@ public static class CrudEndpointMapper
         var group = app.MapGroup($"/api/{route}").WithTags(tag);
         group.AddEndpointFilter<AppErrorFilter>();
 
-        // GET /api/{route} — List
-        group.MapGet("/", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var listParams = ListParams.FromQuery(httpCtx.Request.Query);
-            var result = await repo.List(listParams, ct);
-            var mapped = TryMapPaginated(httpCtx.RequestServices, result);
-            return Results.Ok(mapped);
-        })
-        .WithName($"List{tag}")
-        .Produces<Paginated<TEntity>>(200)
-        .ProducesProblem(500);
+        // Read endpoints (always mapped)
+        ListHandler.Map<TEntity>(group, tag);
+        GetByIdHandler.Map<TEntity>(group, tag);
 
-        // GET /api/{route}/{id} — Get by ID
-        group.MapGet("/{id}", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var guid = ParseGuid(id, typeof(TEntity).Name);
-            var entity = await repo.FindByIdOrDefault(guid, ct);
-            if (entity is null)
-                throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
-
-            var mapped = TryMapSingle(httpCtx.RequestServices, entity);
-            return Results.Ok(mapped);
-        })
-        .WithName($"Get{tag}")
-        .Produces<TEntity>(200)
-        .ProducesProblem(404)
-        .ProducesProblem(500);
-
-        // POST /api/{route} — Create (skipped when ReadOnly or EnableCreate=false)
+        // Create endpoint (skipped when ReadOnly or EnableCreate=false)
         if (crudAttr.IsCreateEnabled)
-        {
-        group.MapPost("/", async (TCreate dto, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
-            {
-                var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
-                var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
-                var entity = await repo.Create(dto, ct);
+            CreateHandler.Map<TEntity, TCreate>(group, tag, route);
 
-                var appCtx = BuildAppContext(httpCtx);
-
-                // Global before hooks run first
-                foreach (var gh in globalHooks)
-                    await gh.BeforeCreate(entity, appCtx);
-
-                if (hooks is not null)
-                {
-                    await hooks.BeforeCreate(entity, appCtx);
-                    await db.SaveChangesAsync(ct);
-                }
-
-                await tx.CommitAsync(ct);
-
-                if (hooks is not null)
-                    await hooks.AfterCreate(entity, appCtx);
-
-                // Global after hooks run last
-                foreach (var gh in globalHooks)
-                    await gh.AfterCreate(entity, appCtx);
-
-                return Results.Created($"/api/{route}/{entity.Id}", entity);
-            }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
-        })
-        .WithName($"Create{tag}")
-        .AddEndpointFilter<ValidationFilter<TCreate>>()
-        .Accepts<TCreate>("application/json")
-        .Produces<TEntity>(201)
-        .ProducesProblem(400)
-        .ProducesProblem(500);
-        }
-
-        // PUT /api/{route}/{id} — Update (skipped when ReadOnly or EnableUpdate=false)
+        // Update endpoint (skipped when ReadOnly or EnableUpdate=false)
         if (crudAttr.IsUpdateEnabled)
-        {
-        group.MapPut("/{id}", async (string id, TUpdate dto, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var guid = ParseGuid(id, typeof(TEntity).Name);
-            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
-            {
-                var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
-                var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
+            UpdateHandler.Map<TEntity, TUpdate>(group, tag);
 
-                // Capture existing entity state before update (detached snapshot)
-                TEntity? existingEntity = null;
-                if (globalHooks.Count > 0 || hooks is not null)
-                {
-                    existingEntity = await db.Set<TEntity>().AsNoTracking()
-                        .FirstOrDefaultAsync(e => e.Id == guid, ct);
-                }
-
-                var entity = await repo.Update(guid, dto, ct);
-
-                var appCtx = BuildAppContext(httpCtx);
-
-                // Global before hooks run first
-                foreach (var gh in globalHooks)
-                    await gh.BeforeUpdate(entity, existingEntity, appCtx);
-
-                if (hooks is not null)
-                {
-                    await hooks.BeforeUpdate(entity, existingEntity, appCtx);
-                    await db.SaveChangesAsync(ct);
-                }
-
-                await tx.CommitAsync(ct);
-
-                if (hooks is not null)
-                    await hooks.AfterUpdate(entity, existingEntity, appCtx);
-
-                // Global after hooks run last
-                foreach (var gh in globalHooks)
-                    await gh.AfterUpdate(entity, existingEntity, appCtx);
-
-                return Results.Ok(entity);
-            }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
-        })
-        .WithName($"Update{tag}")
-        .AddEndpointFilter<ValidationFilter<TUpdate>>()
-        .Accepts<TUpdate>("application/json")
-        .Produces<TEntity>(200)
-        .ProducesProblem(400)
-        .ProducesProblem(404)
-        .ProducesProblem(500);
-        }
-
-        // DELETE /api/{route}/{id} — Delete (skipped when ReadOnly or EnableDelete=false)
+        // Delete endpoint (skipped when ReadOnly or EnableDelete=false)
         if (crudAttr.IsDeleteEnabled)
         {
-        group.MapDelete("/{id}", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var guid = ParseGuid(id, typeof(TEntity).Name);
-            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
+            DeleteHandler.Map<TEntity>(group, tag);
+
+            // Restore + Purge (ISoftDeletable only)
+            if (typeof(ISoftDeletable).IsAssignableFrom(typeof(TEntity)))
             {
-                var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
-                var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
-                var appCtx = BuildAppContext(httpCtx);
-
-                // Load entity for Before hooks (needed by both global and entity-specific)
-                TEntity? entityForBefore = null;
-                if (hooks is not null || globalHooks.Count > 0)
-                {
-                    entityForBefore = await repo.FindByIdOrDefault(guid, ct);
-                    if (entityForBefore is null)
-                        throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
-                }
-
-                // Global before hooks run first
-                if (entityForBefore is not null)
-                {
-                    foreach (var gh in globalHooks)
-                        await gh.BeforeDelete(entityForBefore, appCtx);
-                }
-
-                if (hooks is not null && entityForBefore is not null)
-                    await hooks.BeforeDelete(entityForBefore, appCtx);
-
-                await repo.Delete(guid, ct);
-                await tx.CommitAsync(ct);
-
-                // AfterDelete receives a minimal entity with just the Id
-                var stub = Activator.CreateInstance<TEntity>();
-                stub.Id = guid;
-
-                if (hooks is not null)
-                    await hooks.AfterDelete(stub, appCtx);
-
-                // Global after hooks run last
-                foreach (var gh in globalHooks)
-                    await gh.AfterDelete(stub, appCtx);
-
-                return Results.NoContent();
+                RestoreHandler.Map<TEntity>(group, tag);
+                PurgeHandler.Map<TEntity>(group, tag);
             }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
-        })
-        .WithName($"Delete{tag}")
-        .Produces(204)
-        .ProducesProblem(404)
-        .ProducesProblem(500);
         }
 
-        // POST /api/{route}/{id}/restore — Restore (ISoftDeletable only, requires delete enabled)
-        if (crudAttr.IsDeleteEnabled && typeof(ISoftDeletable).IsAssignableFrom(typeof(TEntity)))
-        {
-            group.MapPost("/{id}/restore", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-            {
-                var guid = ParseGuid(id, typeof(TEntity).Name);
-                var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
-                await using var tx = await db.Database.BeginTransactionAsync(ct);
-                try
-                {
-                    var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
-                    var appCtx = BuildAppContext(httpCtx);
+        // State transition endpoint (IStateMachine only)
+        TransitionHandler.MapIfStateMachine<TEntity>(group, route, tag);
 
-                    await repo.Restore(guid, ct);
+        // Bulk operations (count is always available; delete/update respect flags)
+        BulkHandler.Map<TEntity>(group, tag, crudAttr.IsDeleteEnabled, crudAttr.IsUpdateEnabled);
 
-                    if (hooks is not null)
-                    {
-                        var entity = await repo.FindById(guid, ct);
-                        await hooks.BeforeRestore(entity, appCtx);
-                        await db.SaveChangesAsync(ct);
-                    }
-
-                    await tx.CommitAsync(ct);
-                    return Results.Ok();
-                }
-                catch
-                {
-                    await tx.RollbackAsync(ct);
-                    throw;
-                }
-            })
-            // Note: Restore is not part of the standard CRUD lifecycle for IGlobalCrudHook
-            // (no BeforeRestore/AfterRestore on IGlobalCrudHook — entity-specific hooks handle it)
-            .WithName($"Restore{tag}")
-            .Produces(200)
-            .ProducesProblem(404)
-            .ProducesProblem(500);
-
-            // DELETE /api/{route}/{id}/purge — Permanently delete a single soft-deleted record
-            group.MapDelete("/{id}/purge", async (string id, IRepo<TEntity> repo, CancellationToken ct) =>
-            {
-                var guid = ParseGuid(id, typeof(TEntity).Name);
-                await repo.HardDelete(guid, ct);
-                return Results.NoContent();
-            })
-            .WithName($"PurgeSingle{tag}")
-            .WithTags(tag)
-            .Produces(204)
-            .ProducesProblem(400)
-            .ProducesProblem(404);
-
-            // DELETE /api/{route}/purge?olderThan=N — Permanently delete old soft-deleted records
-            group.MapDelete("/purge", async (HttpContext httpCtx, int olderThan, CancellationToken ct) =>
-            {
-                if (olderThan < 1)
-                    throw AppError.BadRequest("olderThan must be at least 1 day.");
-
-                var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
-                var cutoff = DateTime.UtcNow.AddDays(-olderThan);
-
-                // Disable only soft-delete filter — tenant filter stays active (no cross-tenant leak)
-                var softDeleteFilter = httpCtx.RequestServices.GetService<IDataFilter<ISoftDeletable>>();
-                using (softDeleteFilter?.Disable())
-                {
-                    var query = db.Set<TEntity>()
-                        .Where(e => ((ISoftDeletable)e).DeletedAt != null && ((ISoftDeletable)e).DeletedAt < cutoff);
-
-                    var purged = await query.ExecuteDeleteAsync(ct);
-                    return Results.Ok(new { purged });
-                }
-            })
-            .WithName($"Purge{tag}")
-            .WithTags(tag)
-            .Produces(200)
-            .ProducesProblem(400);
-        }
-
-        // POST /api/{route}/{id}/transition/{action} — State transition (IStateMachine only)
-        MapTransitionEndpoint<TEntity>(group, route, tag);
-
-        // GET /api/{route}/bulk-count — Count with filters
-        group.MapGet("/bulk-count", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var listParams = ListParams.FromQuery(httpCtx.Request.Query);
-            var count = await repo.BulkCount(listParams.Filters, ct);
-            return Results.Ok(new { count });
-        })
-        .WithName($"BulkCount{tag}")
-        .Produces<object>(200)
-        .ProducesProblem(500);
-
-        // POST /api/{route}/bulk-delete — Bulk delete with filters (skipped when ReadOnly or EnableDelete=false)
-        if (crudAttr.IsDeleteEnabled)
-        group.MapPost("/bulk-delete", async (BulkDeleteRequest request, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var filters = ParseFilters(request.Filters);
-            var options = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
-
-            var count = await repo.BulkCount(filters, ct);
-            if (count > options.BulkLimit)
-                throw AppError.BadRequest($"Bulk operation affects {count} records, which exceeds the limit of {options.BulkLimit}.");
-
-            var affected = await repo.BulkDelete(filters, ct);
-            return Results.Ok(new { affected });
-        })
-        .WithName($"BulkDelete{tag}")
-        .Produces<object>(200)
-        .ProducesProblem(400)
-        .ProducesProblem(500);
-
-        // POST /api/{route}/bulk-update — Bulk update with filters (skipped when ReadOnly or EnableUpdate=false)
-        if (crudAttr.IsUpdateEnabled)
-        group.MapPost("/bulk-update", async (BulkUpdateRequest request, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var filters = ParseFilters(request.Filters);
-            var values = ConvertValues(request.Values);
-            var options = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
-
-            var count = await repo.BulkCount(filters, ct);
-            if (count > options.BulkLimit)
-                throw AppError.BadRequest($"Bulk operation affects {count} records, which exceeds the limit of {options.BulkLimit}.");
-
-            var affected = await repo.BulkUpdate(filters, values, ct);
-            return Results.Ok(new { affected });
-        })
-        .WithName($"BulkUpdate{tag}")
-        .Produces<object>(200)
-        .ProducesProblem(400)
-        .ProducesProblem(500);
-
-        // GET /api/{route}/export — Export (3-level: [NotExportable] class > [Exportable] class > global UseExport())
+        // Export (3-level: [NotExportable] class > [Exportable] class > global UseExport())
         var exportOpts = app.Services.GetRequiredService<Configuration.CrudKitApiOptions>();
         if (FeatureResolver.IsExportEnabled<TEntity>(exportOpts.ExportEnabled))
-        {
-            group.MapGet("/export", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-            {
-                var listParams = ListParams.FromQuery(httpCtx.Request.Query);
-                var format = httpCtx.Request.Query["format"].FirstOrDefault() ?? "csv";
-                if (format is not "csv")
-                    throw AppError.BadRequest($"Unsupported export format: '{format}'. Supported: csv");
+            ExportHandler.Map<TEntity>(group, tag, route);
 
-                var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
-                var maxRows = apiOpts.MaxExportRows;
-
-                // Count first to prevent memory DoS
-                var count = await repo.BulkCount(listParams.Filters, ct);
-                if (count > maxRows)
-                    throw AppError.BadRequest($"Export would return {count} rows, exceeding the limit of {maxRows}. Narrow your filters.");
-
-                listParams.Page = 1;
-                listParams.PerPage = maxRows;
-                var result = await repo.List(listParams, ct);
-
-                var csv = CsvExportService.Export(result.Data);
-                return Results.File(
-                    System.Text.Encoding.UTF8.GetBytes(csv),
-                    "text/csv",
-                    $"{route}-export.csv");
-            })
-            .WithName($"Export{tag}")
-            .WithTags(tag)
-            .Produces(200)
-            .ProducesProblem(400);
-        }
-
-        // POST /api/{route}/import — Import (3-level: [NotImportable] class > [Importable] class > global UseImport())
-        // Import creates entities, so it respects the ReadOnly / EnableCreate flag
+        // Import (3-level: [NotImportable] class > [Importable] class > global UseImport())
         var importOpts = app.Services.GetRequiredService<Configuration.CrudKitApiOptions>();
         if (crudAttr.IsCreateEnabled && FeatureResolver.IsImportEnabled<TEntity>(importOpts.ImportEnabled))
-        {
-            group.MapPost("/import", async (HttpContext httpCtx, CancellationToken ct) =>
-            {
-                var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
-                var form = await httpCtx.Request.ReadFormAsync(ct);
-                var file = form.Files.FirstOrDefault();
-                if (file is null || file.Length == 0)
-                    throw AppError.BadRequest("No file uploaded.");
-
-                var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
-                if (file.Length > apiOpts.MaxImportFileSize)
-                    throw AppError.BadRequest($"File size ({file.Length / 1024 / 1024} MB) exceeds the limit of {apiOpts.MaxImportFileSize / 1024 / 1024} MB.");
-
-                using var reader = new StreamReader(file.OpenReadStream());
-                var content = await reader.ReadToEndAsync(ct);
-
-                var (rows, parseErrors) = CsvImportService.Parse<TEntity>(content);
-
-                var importResult = new ImportResult { Total = rows.Count + parseErrors.Count };
-                importResult.Errors.AddRange(parseErrors);
-
-                // Create each valid row via direct entity creation
-                var importAppCtx = BuildAppContext(httpCtx);
-                var importGlobalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
-                await using var tx = await db.Database.BeginTransactionAsync(ct);
-                try
-                {
-                    foreach (var (row, rowIndex) in rows.Select((r, i) => (r, i + 2))) // +2: header=1, first data=2
-                    {
-                        try
-                        {
-                            var entity = Activator.CreateInstance<TEntity>();
-                            foreach (var (key, value) in row)
-                            {
-                                var prop = typeof(TEntity).GetProperty(key,
-                                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                                if (prop is not null && prop.CanWrite && value is not null)
-                                    prop.SetValue(entity, value);
-                            }
-
-                            // Call global before hooks per entity
-                            foreach (var gh in importGlobalHooks)
-                                await gh.BeforeCreate(entity, importAppCtx);
-
-                            db.Set<TEntity>().Add(entity);
-                            await db.SaveChangesAsync(ct);
-
-                            // Call global after hooks per entity
-                            foreach (var gh in importGlobalHooks)
-                                await gh.AfterCreate(entity, importAppCtx);
-
-                            importResult.Created++;
-                        }
-                        catch (Exception ex)
-                        {
-                            importResult.Failed++;
-                            importResult.Errors.Add(new ImportError
-                            {
-                                Row = rowIndex,
-                                Message = ex is AppError appErr ? appErr.Message : ex.Message
-                            });
-                        }
-                    }
-
-                    await tx.CommitAsync(ct);
-                }
-                catch
-                {
-                    await tx.RollbackAsync(ct);
-                    throw;
-                }
-
-                return Results.Ok(importResult);
-            })
-            .WithName($"Import{tag}")
-            .WithTags(tag)
-            .Produces<ImportResult>(200)
-            .ProducesProblem(400)
-            .DisableAntiforgery();
-        }
+            ImportHandler.Map<TEntity>(group, tag);
 
         // Apply entity-level auth attributes (default — can be overridden by fluent Authorize())
         ApplyEntityAuth<TEntity>(group, route);
@@ -1289,95 +878,10 @@ public static class CrudEndpointMapper
     }
 
     /// <summary>
-    /// Uses reflection to check if TEntity implements IStateMachine and maps the transition endpoint.
-    /// </summary>
-    private static void MapTransitionEndpoint<TEntity>(RouteGroupBuilder group, string route, string tag)
-        where TEntity : class, IEntity
-    {
-        // Find IStateMachine<TState> on TEntity
-        var smInterface = typeof(TEntity).GetInterfaces()
-            .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IStateMachine<>));
-        if (smInterface is null) return;
-
-        var stateType = smInterface.GetGenericArguments()[0];
-
-        // Read static Transitions property
-        var transitionsProp = typeof(TEntity).GetProperty("Transitions",
-            BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
-        if (transitionsProp is null) return;
-
-        // Status property on the entity
-        var statusProp = typeof(TEntity).GetProperty("Status",
-            BindingFlags.Public | BindingFlags.Instance);
-        if (statusProp is null) return;
-
-        group.MapPost("/{id}/transition/{action}", async (string id, string action, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var guid = ParseGuid(id, typeof(TEntity).Name);
-            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
-            {
-                // Load entity for update (tracked)
-                var dbSet = db.Set<TEntity>();
-                var entity = await dbSet.FirstOrDefaultAsync(e => e.Id == guid, ct)
-                    ?? throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
-
-                var currentStatus = statusProp.GetValue(entity)!;
-                var transitions = transitionsProp.GetValue(null)!;
-
-                // Check if the requested action is valid from the current state
-                var found = false;
-                object? targetStatus = null;
-
-                // Iterate the transitions list via reflection
-                foreach (var t in (System.Collections.IEnumerable)transitions)
-                {
-                    var tType = t.GetType();
-                    var fromField = tType.GetField("Item1");
-                    var toField = tType.GetField("Item2");
-                    var actField = tType.GetField("Item3");
-                    if (fromField is null || toField is null || actField is null)
-                        throw new InvalidOperationException($"Invalid Transitions format on {typeof(TEntity).Name}. Expected (TState From, TState To, string Action) tuples.");
-                    var from = fromField.GetValue(t)!;
-                    var to = toField.GetValue(t)!;
-                    var act = (string)actField.GetValue(t)!;
-
-                    if (from.Equals(currentStatus) && string.Equals(act, action, StringComparison.OrdinalIgnoreCase))
-                    {
-                        found = true;
-                        targetStatus = to;
-                        break;
-                    }
-                }
-
-                if (!found)
-                    throw AppError.BadRequest($"Invalid transition '{action}' from state '{currentStatus}'.");
-
-                statusProp.SetValue(entity, targetStatus);
-                await db.SaveChangesAsync(ct);
-                await tx.CommitAsync(ct);
-
-                return Results.Ok(entity);
-            }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
-        })
-        .WithName($"Transition{tag}")
-        .Produces<TEntity>(200)
-        .ProducesProblem(400)
-        .ProducesProblem(404)
-        .ProducesProblem(500);
-    }
-
-    /// <summary>
     /// Attempts to find a registered IResponseMapper for TEntity and map a single entity.
     /// Returns the mapped response if a mapper is found, otherwise the raw entity.
     /// </summary>
-    private static object TryMapSingle<TEntity>(IServiceProvider services, TEntity entity)
+    internal static object TryMapSingle<TEntity>(IServiceProvider services, TEntity entity)
         where TEntity : class, IEntity
     {
         var mapper = ResolveEntityMapper<TEntity>(services);
@@ -1392,7 +896,7 @@ public static class CrudEndpointMapper
     /// Attempts to find a registered IResponseMapper for TEntity and map a paginated result.
     /// Returns the mapped paginated response if a mapper is found, otherwise the raw result.
     /// </summary>
-    private static object TryMapPaginated<TEntity>(IServiceProvider services, Paginated<TEntity> result)
+    internal static object TryMapPaginated<TEntity>(IServiceProvider services, Paginated<TEntity> result)
         where TEntity : class, IEntity
     {
         var mapper = ResolveEntityMapper<TEntity>(services);
@@ -1461,39 +965,7 @@ public static class CrudEndpointMapper
         return Convert.ChangeType(value, underlying);
     }
 
-    private static Dictionary<string, FilterOp> ParseFilters(Dictionary<string, string>? raw)
-    {
-        if (raw is null || raw.Count == 0) return new();
-        return raw.ToDictionary(kv => kv.Key, kv => FilterOp.Parse(kv.Value));
-    }
-
-    /// <summary>
-    /// Converts values from JSON deserialization (which may contain JsonElement) to primitive types.
-    /// </summary>
-    private static Dictionary<string, object?> ConvertValues(Dictionary<string, object?>? raw)
-    {
-        if (raw is null || raw.Count == 0) return new();
-        var result = new Dictionary<string, object?>(raw.Count);
-        foreach (var (key, value) in raw)
-        {
-            result[key] = value switch
-            {
-                JsonElement je => je.ValueKind switch
-                {
-                    JsonValueKind.String => je.GetString(),
-                    JsonValueKind.Number => je.TryGetInt64(out var l) ? l : je.GetDouble(),
-                    JsonValueKind.True => true,
-                    JsonValueKind.False => false,
-                    JsonValueKind.Null => null,
-                    _ => je.GetRawText()
-                },
-                _ => value
-            };
-        }
-        return result;
-    }
-
-    private static CrudKit.Core.Context.AppContext BuildAppContext(HttpContext httpCtx)
+    internal static CrudKit.Core.Context.AppContext BuildAppContext(HttpContext httpCtx)
     {
         return new CrudKit.Core.Context.AppContext
         {
