@@ -43,13 +43,49 @@ public class EndpointMappingGeneratorTests
     }
 
     [Fact]
-    public void EndpointMapping_UsesFullCrudOverload_ForFullEntity()
+    public void EndpointMapping_FallsBackToEntityOnly_WhenNoDtoAttributes()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(TwoEntities);
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CrudKitEndpoints.g.cs");
 
-        // Route-less overload with 3 type params using fully-qualified names
-        Assert.Contains("MapCrudEndpoints<App.Entities.Product, App.Entities.Dtos.CreateProduct, App.Entities.Dtos.UpdateProduct>()", source);
+        // Without [CreateDtoFor]/[UpdateDtoFor], falls back to entity-only overload
+        Assert.Contains("MapCrudEndpoints<App.Entities.Product>()", source);
+    }
+
+    [Fact]
+    public void EndpointMapping_UsesCrudOverload_WhenDtoAttributesPresent()
+    {
+        const string entitiesWithDtos = """
+            using CrudKit.Core.Attributes;
+            using CrudKit.Core.Interfaces;
+            using System;
+
+            namespace App.Entities
+            {
+                [CrudEntity(Resource = "Products")]
+                public class Product : IAuditableEntity
+                {
+                    public Guid Id { get; set; }
+                    public DateTime CreatedAt { get; set; }
+                    public DateTime UpdatedAt { get; set; }
+                    public string Name { get; set; } = string.Empty;
+                }
+            }
+
+            namespace App.Dtos
+            {
+                [CreateDtoFor(typeof(App.Entities.Product))]
+                public record CreateProduct(string Name);
+
+                [UpdateDtoFor(typeof(App.Entities.Product))]
+                public record UpdateProduct(string? Name);
+            }
+            """;
+
+        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(entitiesWithDtos);
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CrudKitEndpoints.g.cs");
+
+        Assert.Contains("MapCrudEndpoints<App.Entities.Product, App.Dtos.CreateProduct, App.Dtos.UpdateProduct>()", source);
     }
 
     [Fact]
@@ -58,7 +94,6 @@ public class EndpointMappingGeneratorTests
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(TwoEntities);
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CrudKitEndpoints.g.cs");
 
-        // Route-less overload with 1 type param using fully-qualified name
         Assert.Contains("MapCrudEndpoints<App.Entities.Catalog>()", source);
     }
 

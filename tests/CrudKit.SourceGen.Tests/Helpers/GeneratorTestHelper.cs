@@ -216,13 +216,16 @@ public static class GeneratorTestHelper
                 public UpdateDtoForAttribute(Type entityType) => EntityType = entityType;
             }
 
+            [AttributeUsage(AttributeTargets.Class)]
+            public class ResponseDtoForAttribute : Attribute
+            {
+                public Type EntityType { get; }
+                public ResponseDtoForAttribute(Type entityType) => EntityType = entityType;
+            }
+
             [AttributeUsage(AttributeTargets.Assembly)]
             public class CrudKitAttribute : Attribute
             {
-                public string CreateDtoNamingTemplate { get; set; } = "Create{Name}";
-                public string UpdateDtoNamingTemplate { get; set; } = "Update{Name}";
-                public string ResponseDtoNamingTemplate { get; set; } = "{Name}Response";
-                public string MapperNamingTemplate { get; set; } = "{Name}Mapper";
                 public string HooksNamingTemplate { get; set; } = "{Name}Hooks";
             }
         }

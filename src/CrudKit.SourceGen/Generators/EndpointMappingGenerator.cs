@@ -9,11 +9,14 @@ namespace CrudKit.SourceGen.Generators;
 /// extension method on <c>IEndpointRouteBuilder</c>.
 /// Each entity uses <c>MapCrudEndpoints</c> (full CRUD with 3 generic params) or
 /// <c>MapCrudEndpoints</c> (read-only with 1 generic param) depending on its operation flags.
-/// DTO type names are resolved via <see cref="NamingConvention"/>.
+/// DTO type names are discovered from user-provided [CreateDtoFor] / [UpdateDtoFor] attributes.
 /// </summary>
 internal static class EndpointMappingGenerator
 {
-    public static string Generate(IReadOnlyList<EntityMetadata> entities, NamingConvention naming)
+    public static string Generate(
+        IReadOnlyList<EntityMetadata> entities,
+        IReadOnlyDictionary<string, string> createDtoFqnMap,
+        IReadOnlyDictionary<string, string> updateDtoFqnMap)
     {
         if (entities.Count == 0)
             return string.Empty;
@@ -23,9 +26,19 @@ internal static class EndpointMappingGenerator
         foreach (var e in entities)
         {
             namespaces.Add(e.Namespace);
-            namespaces.Add($"{e.Namespace}.Dtos");
-            namespaces.Add($"{e.Namespace}.Mappers");
             namespaces.Add($"{e.Namespace}.Hooks");
+        }
+
+        // Add namespaces from user-provided DTO FQNs
+        foreach (var fqn in createDtoFqnMap.Values)
+        {
+            var ns = GetNamespace(fqn);
+            if (ns != null) namespaces.Add(ns);
+        }
+        foreach (var fqn in updateDtoFqnMap.Values)
+        {
+            var ns = GetNamespace(fqn);
+            if (ns != null) namespaces.Add(ns);
         }
 
         var sb = new StringBuilder();
@@ -52,9 +65,6 @@ internal static class EndpointMappingGenerator
 
         foreach (var entity in entities)
         {
-            string createDtoFqn = $"{entity.Namespace}.Dtos.{naming.FormatCreateDtoName(entity.Name)}";
-            string updateDtoFqn = $"{entity.Namespace}.Dtos.{naming.FormatUpdateDtoName(entity.Name)}";
-
             // Determine which mapper overload to call
             if (entity.ReadOnly || (!entity.IsCreateEnabled && !entity.IsUpdateEnabled))
             {
@@ -63,8 +73,19 @@ internal static class EndpointMappingGenerator
             }
             else
             {
-                // Full CRUD: 3 type params, no route (derived from [CrudEntity(Resource=...)])
-                sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}, {createDtoFqn}, {updateDtoFqn}>();");
+                // Full CRUD needs user-provided DTO FQNs
+                bool hasCreate = createDtoFqnMap.TryGetValue(entity.Name, out var createFqn);
+                bool hasUpdate = updateDtoFqnMap.TryGetValue(entity.Name, out var updateFqn);
+
+                if (hasCreate && hasUpdate)
+                {
+                    sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}, {createFqn}, {updateFqn}>();");
+                }
+                else
+                {
+                    // Fall back to entity-only overload when DTO attributes are missing
+                    sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}>();");
+                }
             }
         }
 
@@ -73,5 +94,11 @@ internal static class EndpointMappingGenerator
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    private static string? GetNamespace(string fqn)
+    {
+        var lastDot = fqn.LastIndexOf('.');
+        return lastDot > 0 ? fqn.Substring(0, lastDot) : null;
     }
 }

@@ -4,7 +4,8 @@ using Xunit;
 namespace CrudKit.SourceGen.Tests.Generators;
 
 /// <summary>
-/// End-to-end: one fully-featured entity verifies all expected files are generated.
+/// End-to-end: verifies that only hook stubs and endpoint mapping are generated.
+/// DTOs and mappers are no longer auto-generated — users write their own.
 /// </summary>
 public class IntegrationTests
 {
@@ -53,19 +54,22 @@ public class IntegrationTests
         """;
 
     [Fact]
-    public void FullEntity_GeneratesAllExpectedFiles()
+    public void FullEntity_GeneratesOnlyHookAndEndpointFiles()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(FullEntity);
 
         var fileNames = result.GeneratedTrees.Select(t => System.IO.Path.GetFileName(t.FilePath)).ToList();
 
-        Assert.Contains("CreateProduct.g.cs", fileNames);
-        Assert.Contains("UpdateProduct.g.cs", fileNames);
-        Assert.Contains("ProductResponse.g.cs", fileNames);
-        Assert.Contains("ProductMapper.g.cs", fileNames);
+        // Should generate hook stub and endpoint mapping
         Assert.Contains("ProductHooks.g.cs", fileNames);
         Assert.Contains("CrudKitEndpoints.g.cs", fileNames);
-        Assert.Contains("CrudKitMappers.g.cs", fileNames);
+
+        // Should NOT generate DTOs, mapper, or DI registration
+        Assert.DoesNotContain("CreateProduct.g.cs", fileNames);
+        Assert.DoesNotContain("UpdateProduct.g.cs", fileNames);
+        Assert.DoesNotContain("ProductResponse.g.cs", fileNames);
+        Assert.DoesNotContain("ProductMapper.g.cs", fileNames);
+        Assert.DoesNotContain("CrudKitMappers.g.cs", fileNames);
     }
 
     [Fact]
@@ -78,84 +82,48 @@ public class IntegrationTests
     }
 
     [Fact]
-    public void FullEntity_CreateDto_HasCorrectShape()
-    {
-        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(FullEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "CreateProduct.g.cs");
-
-        // Required props
-        Assert.Contains("[Required]", source);
-        Assert.Contains("[MaxLength(200)]", source);
-        Assert.Contains("string Name", source);
-        Assert.Contains("[Range(0.01, 999999.99)]", source);
-        Assert.Contains("decimal Price", source);
-
-        // System fields excluded
-        Assert.DoesNotContain("CreatedAt", source);
-        Assert.DoesNotContain("TenantId", source);
-
-        // Protected excluded
-        Assert.DoesNotContain("CreatedById", source);
-    }
-
-    [Fact]
-    public void FullEntity_UpdateDto_WrapsInOptional()
-    {
-        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(FullEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "UpdateProduct.g.cs");
-
-        Assert.Contains("Optional<string> Name", source);
-        Assert.Contains("Optional<decimal> Price", source);
-
-        // SkipUpdate and Protected excluded
-        Assert.DoesNotContain("Sku", source);
-        Assert.DoesNotContain("CreatedById", source);
-    }
-
-    [Fact]
-    public void FullEntity_ResponseDto_ExcludesSkipResponse()
-    {
-        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(FullEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "ProductResponse.g.cs");
-
-        Assert.DoesNotContain("InternalTag", source);
-        Assert.Contains("DateTime? DeletedAt", source);
-        Assert.Contains("string TenantId", source);
-    }
-
-    [Fact]
-    public void FullEntity_Mapper_IsComplete()
-    {
-        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(FullEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "ProductMapper.g.cs");
-
-        // Full CRUD entity → ICrudMapper
-        Assert.Contains("ICrudMapper<Product, CreateProduct, UpdateProduct, ProductResponse>", source);
-        Assert.Contains("public ProductResponse Map(Product entity)", source);
-        Assert.Contains("public IQueryable<ProductResponse> Project(IQueryable<Product> query)", source);
-        Assert.Contains("public Product FromCreateDto(CreateProduct dto)", source);
-        Assert.Contains("public void ApplyUpdate(Product entity, UpdateProduct dto)", source);
-    }
-
-    [Fact]
-    public void FullEntity_EndpointMapping_UsesCrudOverload()
+    public void FullEntity_EndpointMapping_FallsBackToEntityOnly_WhenNoDtoAttributes()
     {
         var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(FullEntity);
         var source = GeneratorTestHelper.GetGeneratedSource(result, "CrudKitEndpoints.g.cs");
 
-        Assert.Contains("MapCrudEndpoints<Acme.Domain.Entities.Product, Acme.Domain.Entities.Dtos.CreateProduct, Acme.Domain.Entities.Dtos.UpdateProduct>()", source);
+        // Without [CreateDtoFor]/[UpdateDtoFor], falls back to entity-only overload
+        Assert.Contains("MapCrudEndpoints<Acme.Domain.Entities.Product>()", source);
     }
 
     [Fact]
-    public void FullEntity_DiRegistration_RegistersMapper()
+    public void FullEntity_EndpointMapping_UsesUserDtos_WhenAttributesPresent()
     {
-        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(FullEntity);
-        var source = GeneratorTestHelper.GetGeneratedSource(result, "CrudKitMappers.g.cs");
+        const string entityWithDtos = """
+            using CrudKit.Core.Attributes;
+            using CrudKit.Core.Interfaces;
+            using System;
 
-        // Full CRUD entity → registered as ICrudMapper with individual interface forwarding
-        Assert.Contains("ICrudMapper<Product, CreateProduct, UpdateProduct, ProductResponse>, ProductMapper", source);
-        Assert.Contains("IResponseMapper<Product, ProductResponse>", source);
-        Assert.Contains("ICreateMapper<Product, CreateProduct>", source);
-        Assert.Contains("IUpdateMapper<Product, UpdateProduct>", source);
+            namespace Acme.Domain.Entities
+            {
+                [CrudEntity(Resource = "Products")]
+                public class Product : IAuditableEntity
+                {
+                    public Guid Id { get; set; }
+                    public DateTime CreatedAt { get; set; }
+                    public DateTime UpdatedAt { get; set; }
+                    public string Name { get; set; } = string.Empty;
+                }
+            }
+
+            namespace Acme.Domain.Dtos
+            {
+                [CreateDtoFor(typeof(Acme.Domain.Entities.Product))]
+                public record CreateProductRequest(string Name);
+
+                [UpdateDtoFor(typeof(Acme.Domain.Entities.Product))]
+                public record UpdateProductRequest(string? Name);
+            }
+            """;
+
+        var result = GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(entityWithDtos);
+        var source = GeneratorTestHelper.GetGeneratedSource(result, "CrudKitEndpoints.g.cs");
+
+        Assert.Contains("MapCrudEndpoints<Acme.Domain.Entities.Product, Acme.Domain.Dtos.CreateProductRequest, Acme.Domain.Dtos.UpdateProductRequest>()", source);
     }
 }
