@@ -147,6 +147,21 @@ Use this when the default generated DTO doesn't match your API contract — you 
 
 `[UpdateDtoFor]` is also used for [child entity](../features/child-entities) update auto-discovery.
 
+### [ResponseDtoFor(typeof(TEntity))]
+
+Marks a class as the response DTO for an entity. Used with `IResponseMapper` for custom response shapes.
+
+```csharp
+[ResponseDtoFor(typeof(Invoice))]
+public class InvoiceResponse
+{
+    public Guid Id { get; set; }
+    public string InvoiceNumber { get; set; }
+    public string AssociateName { get; set; } // computed field
+    public decimal GrandTotal { get; set; }
+}
+```
+
 ### [AutoSequence(template)]
 
 Generates sequential numbers automatically on Create. See [Auto Sequence](../features/auto-sequence) for details.

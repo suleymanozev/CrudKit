@@ -15,25 +15,25 @@ dotnet add package CrudKit.SourceGen
 
 ## Generated Files
 
+SourceGen no longer generates DTOs or mappers. It generates two things per project:
+
 | Generated File | Description |
 |----------------|-------------|
-| `{Entity}CreateDto.g.cs` | Create DTO record |
-| `{Entity}UpdateDto.g.cs` | Update DTO with `Optional<T>` fields |
-| `{Entity}ResponseDto.g.cs` | Response DTO |
-| `{Entity}Mapper.g.cs` | `ICrudMapper` implementation |
-| `{Entity}Hooks.g.cs` | Partial hook stub to extend |
+| `{Entity}Hooks.g.cs` | Empty `ICrudHooks<T>` partial class stub to extend |
 | `CrudKitEndpoints.g.cs` | `MapAllCrudEndpoints()` extension method |
-| `CrudKitMappers.g.cs` | DI registration for all mappers (`AddAllCrudMappers()`) |
+
+DTOs and mappers are written by hand and registered via `[CreateDtoFor]`, `[UpdateDtoFor]`, and `[ResponseDtoFor]`.
 
 ## Usage
 
 ```csharp
 // Maps all entities in one call
 app.MapAllCrudEndpoints();
-
-// Registers all generated mappers
-builder.Services.AddAllCrudMappers();
 ```
+
+## Entity as DTO
+
+If no DTOs are provided for an entity, `MapCrudEndpoints<T>()` uses the entity itself as both the Create and Update DTO. System fields (`Id`, `CreatedAt`, `UpdatedAt`, `DeletedAt`, `TenantId`, etc.) are automatically skipped during mapping — only user-defined properties are written.
 
 ## Extending Generated Hook Stubs
 
@@ -66,9 +66,15 @@ By default, SourceGen uses the naming convention `Create{Name}`, `Update{Name}`,
 
 The `{Name}` placeholder is required in every template. An empty template or a template missing `{Name}` produces a compile-time error.
 
-## Manual DTOs — [CreateDtoFor] / [UpdateDtoFor]
+## Manual DTOs — [CreateDtoFor] / [UpdateDtoFor] / [ResponseDtoFor]
 
-When you want full control over the shape of a create or update DTO, annotate your hand-written record or class with `[CreateDtoFor(typeof(TEntity))]` or `[UpdateDtoFor(typeof(TEntity))]`. SourceGen detects these attributes and skips generating that DTO for the entity. The `ResponseDto` and mapper are still generated.
+Annotate hand-written DTOs with the appropriate attribute so CrudKit can wire them up automatically:
+
+| Attribute | Purpose |
+|-----------|---------|
+| `[CreateDtoFor(typeof(TEntity))]` | Marks the Create DTO for an entity |
+| `[UpdateDtoFor(typeof(TEntity))]` | Marks the Update DTO for an entity |
+| `[ResponseDtoFor(typeof(TEntity))]` | Marks the response DTO; use with `IResponseMapper` for custom response shapes |
 
 ```csharp
 [CreateDtoFor(typeof(Order))]
@@ -79,7 +85,14 @@ public record UpdateOrder
 {
     public Optional<string?> CustomerName { get; init; }
 }
-// ResponseDto and Mapper for Order are still auto-generated.
+
+[ResponseDtoFor(typeof(Order))]
+public class OrderResponse
+{
+    public Guid Id { get; set; }
+    public string CustomerName { get; set; }
+    public string StatusLabel { get; set; } // computed field
+}
 ```
 
 ## Notes

@@ -39,6 +39,33 @@ app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
 
 The `batch` endpoint replaces all child records for a master in a single transaction.
 
+## Auto-Discovered Custom Endpoints
+
+Implement `IEndpointConfigurer<T>` to add custom endpoints without manual registration. CrudKit discovers these automatically by scanning the entity's assembly.
+
+```csharp
+public class InvoiceEndpointConfigurer : IEndpointConfigurer<Invoice>
+{
+    public void Configure(CrudEndpointGroup<Invoice> group)
+    {
+        group.WithCustomEndpoints(g =>
+        {
+            g.MapPost("/from-quote/{quoteId}", async (Guid quoteId) =>
+            {
+                // Convert quote to invoice
+            });
+            
+            g.MapGet("/summary", async () =>
+            {
+                // Return invoice summary
+            });
+        });
+    }
+}
+```
+
+No DI registration needed — just implement the interface. Works with both `MapCrudEndpoints` and `MapAllCrudEndpoints`.
+
 ## Endpoint Mapping Overloads
 
 ```csharp

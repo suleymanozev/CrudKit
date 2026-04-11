@@ -43,6 +43,18 @@ Aggregate roots add domain event support (`IHasDomainEvents`) on top of the enti
 `IRepo<T>` constraint is `IEntity` — any entity (not just `IAuditableEntity`) can participate in CRUD operations.
 :::
 
+## Hidden System Fields
+
+The following fields are automatically excluded from API responses and Swagger:
+
+| Field | Reason | Method |
+|-------|--------|--------|
+| `TenantId` | Internal multi-tenancy identifier | JSON contract modifier |
+| `DomainEvents` | Framework internal — event collection | `[JsonIgnore]` on base class |
+| `DeleteBatchId` | Framework internal — cascade restore tracking | `[JsonIgnore]` on base class |
+
+`Id`, `CreatedAt`, `UpdatedAt`, and `DeletedAt` remain visible — they are useful for API consumers.
+
 ## Automatic Field Management
 
 `CreatedById`, `UpdatedById`, and `DeletedById` are set automatically from `ICurrentUser.Id` in `SaveChanges`:
