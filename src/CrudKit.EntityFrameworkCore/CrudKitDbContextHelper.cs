@@ -652,6 +652,9 @@ public static class CrudKitDbContextHelper
                 var schema = childEntityType.GetSchema();
                 if (tableName is null) continue;
 
+                // Build fully-qualified table reference: "schema"."table" or just "table"
+                var qualifiedTable = schema is not null ? $"\"{schema}\".\"{tableName}\"" : $"\"{tableName}\"";
+
                 var storeObject = StoreObjectIdentifier.Table(tableName, schema);
 
                 var fkColumn = childEntityType.FindProperty(attr.ForeignKeyProperty)?.GetColumnName(storeObject);
@@ -665,17 +668,13 @@ public static class CrudKitDbContextHelper
                 if (deleteBatchIdColumn is not null)
                 {
                     // Include DeleteBatchId in cascade soft-delete so children can be restored with the parent
-                    var sql = string.Format(
-                        "UPDATE \"{0}\" SET \"{1}\" = {{0}}, \"{2}\" = {{1}}, \"{3}\" = {{2}} WHERE \"{4}\" = {{3}} AND \"{1}\" IS NULL",
-                        tableName, deletedAtColumn, updatedAtColumn, deleteBatchIdColumn, fkColumn);
+                    var sql = $"UPDATE {qualifiedTable} SET \"{deletedAtColumn}\" = {{0}}, \"{updatedAtColumn}\" = {{1}}, \"{deleteBatchIdColumn}\" = {{2}} WHERE \"{fkColumn}\" = {{3}} AND \"{deletedAtColumn}\" IS NULL";
                     ops.Add((sql, new object[] { now, now, deleteBatchId, entry.Entity.Id }));
                 }
                 else
                 {
                     // Fallback for children without DeleteBatchId
-                    var sql = string.Format(
-                        "UPDATE \"{0}\" SET \"{1}\" = {{0}}, \"{2}\" = {{1}} WHERE \"{3}\" = {{2}} AND \"{1}\" IS NULL",
-                        tableName, deletedAtColumn, updatedAtColumn, fkColumn);
+                    var sql = $"UPDATE {qualifiedTable} SET \"{deletedAtColumn}\" = {{0}}, \"{updatedAtColumn}\" = {{1}} WHERE \"{fkColumn}\" = {{2}} AND \"{deletedAtColumn}\" IS NULL";
                     ops.Add((sql, new object[] { now, now, entry.Entity.Id }));
                 }
             }

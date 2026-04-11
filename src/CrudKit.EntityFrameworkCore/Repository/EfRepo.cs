@@ -232,6 +232,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
                     var schema = childEntityType.GetSchema();
                     if (tableName is null) continue;
 
+                    var qualifiedTable = schema is not null ? $"\"{schema}\".\"{tableName}\"" : $"\"{tableName}\"";
                     var storeObject = StoreObjectIdentifier.Table(tableName, schema);
                     var fkColumn = childEntityType.FindProperty(attr.ForeignKeyProperty)?.GetColumnName(storeObject);
                     var deletedAtColumn = childEntityType.FindProperty(nameof(ISoftDeletable.DeletedAt))?.GetColumnName(storeObject);
@@ -245,16 +246,12 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
                     if (updatedAtColumn is not null)
                     {
                         // Restore only children deleted in the same batch — set DeletedAt and DeleteBatchId to NULL
-                        var sql = string.Format(
-                            "UPDATE \"{0}\" SET \"{1}\" = NULL, \"{2}\" = NULL, \"{3}\" = {{2}} WHERE \"{4}\" = {{0}} AND \"{2}\" = {{1}}",
-                            tableName, deletedAtColumn, batchIdColumn, updatedAtColumn, fkColumn);
+                        var sql = $"UPDATE {qualifiedTable} SET \"{deletedAtColumn}\" = NULL, \"{batchIdColumn}\" = NULL, \"{updatedAtColumn}\" = {{2}} WHERE \"{fkColumn}\" = {{0}} AND \"{batchIdColumn}\" = {{1}}";
                         _db.Database.ExecuteSqlRaw(sql, id, deleteBatchId, now);
                     }
                     else
                     {
-                        var sql = string.Format(
-                            "UPDATE \"{0}\" SET \"{1}\" = NULL, \"{2}\" = NULL WHERE \"{3}\" = {{0}} AND \"{2}\" = {{1}}",
-                            tableName, deletedAtColumn, batchIdColumn, fkColumn);
+                        var sql = $"UPDATE {qualifiedTable} SET \"{deletedAtColumn}\" = NULL, \"{batchIdColumn}\" = NULL WHERE \"{fkColumn}\" = {{0}} AND \"{batchIdColumn}\" = {{1}}";
                         _db.Database.ExecuteSqlRaw(sql, id, deleteBatchId);
                     }
                 }
