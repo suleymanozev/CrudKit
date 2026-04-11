@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using CrudKit.Api.Configuration;
 using CrudKit.Api.Events;
 using CrudKit.Api.Tenancy;
@@ -73,6 +74,23 @@ public static class CrudKitAppExtensions
         {
             jsonOpts.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
             jsonOpts.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+
+            // Hide TenantId from API responses — it's a system field not useful to consumers
+            jsonOpts.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
+            {
+                Modifiers =
+                {
+                    static typeInfo =>
+                    {
+                        if (typeInfo.Kind != JsonTypeInfoKind.Object) return;
+                        for (var i = typeInfo.Properties.Count - 1; i >= 0; i--)
+                        {
+                            if (typeInfo.Properties[i].Name is "tenantId" or "TenantId")
+                                typeInfo.Properties.RemoveAt(i);
+                        }
+                    }
+                }
+            };
         });
 
         services.AddHostedService<CrudKitStartupValidator>();

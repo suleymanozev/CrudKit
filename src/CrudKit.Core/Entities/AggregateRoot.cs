@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 
@@ -12,6 +13,7 @@ public abstract class AggregateRoot<TKey> : Entity<TKey>, IHasDomainEvents
 {
     private readonly List<IDomainEvent> _domainEvents = [];
 
+    [JsonIgnore]
     public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
     public void AddDomainEvent(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
     public void ClearDomainEvents() => _domainEvents.Clear();

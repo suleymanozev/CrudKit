@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using CrudKit.Core.Interfaces;
 
 namespace CrudKit.Core.Entities;
@@ -9,6 +10,7 @@ public abstract class FullAuditableEntity<TKey> : AuditableEntity<TKey>, ISoftDe
     where TKey : notnull
 {
     public DateTime? DeletedAt { get; set; }
+    [JsonIgnore]
     public Guid? DeleteBatchId { get; set; }
 }
 
@@ -26,6 +28,7 @@ public abstract class FullAuditableEntityWithUser<TKey, TUser, TUserKey> : Audit
     where TUserKey : notnull
 {
     public DateTime? DeletedAt { get; set; }
+    [JsonIgnore]
     public Guid? DeleteBatchId { get; set; }
     public TUserKey? DeletedById { get; set; }
     public TUser? DeletedBy { get; set; }

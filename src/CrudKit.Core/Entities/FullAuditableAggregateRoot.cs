@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 
@@ -10,10 +11,12 @@ public abstract class FullAuditableAggregateRoot<TKey> : AuditableEntity<TKey>, 
     where TKey : notnull
 {
     public DateTime? DeletedAt { get; set; }
+    [JsonIgnore]
     public Guid? DeleteBatchId { get; set; }
 
     private readonly List<IDomainEvent> _domainEvents = [];
 
+    [JsonIgnore]
     public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
     public void AddDomainEvent(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
     public void ClearDomainEvents() => _domainEvents.Clear();
@@ -34,12 +37,14 @@ public abstract class FullAuditableAggregateRootWithUser<TKey, TUser, TUserKey>
     where TUserKey : notnull
 {
     public DateTime? DeletedAt { get; set; }
+    [JsonIgnore]
     public Guid? DeleteBatchId { get; set; }
     public TUserKey? DeletedById { get; set; }
     public TUser? DeletedBy { get; set; }
 
     private readonly List<IDomainEvent> _domainEvents = [];
 
+    [JsonIgnore]
     public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
     public void AddDomainEvent(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
     public void ClearDomainEvents() => _domainEvents.Clear();
