@@ -364,95 +364,22 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
 public static class CrudEndpointMapper
 {
     /// <summary>
-    /// Maps read-only endpoints: GET / (list) and GET /{id} (get by id).
-    /// Use for entities that should not be created, updated, or deleted via API.
+    /// Maps CRUD endpoints using the entity as both Create and Update DTO.
+    /// Use [CrudEntity(ReadOnly = true)] to restrict to read-only (GET only).
+    /// Use the 3-type overload for custom Create/Update DTOs.
     /// </summary>
     public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity>(
         this WebApplication app,
         string route)
         where TEntity : class, IEntity
     {
-        EnsureCrudEntity<TEntity>();
-
-        var tag = typeof(TEntity).Name.Replace("Entity", "");
-        var group = app.MapGroup($"/api/{route}").WithTags(tag);
-        group.AddEndpointFilter<AppErrorFilter>();
-
-        // GET /api/{route} — List
-        group.MapGet("/", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var listParams = ListParams.FromQuery(httpCtx.Request.Query);
-            var result = await repo.List(listParams, ct);
-            var mapped = TryMapPaginated(httpCtx.RequestServices, result);
-            return Results.Ok(mapped);
-        })
-        .WithName($"List{tag}")
-        .Produces<Paginated<TEntity>>(200)
-        .ProducesProblem(500);
-
-        // GET /api/{route}/{id} — Get by ID
-        group.MapGet("/{id}", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var guid = ParseGuid(id, typeof(TEntity).Name);
-            var entity = await repo.FindByIdOrDefault(guid, ct);
-            if (entity is null)
-                throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
-
-            var mapped = TryMapSingle(httpCtx.RequestServices, entity);
-            return Results.Ok(mapped);
-        })
-        .WithName($"Get{tag}")
-        .Produces<TEntity>(200)
-        .ProducesProblem(404)
-        .ProducesProblem(500);
-
-        // GET /api/{route}/export — Export (3-level: [NotExportable] class > [Exportable] class > global UseExport())
-        var exportOptsRo = app.Services.GetRequiredService<Configuration.CrudKitApiOptions>();
-        if (FeatureResolver.IsExportEnabled<TEntity>(exportOptsRo.ExportEnabled))
-        {
-            group.MapGet("/export", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-            {
-                var listParams = ListParams.FromQuery(httpCtx.Request.Query);
-                var format = httpCtx.Request.Query["format"].FirstOrDefault() ?? "csv";
-                if (format is not "csv")
-                    throw AppError.BadRequest($"Unsupported export format: '{format}'. Supported: csv");
-
-                var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
-                var maxRows = apiOpts.MaxExportRows;
-
-                // Count first to prevent memory DoS
-                var count = await repo.BulkCount(listParams.Filters, ct);
-                if (count > maxRows)
-                    throw AppError.BadRequest($"Export would return {count} rows, exceeding the limit of {maxRows}. Narrow your filters.");
-
-                listParams.Page = 1;
-                listParams.PerPage = maxRows;
-                var result = await repo.List(listParams, ct);
-
-                var csv = CsvExportService.Export(result.Data);
-                return Results.File(
-                    System.Text.Encoding.UTF8.GetBytes(csv),
-                    "text/csv",
-                    $"{route}-export.csv");
-            })
-            .WithName($"Export{tag}")
-            .WithTags(tag)
-            .Produces(200)
-            .ProducesProblem(400);
-        }
-
-        // Apply entity-level auth attributes (default — can be overridden by fluent Authorize())
-        ApplyEntityAuth<TEntity>(group, route);
-
-        // Auto-discover [ChildOf] children and register their detail endpoints
-        var endpointGroupRo = new CrudEndpointGroup<TEntity>(group, app, route);
-        AutoRegisterChildEndpoints<TEntity>(app, route, endpointGroupRo);
-        return endpointGroupRo;
+        return app.MapCrudEndpoints<TEntity, TEntity, TEntity>(route);
     }
 
     /// <summary>
-    /// Maps read-only endpoints without an explicit route.
+    /// Maps CRUD endpoints without an explicit route, using the entity as both Create and Update DTO.
     /// Route is derived from [CrudEntity(Resource=...)] or falls back to entity name kebab-cased + "s".
+    /// Use [CrudEntity(ReadOnly = true)] to restrict to read-only.
     /// </summary>
     public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity>(
         this WebApplication app)
@@ -465,6 +392,7 @@ public static class CrudEndpointMapper
     /// <summary>
     /// Maps GET (list), GET (by id), POST, PUT, DELETE endpoints for the entity.
     /// Conditionally maps restore (ISoftDeletable) and transition (IStateMachine) endpoints.
+    /// Respects [CrudEntity(ReadOnly = true)] and per-operation EnableCreate/EnableUpdate/EnableDelete flags.
     /// </summary>
     public static CrudEndpointGroup<TEntity> MapCrudEndpoints<TEntity, TCreate, TUpdate>(
         this WebApplication app,
@@ -474,6 +402,8 @@ public static class CrudEndpointMapper
         where TUpdate : class
     {
         EnsureCrudEntity<TEntity>();
+
+        var crudAttr = typeof(TEntity).GetCustomAttribute<CrudEntityAttribute>()!;
 
         var tag = typeof(TEntity).Name.Replace("Entity", "");
         var group = app.MapGroup($"/api/{route}").WithTags(tag);
@@ -507,7 +437,9 @@ public static class CrudEndpointMapper
         .ProducesProblem(404)
         .ProducesProblem(500);
 
-        // POST /api/{route} — Create
+        // POST /api/{route} — Create (skipped when ReadOnly or EnableCreate=false)
+        if (crudAttr.IsCreateEnabled)
+        {
         group.MapPost("/", async (TCreate dto, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
@@ -553,8 +485,11 @@ public static class CrudEndpointMapper
         .Produces<TEntity>(201)
         .ProducesProblem(400)
         .ProducesProblem(500);
+        }
 
-        // PUT /api/{route}/{id} — Update
+        // PUT /api/{route}/{id} — Update (skipped when ReadOnly or EnableUpdate=false)
+        if (crudAttr.IsUpdateEnabled)
+        {
         group.MapPut("/{id}", async (string id, TUpdate dto, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var guid = ParseGuid(id, typeof(TEntity).Name);
@@ -611,8 +546,11 @@ public static class CrudEndpointMapper
         .ProducesProblem(400)
         .ProducesProblem(404)
         .ProducesProblem(500);
+        }
 
-        // DELETE /api/{route}/{id} — Delete
+        // DELETE /api/{route}/{id} — Delete (skipped when ReadOnly or EnableDelete=false)
+        if (crudAttr.IsDeleteEnabled)
+        {
         group.MapDelete("/{id}", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var guid = ParseGuid(id, typeof(TEntity).Name);
@@ -669,9 +607,10 @@ public static class CrudEndpointMapper
         .Produces(204)
         .ProducesProblem(404)
         .ProducesProblem(500);
+        }
 
-        // POST /api/{route}/{id}/restore — Restore (ISoftDeletable only)
-        if (typeof(ISoftDeletable).IsAssignableFrom(typeof(TEntity)))
+        // POST /api/{route}/{id}/restore — Restore (ISoftDeletable only, requires delete enabled)
+        if (crudAttr.IsDeleteEnabled && typeof(ISoftDeletable).IsAssignableFrom(typeof(TEntity)))
         {
             group.MapPost("/{id}/restore", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
             {
@@ -761,7 +700,8 @@ public static class CrudEndpointMapper
         .Produces<object>(200)
         .ProducesProblem(500);
 
-        // POST /api/{route}/bulk-delete — Bulk delete with filters
+        // POST /api/{route}/bulk-delete — Bulk delete with filters (skipped when ReadOnly or EnableDelete=false)
+        if (crudAttr.IsDeleteEnabled)
         group.MapPost("/bulk-delete", async (BulkDeleteRequest request, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var filters = ParseFilters(request.Filters);
@@ -779,7 +719,8 @@ public static class CrudEndpointMapper
         .ProducesProblem(400)
         .ProducesProblem(500);
 
-        // POST /api/{route}/bulk-update — Bulk update with filters
+        // POST /api/{route}/bulk-update — Bulk update with filters (skipped when ReadOnly or EnableUpdate=false)
+        if (crudAttr.IsUpdateEnabled)
         group.MapPost("/bulk-update", async (BulkUpdateRequest request, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var filters = ParseFilters(request.Filters);
@@ -834,8 +775,9 @@ public static class CrudEndpointMapper
         }
 
         // POST /api/{route}/import — Import (3-level: [NotImportable] class > [Importable] class > global UseImport())
+        // Import creates entities, so it respects the ReadOnly / EnableCreate flag
         var importOpts = app.Services.GetRequiredService<Configuration.CrudKitApiOptions>();
-        if (FeatureResolver.IsImportEnabled<TEntity>(importOpts.ImportEnabled))
+        if (crudAttr.IsCreateEnabled && FeatureResolver.IsImportEnabled<TEntity>(importOpts.ImportEnabled))
         {
             group.MapPost("/import", async (HttpContext httpCtx, CancellationToken ct) =>
             {
