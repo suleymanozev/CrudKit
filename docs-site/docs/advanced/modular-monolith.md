@@ -57,17 +57,25 @@ builder.Services.AddCrudKitModule<OrderModule>();
 
 Each module can own its DbContext. CrudKit automatically resolves the correct context per entity by scanning `DbSet<>` properties.
 
+Use `CrudKitDbContextDependencies` to simplify constructors — especially useful when you have many DbContexts:
+
 ```csharp
 public class OrderDbContext : CrudKitDbContext
 {
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();
+
+    public OrderDbContext(DbContextOptions<OrderDbContext> options, CrudKitDbContextDependencies deps)
+        : base(options, deps) { }
 }
 
 public class InventoryDbContext : CrudKitDbContext
 {
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Category> Categories => Set<Category>();
+
+    public InventoryDbContext(DbContextOptions<InventoryDbContext> options, CrudKitDbContextDependencies deps)
+        : base(options, deps) { }
 }
 
 // Register both
@@ -134,3 +142,7 @@ app.Run();
 ```
 
 Each module is self-contained: own DbContext, own connection string, own hooks. Modules can even use different database providers (PostgreSQL for orders, SQL Server for inventory).
+
+## SQLite Schema Validation
+
+When using SQLite, CrudKit performs schema validation at startup. If the database schema does not match the entity model (e.g. missing columns or tables), the application throws immediately rather than failing on the first query. This ensures configuration errors are caught early in development.

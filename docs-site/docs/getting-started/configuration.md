@@ -44,6 +44,13 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
         .RejectUnresolvedTenant()
         .CrossTenantPolicy(p => p.Allow("superadmin"));
 
+    // Domain events
+    opts.UseDomainEvents();
+    // or with assembly scanning:
+    opts.UseDomainEvents(cfg => cfg.ScanHandlersFromAssembly(typeof(Program).Assembly));
+    // or with custom dispatcher:
+    opts.UseDomainEvents<MyCustomDispatcher>();
+
     // Global hooks
     opts.UseGlobalHook<SearchIndexHook>();
 
@@ -78,6 +85,9 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 | `UseEnumAsString()` | `CrudKitApiOptions` | Store all enum properties as strings |
 | `UseMultiTenancy()` | `MultiTenancyOptions` | Enable multi-tenancy, chain resolver method |
 | `UseGlobalHook<T>()` | `CrudKitApiOptions` | Register a global `IGlobalCrudHook` |
+| `UseDomainEvents()` | `CrudKitApiOptions` | Enable domain event dispatching after `SaveChanges` |
+| `UseDomainEvents(Action<DomainEventOptions>)` | `CrudKitApiOptions` | Same, with handler assembly scanning config |
+| `UseDomainEvents<TDispatcher>()` | `CrudKitApiOptions` | Same, with custom `IDomainEventDispatcher` |
 
 ## AuditTrailOptions
 
@@ -96,6 +106,34 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 | `ResolveTenantFromQuery(param)` | Read from query string parameter |
 | `RejectUnresolvedTenant()` | Return `400` when no tenant can be resolved |
 | `CrossTenantPolicy(configure)` | Configure which roles can access multiple tenants |
+
+## CrudKitDbContextDependencies
+
+Instead of injecting multiple services into your DbContext constructor, use `CrudKitDbContextDependencies`:
+
+```csharp
+public class AppDbContext : CrudKitDbContext
+{
+    public AppDbContext(
+        DbContextOptions<AppDbContext> options,
+        CrudKitDbContextDependencies dependencies)
+        : base(options, dependencies) { }
+}
+```
+
+This is especially useful in [modular monolith](../advanced/modular-monolith) setups where multiple DbContexts share the same dependency set.
+
+## [CrudEntity] Attribute
+
+`[CrudEntity]` is **required** on all entities used with `MapCrudEndpoints`. The `Resource` property (formerly `Table`) controls the URL route segment:
+
+```csharp
+[CrudEntity(Resource = "products")]
+public class Product : FullAuditableEntity { }
+// → /api/products
+```
+
+If `Resource` is omitted, the entity name is kebab-cased and pluralized automatically.
 
 ## Startup Validation
 

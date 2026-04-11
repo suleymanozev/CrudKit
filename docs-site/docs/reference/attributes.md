@@ -9,11 +9,11 @@ title: Attributes
 
 ### [CrudEntity]
 
-Required on every entity managed by CrudKit. Controls route generation, endpoint availability, and document numbering.
+**Required** on every entity used with `MapCrudEndpoints`. Controls route generation, endpoint availability, and document numbering.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `Resource` | `string` | entity name kebab-cased + "s" | API resource name used as the URL route segment (e.g. `"products"` → `/api/products`) |
+| `Resource` | `string` | entity name kebab-cased + "s" | API resource name used as the URL route segment (e.g. `"products"` → `/api/products`). Formerly named `Table`. |
 | `ReadOnly` | `bool` | `false` | Generate List + Get only; no write endpoints |
 | `EnableCreate` | `bool` | `true` | Generate POST endpoint |
 | `EnableUpdate` | `bool` | `true` | Generate PUT endpoint |
@@ -147,6 +147,40 @@ public record UpdateOrder
 ```
 
 Use this when the default generated DTO doesn't match your API contract — you retain full control without giving up the generated mapper and response type.
+
+`[UpdateDtoFor]` is also used for [child entity](../features/child-entities) update auto-discovery.
+
+### [AutoSequence(template)]
+
+Generates sequential numbers automatically on Create. See [Auto Sequence](../features/auto-sequence) for details.
+
+```csharp
+[AutoSequence("INV-{year}-{seq:5}")]
+public string InvoiceNumber { get; set; } = "";
+```
+
+### [ValueObject]
+
+Marks a class as a value object for SourceGen DTO generation. See [Value Objects](../features/value-objects).
+
+```csharp
+[ValueObject]
+public class Money
+{
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = "TRY";
+}
+```
+
+### [Flatten]
+
+When applied to a property whose type is a `[ValueObject]`, flattens its properties into the parent DTO. See [Value Objects](../features/value-objects).
+
+```csharp
+[Flatten]
+public Money Price { get; set; } = new();
+// DTO: PriceAmount, PriceCurrency
+```
 
 ## Property-Level Attributes
 

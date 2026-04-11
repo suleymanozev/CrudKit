@@ -37,18 +37,41 @@ All hook methods have empty default implementations. Override only what you need
 ## ICrudHooks\<T\> Interface
 
 ```csharp
-public interface ICrudHooks<T> where T : class, IAuditableEntity
+public interface ICrudHooks<T> where T : class, IEntity
 {
     Task BeforeCreate(T entity, AppContext ctx);
     Task AfterCreate(T entity, AppContext ctx);
+
+    // 2-param (backward compatible)
     Task BeforeUpdate(T entity, AppContext ctx);
     Task AfterUpdate(T entity, AppContext ctx);
+
+    // 3-param — receives the existing entity state before the update
+    Task BeforeUpdate(T entity, T? existingEntity, AppContext ctx);
+    Task AfterUpdate(T entity, T? existingEntity, AppContext ctx);
+
     Task BeforeDelete(T entity, AppContext ctx);
     Task AfterDelete(T entity, AppContext ctx);
     Task BeforeRestore(T entity, AppContext ctx);
     Task AfterRestore(T entity, AppContext ctx);
     IQueryable<T> ApplyScope(IQueryable<T> query, AppContext ctx);
     IQueryable<T> ApplyIncludes(IQueryable<T> query);
+}
+```
+
+The 3-param overloads default to calling the 2-param versions, so existing hooks are backward compatible. Use the 3-param overload when you need to compare old vs. new values:
+
+```csharp
+public class ProductHooks : ICrudHooks<Product>
+{
+    public Task BeforeUpdate(Product entity, Product? existingEntity, AppContext ctx)
+    {
+        if (existingEntity is not null && existingEntity.Price != entity.Price)
+        {
+            // Price changed — log, notify, etc.
+        }
+        return Task.CompletedTask;
+    }
 }
 ```
 

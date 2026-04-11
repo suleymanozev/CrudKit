@@ -22,6 +22,27 @@ All entities must derive from one of CrudKit's base classes.
 | `FullAuditableEntityWithUser<TUser>` | `Guid` | + `DeletedById`, `DeletedBy` navigation |
 | `FullAuditableEntityWithUser<TKey, TUser, TUserKey>` | Custom | same with explicit key types |
 
+### Aggregate Root Hierarchy
+
+Aggregate roots add domain event support (`IHasDomainEvents`) on top of the entity hierarchy. See [Domain Events](../features/domain-events) for usage.
+
+| Class | Key | Provides |
+|-------|-----|----------|
+| `AggregateRoot` | `Guid` | `Entity` + domain events |
+| `AggregateRoot<TKey>` | Custom | same + custom key |
+| `AuditableAggregateRoot` | `Guid` | `AuditableEntity` + domain events |
+| `AuditableAggregateRoot<TKey>` | Custom | same + custom key |
+| `AuditableAggregateRootWithUser<TUser>` | `Guid` | `AuditableEntityWithUser` + domain events |
+| `AuditableAggregateRootWithUser<TKey, TUser, TUserKey>` | Custom | same with explicit key types |
+| `FullAuditableAggregateRoot` | `Guid` | `FullAuditableEntity` + domain events |
+| `FullAuditableAggregateRoot<TKey>` | Custom | same + custom key |
+| `FullAuditableAggregateRootWithUser<TUser>` | `Guid` | `FullAuditableEntityWithUser` + domain events |
+| `FullAuditableAggregateRootWithUser<TKey, TUser, TUserKey>` | Custom | same with explicit key types |
+
+:::info
+`IRepo<T>` constraint is `IEntity` — any entity (not just `IAuditableEntity`) can participate in CRUD operations.
+:::
+
 ## Automatic Field Management
 
 `CreatedById`, `UpdatedById`, and `DeletedById` are set automatically from `ICurrentUser.Id` in `SaveChanges`:
@@ -44,17 +65,31 @@ public class AppDbContext : CrudKitDbContext
 
     public AppDbContext(
         DbContextOptions<AppDbContext> options,
-        ICurrentUser currentUser,
-        TimeProvider? timeProvider = null)
-        : base(options, currentUser, timeProvider) { }
+        CrudKitDbContextDependencies dependencies)
+        : base(options, dependencies) { }
 }
 ```
 
-Constructor signature: `CrudKitDbContext(DbContextOptions, ICurrentUser, TimeProvider? timeProvider = null)`
+### CrudKitDbContextDependencies
+
+`CrudKitDbContextDependencies` bundles all required services into a single constructor parameter, simplifying DbContext constructors — especially in modular monolith setups with multiple contexts.
+
+```csharp
+// The simplified constructor (recommended)
+public AppDbContext(DbContextOptions<AppDbContext> options, CrudKitDbContextDependencies deps)
+    : base(options, deps) { }
+
+// The expanded constructor still works
+public AppDbContext(
+    DbContextOptions<AppDbContext> options,
+    ICurrentUser currentUser,
+    TimeProvider? timeProvider = null)
+    : base(options, currentUser, timeProvider) { }
+```
 
 `CrudKitDbContext` automatically:
 - Applies global query filters for `ISoftDeletable` and `IMultiTenant` entities
 - Sets audit fields in `SaveChanges`
 - Configures `IConcurrent.RowVersion` as a concurrency token
-- Defines internal tables: `__crud_audit_logs`
+- Defines internal tables: `__crud_audit_logs`, `__crud_sequences`
 - Uses `TimeProvider` for all timestamps (defaults to `TimeProvider.System`)

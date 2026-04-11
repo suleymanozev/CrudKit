@@ -55,9 +55,16 @@ public class OrderItem : AuditableEntity
 For explicit control, or when you need the `batch` replace endpoint, use the fluent API:
 
 ```csharp
+// Create only (2 type params)
 app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
     .WithChild<OrderLine, CreateOrderLine>("lines", "OrderId");
+
+// Create + Update (3 type params)
+app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
+    .WithChild<OrderLine, CreateOrderLine, UpdateOrderLine>("lines", "OrderId");
 ```
+
+### 2 type params (`WithChild<TChild, TCreateChild>`)
 
 | Method | Route |
 |--------|-------|
@@ -67,9 +74,21 @@ app.MapCrudEndpoints<Order, CreateOrder, UpdateOrder>()
 | DELETE | `/api/orders/{masterId}/lines/{id}` |
 | PUT | `/api/orders/{masterId}/lines/batch` |
 
+### 3 type params (`WithChild<TChild, TCreateChild, TUpdateChild>`)
+
+All routes above, plus:
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| PUT | `/api/orders/{masterId}/lines/{id}` | Update a single child record |
+
 The `batch` endpoint replaces all child records for a given master ID in a single transaction.
 
-## Combining with [CreateDtoFor]
+:::info
+Child entities can extend any base class (`Entity`, `AuditableEntity`, `FullAuditableEntity`, etc.) — `IAuditableEntity` is not required.
+:::
+
+## Combining with [CreateDtoFor] and [UpdateDtoFor]
 
 Child endpoints that create records require a create DTO. Use `[CreateDtoFor]` on a manual DTO or let SourceGen generate one:
 
@@ -79,3 +98,16 @@ public record CreateOrderLine(string ProductName, int Quantity);
 ```
 
 When `[CreateDtoFor]` is present for the child type, `[ChildOf]` automatically maps the `POST` endpoint.
+
+To enable child update endpoints, provide an `[UpdateDtoFor]` DTO:
+
+```csharp
+[UpdateDtoFor(typeof(OrderLine))]
+public record UpdateOrderLine
+{
+    public Optional<string?> ProductName { get; init; }
+    public Optional<int?> Quantity { get; init; }
+}
+```
+
+When both `[CreateDtoFor]` and `[UpdateDtoFor]` exist for a child type used with `[ChildOf]`, the `PUT` endpoint is also auto-mapped.

@@ -21,13 +21,22 @@ The restore endpoint is mapped automatically: `POST /api/categories/{id}/restore
 
 ## Cascade Soft Delete
 
-When the parent is soft-deleted, all matching child records are soft-deleted in the same operation using a raw SQL `UPDATE` (no N+1 queries). Restore also cascades — restoring the parent restores all its children.
+When the parent is soft-deleted, all matching child records are soft-deleted in the same operation using a raw SQL `UPDATE` (no N+1 queries). A shared `DeleteBatchId` is assigned to the parent and all cascade-deleted children.
 
 ```csharp
 [CrudEntity(Resource = "orders")]
 [CascadeSoftDelete(typeof(OrderLine), nameof(OrderLine.OrderId))]
 public class Order : FullAuditableEntity { }
 ```
+
+### Smart Cascade Restore {#smart-cascade-restore}
+
+Restoring a parent only restores children that share the same `DeleteBatchId`. This means:
+
+- Children deleted **individually** before the parent keep their own `DeleteBatchId` and are **not** restored when the parent is restored.
+- Children cascade-deleted **with** the parent share the parent's `DeleteBatchId` and **are** restored together.
+
+This prevents accidentally restoring records that were intentionally deleted before the parent.
 
 ## Restore with Unique Constraint Check
 
@@ -39,8 +48,11 @@ When restoring a soft-deleted entity, CrudKit checks all `[Unique]` properties a
 public interface ISoftDeletable
 {
     DateTime? DeletedAt { get; set; }
+    Guid? DeleteBatchId { get; set; }
 }
 ```
+
+`DeleteBatchId` is a `Guid` assigned on delete. When cascade soft-deleting, the parent and all cascade-deleted children receive the same `DeleteBatchId`. This enables [smart cascade restore](#smart-cascade-restore).
 
 You can implement `ISoftDeletable` directly on any entity without using `FullAuditableEntity`, though the base class is the recommended approach.
 

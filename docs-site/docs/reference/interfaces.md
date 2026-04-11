@@ -13,8 +13,11 @@ Marks an entity as soft-deletable. `CrudKitDbContext` applies a global query fil
 public interface ISoftDeletable
 {
     DateTime? DeletedAt { get; set; }
+    Guid? DeleteBatchId { get; set; }
 }
 ```
+
+`DeleteBatchId` enables [smart cascade restore](../features/soft-delete#smart-cascade-restore) — children deleted individually keep their own batch ID and are not restored when the parent is restored.
 
 ## IMultiTenant / IMultiTenant\<TTenant\> / IMultiTenant\<TTenant, TTenantKey\>
 
@@ -70,12 +73,19 @@ public interface IStateMachine<TState> where TState : struct, Enum
 Per-entity lifecycle hooks. All methods have empty default implementations — override only what you need.
 
 ```csharp
-public interface ICrudHooks<T> where T : class, IAuditableEntity
+public interface ICrudHooks<T> where T : class, IEntity
 {
     Task BeforeCreate(T entity, AppContext ctx);
     Task AfterCreate(T entity, AppContext ctx);
+
+    // 2-param (backward compatible)
     Task BeforeUpdate(T entity, AppContext ctx);
     Task AfterUpdate(T entity, AppContext ctx);
+
+    // 3-param — receives the existing entity state before the update
+    Task BeforeUpdate(T entity, T? existingEntity, AppContext ctx);
+    Task AfterUpdate(T entity, T? existingEntity, AppContext ctx);
+
     Task BeforeDelete(T entity, AppContext ctx);
     Task AfterDelete(T entity, AppContext ctx);
     Task BeforeRestore(T entity, AppContext ctx);
@@ -84,6 +94,8 @@ public interface ICrudHooks<T> where T : class, IAuditableEntity
     IQueryable<T> ApplyIncludes(IQueryable<T> query);
 }
 ```
+
+The 3-param `BeforeUpdate`/`AfterUpdate` overloads default to calling their 2-param versions. See [Lifecycle Hooks](../features/hooks) for examples.
 
 ## IGlobalCrudHook
 
@@ -100,6 +112,53 @@ public interface IGlobalCrudHook
     Task AfterDelete(object entity, AppContext ctx);
 }
 ```
+
+## IDomainEvent
+
+Marker interface for domain events. Implement as a record for immutability.
+
+```csharp
+public interface IDomainEvent { }
+
+public record InvoiceApprovedEvent(Guid InvoiceId) : IDomainEvent;
+```
+
+## IHasDomainEvents
+
+Implemented by all `AggregateRoot` base classes. Provides `AddDomainEvent()` and tracks pending events for dispatch after `SaveChanges`.
+
+```csharp
+public interface IHasDomainEvents
+{
+    IReadOnlyList<IDomainEvent> DomainEvents { get; }
+    void AddDomainEvent(IDomainEvent domainEvent);
+    void ClearDomainEvents();
+}
+```
+
+## IDomainEventHandler\<T\>
+
+Handles a specific domain event type. Resolved from DI by the dispatcher.
+
+```csharp
+public interface IDomainEventHandler<T> where T : IDomainEvent
+{
+    Task HandleAsync(T domainEvent, CancellationToken ct = default);
+}
+```
+
+## IDomainEventDispatcher
+
+Dispatches domain events to their handlers. CrudKit provides `CrudKitEventDispatcher` as the default. Override with `UseDomainEvents<TDispatcher>()`.
+
+```csharp
+public interface IDomainEventDispatcher
+{
+    Task DispatchAsync(IEnumerable<IDomainEvent> events, CancellationToken ct = default);
+}
+```
+
+See [Domain Events](../features/domain-events) for full usage.
 
 ## IAuditWriter
 
