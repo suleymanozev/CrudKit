@@ -1514,6 +1514,25 @@ public static class CrudEndpointMapper
             return registry.ResolveFor<TEntity>(services);
         return services.GetRequiredService<ICrudKitDbContext>();
     }
+
+    /// <summary>
+    /// Scans the entity's assembly for <see cref="IEndpointConfigurer{TEntity}"/> implementations
+    /// and invokes them. Called by generated MapAllCrudEndpoints after registering CRUD endpoints
+    /// for each entity.
+    /// </summary>
+    public static void ApplyEndpointConfigurer<TEntity>(CrudEndpointGroup<TEntity> group)
+        where TEntity : class, IEntity
+    {
+        foreach (var type in typeof(TEntity).Assembly.GetTypes())
+        {
+            if (typeof(IEndpointConfigurer<TEntity>).IsAssignableFrom(type)
+                && !type.IsAbstract && !type.IsInterface)
+            {
+                var configurer = (IEndpointConfigurer<TEntity>)Activator.CreateInstance(type)!;
+                configurer.Configure(group);
+            }
+        }
+    }
 }
 
 /// <summary>

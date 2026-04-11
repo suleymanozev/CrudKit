@@ -69,7 +69,10 @@ internal static class EndpointMappingGenerator
             if (entity.ReadOnly || (!entity.IsCreateEnabled && !entity.IsUpdateEnabled))
             {
                 // Read-only: 1 type param, no route (derived from [CrudEntity(Resource=...)])
-                sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}>();");
+                sb.AppendLine("        {");
+                sb.AppendLine($"            var group = app.MapCrudEndpoints<{entity.FullName}>();");
+                sb.AppendLine($"            CrudKit.Api.Endpoints.CrudEndpointMapper.ApplyEndpointConfigurer(group);");
+                sb.AppendLine("        }");
             }
             else
             {
@@ -79,12 +82,18 @@ internal static class EndpointMappingGenerator
 
                 if (hasCreate && hasUpdate)
                 {
-                    sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}, {createFqn}, {updateFqn}>();");
+                    sb.AppendLine("        {");
+                    sb.AppendLine($"            var group = app.MapCrudEndpoints<{entity.FullName}, {createFqn}, {updateFqn}>();");
+                    sb.AppendLine($"            CrudKit.Api.Endpoints.CrudEndpointMapper.ApplyEndpointConfigurer(group);");
+                    sb.AppendLine("        }");
                 }
                 else
                 {
                     // Fall back to entity-only overload when DTO attributes are missing
-                    sb.AppendLine($"        app.MapCrudEndpoints<{entity.FullName}>();");
+                    sb.AppendLine("        {");
+                    sb.AppendLine($"            var group = app.MapCrudEndpoints<{entity.FullName}>();");
+                    sb.AppendLine($"            CrudKit.Api.Endpoints.CrudEndpointMapper.ApplyEndpointConfigurer(group);");
+                    sb.AppendLine("        }");
                 }
             }
         }
