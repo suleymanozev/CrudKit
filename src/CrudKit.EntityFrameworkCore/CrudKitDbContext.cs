@@ -95,6 +95,17 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
     /// </summary>
     protected virtual void OnModelCreatingCustom(ModelBuilder modelBuilder) { }
 
+    /// <summary>
+    /// Sets the default schema for this module's entities.
+    /// On providers that don't support schemas (e.g. MySQL), this call is silently skipped.
+    /// Use this instead of modelBuilder.HasDefaultSchema() for cross-provider compatibility.
+    /// </summary>
+    protected void UseModuleSchema(ModelBuilder modelBuilder, string schemaName)
+    {
+        if (Dialect.DialectDetector.Detect(this).SupportsSchemas)
+            modelBuilder.HasDefaultSchema(schemaName);
+    }
+
     // ---- SaveChanges overrides — delegated to helper ----
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

@@ -16,6 +16,7 @@ public static class DialectDetector
             _ when provider.Contains("Npgsql")    => new PostgresDialect(),
             _ when provider.Contains("SqlServer") => new SqlServerDialect(),
             _ when provider.Contains("Sqlite")    => new SqliteDialect(),
+            _ when provider.Contains("MySql") || provider.Contains("MariaDb") => new MySqlDialect(),
             _                                      => new GenericDialect(),
         };
     }
