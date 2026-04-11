@@ -341,7 +341,7 @@ public interface IStateMachine<TState> where TState : struct, Enum
 Per-entity lifecycle hooks. All methods have empty default implementations — override only what you need.
 
 ```csharp
-public interface ICrudHooks<T> where T : class, IAuditableEntity
+public interface ICrudHooks<T> where T : class, IEntity
 {
     Task BeforeCreate(T entity, AppContext ctx);
     Task AfterCreate(T entity, AppContext ctx);

@@ -16,6 +16,8 @@ For an entity named `Product` (route: `/api/products`):
 | POST | `/api/products` | Create | `EnableCreate = true` (default) |
 | PUT | `/api/products/{id}` | Update (partial via `Optional<T>`) | `EnableUpdate = true` (default) |
 | DELETE | `/api/products/{id}` | Delete (soft-delete if `ISoftDeletable`) | `EnableDelete = true` (default) |
+| DELETE | `/api/products/{id}/purge` | Permanently delete a soft-deleted record | `ISoftDeletable` only |
+| DELETE | `/api/products/purge?olderThan=N` | Bulk purge records deleted more than N days ago | `ISoftDeletable` only |
 | POST | `/api/products/{id}/restore` | Restore soft-deleted record | `ISoftDeletable` only |
 | POST | `/api/products/{id}/transition/{action}` | State transition | `IStateMachine<TState>` only |
 

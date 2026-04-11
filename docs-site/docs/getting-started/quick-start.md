@@ -123,6 +123,8 @@ For a `Product` entity (route: `/api/products`):
 | POST | `/api/products` | Create |
 | PUT | `/api/products/{id}` | Update (partial via `Optional<T>`) |
 | DELETE | `/api/products/{id}` | Soft-delete |
+| DELETE | `/api/products/{id}/purge` | Permanently delete a soft-deleted record |
+| DELETE | `/api/products/purge?olderThan=N` | Bulk purge records deleted more than N days ago |
 | POST | `/api/products/{id}/restore` | Restore soft-deleted record |
 
 ## Next Steps
