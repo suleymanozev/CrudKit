@@ -143,6 +143,24 @@ app.Run();
 
 Each module is self-contained: own DbContext, own connection string, own hooks. Modules can even use different database providers (PostgreSQL for orders, SQL Server for inventory).
 
+## Schema Isolation
+
+Use `UseModuleSchema` instead of `HasDefaultSchema` for cross-provider compatibility:
+
+```csharp
+protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
+{
+    UseModuleSchema(modelBuilder, "finance");
+}
+```
+
+| Provider | Behavior |
+|----------|----------|
+| PostgreSQL | Creates schema: `finance.Invoices` |
+| SQL Server | Creates schema: `finance.Invoices` |
+| MySQL | Skipped — use separate databases for isolation |
+| SQLite | Skipped — no schema support |
+
 ## SQLite Schema Validation
 
 When using SQLite, CrudKit performs schema validation at startup. If the database schema does not match the entity model (e.g. missing columns or tables), the application throws immediately rather than failing on the first query. This ensures configuration errors are caught early in development.

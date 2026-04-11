@@ -74,6 +74,21 @@ Constructor signature: `CrudKitDbContext(DbContextOptions, ICurrentUser, TimePro
 
 A single timestamp is captured per `SaveChanges` call — `CreatedAt` and `UpdatedAt` on the same entity are always identical within one call.
 
+## Integration Tests with Testcontainers
+
+CrudKit includes provider-agnostic integration tests that run on SQLite by default and PostgreSQL via Docker automatically.
+
+```bash
+# SQLite only (no Docker needed)
+dotnet test tests/CrudKit.Integration.Tests/
+
+# SQLite + PostgreSQL (Docker required)
+# PostgreSQL container starts automatically via Testcontainers
+dotnet test tests/CrudKit.Integration.Tests/
+```
+
+If Docker is not available, PostgreSQL tests are skipped gracefully.
+
 ## In-Memory Database
 
 For unit tests that don't need SQL-specific behavior, use the EF Core in-memory provider:

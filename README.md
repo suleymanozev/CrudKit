@@ -31,7 +31,7 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Property attributes: `[Hashed]`, `[SkipResponse]`, `[SkipUpdate]`, `[Protected]`, `[Unique]`, `[Searchable]`
 - Filter/sort control per entity and property (`[NotFilterable]`, `[NotSortable]`)
 - Modular monolith support (`IModule` with assembly scan, multi-DbContext auto-resolution)
-- Multi-database dialect (SQLite, PostgreSQL, SQL Server) — auto-detected
+- Multi-database dialect (SQLite, PostgreSQL, SQL Server, MySQL/MariaDB) — auto-detected
 - Entity base class hierarchy (`Entity`, `AuditableEntity`, `FullAuditableEntity` — with `<TUser>` variants)
 - Enum properties stored as strings automatically
 - Structured error responses (409 concurrency, dev/prod stack trace toggle)
