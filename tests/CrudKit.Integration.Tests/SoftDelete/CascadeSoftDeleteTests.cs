@@ -4,16 +4,16 @@ using Xunit;
 
 namespace CrudKit.Integration.Tests.SoftDelete;
 
-public class CascadeSoftDeleteTests : IDisposable
+public class CascadeSoftDeleteTests
 {
-    private readonly DatabaseFixture _fixture = new();
-
-    [Fact]
-    public async Task CascadeDelete_SetsDeleteBatchIdOnChildren()
+    [Theory]
+    [ClassData(typeof(AllProviders))]
+    public async Task CascadeDelete_SetsDeleteBatchIdOnChildren(string provider)
     {
+        await using var fixture = await FixtureFactory.CreateAsync(provider);
         var tenantId = Guid.NewGuid().ToString();
-        using var db = _fixture.CreateContext(tenantId: tenantId);
-        var orderRepo = _fixture.CreateRepo<OrderEntity>(db);
+        using var db = fixture.CreateContext(tenantId: tenantId);
+        var orderRepo = fixture.CreateRepo<OrderEntity>(db);
 
         // Create order
         var order = await orderRepo.Create(new OrderEntity { CustomerName = "Test" });
@@ -41,13 +41,15 @@ public class CascadeSoftDeleteTests : IDisposable
         Assert.All(deletedLines, l => Assert.Equal(deletedOrder.DeleteBatchId, l.DeleteBatchId));
     }
 
-    [Fact]
-    public async Task CascadeRestore_OnlyRestoresBatchDeletedChildren()
+    [Theory]
+    [ClassData(typeof(AllProviders))]
+    public async Task CascadeRestore_OnlyRestoresBatchDeletedChildren(string provider)
     {
+        await using var fixture = await FixtureFactory.CreateAsync(provider);
         var tenantId = Guid.NewGuid().ToString();
-        using var db = _fixture.CreateContext(tenantId: tenantId);
-        var orderRepo = _fixture.CreateRepo<OrderEntity>(db);
-        var lineRepo = _fixture.CreateRepo<OrderLineEntity>(db);
+        using var db = fixture.CreateContext(tenantId: tenantId);
+        var orderRepo = fixture.CreateRepo<OrderEntity>(db);
+        var lineRepo = fixture.CreateRepo<OrderLineEntity>(db);
 
         var order = await orderRepo.Create(new OrderEntity { CustomerName = "Test" });
 
@@ -79,6 +81,4 @@ public class CascadeSoftDeleteTests : IDisposable
         Assert.Null(restoredLine.DeletedAt);
         Assert.NotNull(stillDeletedLine.DeletedAt);
     }
-
-    public void Dispose() => _fixture.Dispose();
 }

@@ -12,30 +12,22 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CrudKit.Integration.Tests.Fixtures;
 
 /// <summary>
-/// Creates test database instances based on DB_PROVIDER environment variable.
-/// Default: sqlite. Options: postgresql, sqlserver.
+/// Base fixture for creating test databases. Subclassed per provider.
 /// </summary>
-public class DatabaseFixture : IDisposable
+public abstract class DatabaseFixture : IAsyncDisposable
 {
-    private static readonly string Provider =
-        Environment.GetEnvironmentVariable("DB_PROVIDER")?.ToLowerInvariant() ?? "sqlite";
+    public abstract string ProviderName { get; }
 
-    private SqliteConnection? _sqliteConnection;
-    private string? _dbName;
+    public abstract Task InitializeAsync();
+    public abstract ValueTask DisposeAsync();
+
+    protected abstract DbContextOptions<IntegrationDbContext> CreateDbOptions();
 
     // Shared filter instance so EfRepo.Restore can toggle the same filter the DbContext uses
     private DataFilter<ISoftDeletable>? _softDeleteFilter;
 
-    public IntegrationDbContext CreateContext(
-        string? tenantId = null,
-        ICurrentUser? user = null)
+    public IntegrationDbContext CreateContext(string? tenantId = null, ICurrentUser? user = null)
     {
-        var efOptions = new CrudKitEfOptions
-        {
-            AuditTrailEnabled = true,
-            EnumAsStringEnabled = true,
-        };
-
         _softDeleteFilter = new DataFilter<ISoftDeletable>();
         var tenantFilter = new DataFilter<IMultiTenant>();
         var tenantContext = new TenantContext();
@@ -45,7 +37,7 @@ public class DatabaseFixture : IDisposable
         var deps = new CrudKitDbContextDependencies
         {
             CurrentUser = user ?? new FakeCurrentUser(),
-            EfOptions = efOptions,
+            EfOptions = new CrudKitEfOptions { AuditTrailEnabled = true, EnumAsStringEnabled = true },
             TenantContext = tenantContext,
             SoftDeleteFilter = _softDeleteFilter,
             TenantFilter = tenantFilter,
@@ -62,57 +54,71 @@ public class DatabaseFixture : IDisposable
         var dialect = DialectDetector.Detect(db);
         var filterApplier = new FilterApplier(dialect);
         var queryBuilder = new QueryBuilder<T>(filterApplier);
-        var sp = BuildServiceProvider(db);
-        return new EfRepo<T>(sp, queryBuilder, filterApplier);
-    }
 
-    private DbContextOptions<IntegrationDbContext> CreateDbOptions()
-    {
-        var builder = new DbContextOptionsBuilder<IntegrationDbContext>();
-
-        switch (Provider)
-        {
-            case "postgresql":
-                _dbName = $"crudkit_test_{Guid.NewGuid():N}";
-                builder.UseNpgsql($"Host=localhost;Port=5432;Database={_dbName};Username=postgres;Password=postgres");
-                break;
-            case "sqlserver":
-                _dbName = $"crudkit_test_{Guid.NewGuid():N}";
-                builder.UseSqlServer($"Server=localhost;Database={_dbName};User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True");
-                break;
-            default: // sqlite
-                _sqliteConnection = new SqliteConnection("Data Source=:memory:");
-                _sqliteConnection.Open();
-                builder.UseSqlite(_sqliteConnection);
-                break;
-        }
-
-        return builder.Options;
-    }
-
-    private IServiceProvider BuildServiceProvider(IntegrationDbContext db)
-    {
         var services = new ServiceCollection();
         services.AddSingleton(db);
         services.AddSingleton<CrudKitDbContext>(db);
         services.AddSingleton<ICrudKitDbContext>(db);
         services.AddSingleton<IDataFilter<ISoftDeletable>>(_softDeleteFilter!);
         services.AddSingleton(typeof(IDataFilter<>), typeof(DataFilter<>));
-        return services.BuildServiceProvider();
+        var sp = services.BuildServiceProvider();
+
+        return new EfRepo<T>(sp, queryBuilder, filterApplier);
+    }
+}
+
+/// <summary>SQLite in-memory — always available, no Docker needed.</summary>
+public class SqliteFixture : DatabaseFixture
+{
+    private SqliteConnection? _connection;
+
+    public override string ProviderName => "SQLite";
+
+    public override Task InitializeAsync()
+    {
+        _connection = new SqliteConnection("Data Source=:memory:");
+        _connection.Open();
+        return Task.CompletedTask;
     }
 
-    public void Dispose()
+    public override ValueTask DisposeAsync()
     {
-        _sqliteConnection?.Dispose();
+        _connection?.Dispose();
+        return ValueTask.CompletedTask;
+    }
 
-        // Drop test database for PostgreSQL
-        if (_dbName is not null && Provider is "postgresql")
-        {
-            using var conn = new Npgsql.NpgsqlConnection("Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres");
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"DROP DATABASE IF EXISTS \"{_dbName}\" WITH (FORCE)";
-            cmd.ExecuteNonQuery();
-        }
+    protected override DbContextOptions<IntegrationDbContext> CreateDbOptions()
+    {
+        return new DbContextOptionsBuilder<IntegrationDbContext>()
+            .UseSqlite(_connection!)
+            .Options;
+    }
+}
+
+/// <summary>PostgreSQL via Testcontainers — automatically starts/stops Docker container.</summary>
+public class PostgreSqlFixture : DatabaseFixture
+{
+    private Testcontainers.PostgreSql.PostgreSqlContainer? _container;
+
+    public override string ProviderName => "PostgreSQL";
+
+    public override async Task InitializeAsync()
+    {
+        _container = new Testcontainers.PostgreSql.PostgreSqlBuilder("postgres:17")
+            .Build();
+        await _container.StartAsync();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        if (_container is not null)
+            await _container.DisposeAsync();
+    }
+
+    protected override DbContextOptions<IntegrationDbContext> CreateDbOptions()
+    {
+        return new DbContextOptionsBuilder<IntegrationDbContext>()
+            .UseNpgsql(_container!.GetConnectionString())
+            .Options;
     }
 }

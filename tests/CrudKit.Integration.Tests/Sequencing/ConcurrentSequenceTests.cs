@@ -3,16 +3,16 @@ using Xunit;
 
 namespace CrudKit.Integration.Tests.Sequencing;
 
-public class ConcurrentSequenceTests : IDisposable
+public class ConcurrentSequenceTests
 {
-    private readonly DatabaseFixture _fixture = new();
-
-    [Fact]
-    public async Task AutoSequence_GeneratesUniqueNumbers()
+    [Theory]
+    [ClassData(typeof(AllProviders))]
+    public async Task AutoSequence_GeneratesUniqueNumbers(string provider)
     {
+        await using var fixture = await FixtureFactory.CreateAsync(provider);
         var tenantId = Guid.NewGuid().ToString();
-        using var db = _fixture.CreateContext(tenantId: tenantId);
-        var repo = _fixture.CreateRepo<OrderEntity>(db);
+        using var db = fixture.CreateContext(tenantId: tenantId);
+        var repo = fixture.CreateRepo<OrderEntity>(db);
 
         var order1 = await repo.Create(new OrderEntity { CustomerName = "A" });
         var order2 = await repo.Create(new OrderEntity { CustomerName = "B" });
@@ -32,24 +32,24 @@ public class ConcurrentSequenceTests : IDisposable
         Assert.EndsWith("00003", order3.OrderNumber);
     }
 
-    [Fact]
-    public async Task AutoSequence_DifferentTenants_IndependentSequences()
+    [Theory]
+    [ClassData(typeof(AllProviders))]
+    public async Task AutoSequence_DifferentTenants_IndependentSequences(string provider)
     {
+        await using var fixture = await FixtureFactory.CreateAsync(provider);
         var tenant1 = Guid.NewGuid().ToString();
         var tenant2 = Guid.NewGuid().ToString();
 
-        using var db1 = _fixture.CreateContext(tenantId: tenant1);
-        var repo1 = _fixture.CreateRepo<OrderEntity>(db1);
+        using var db1 = fixture.CreateContext(tenantId: tenant1);
+        var repo1 = fixture.CreateRepo<OrderEntity>(db1);
         var order1 = await repo1.Create(new OrderEntity { CustomerName = "T1" });
 
-        using var db2 = _fixture.CreateContext(tenantId: tenant2);
-        var repo2 = _fixture.CreateRepo<OrderEntity>(db2);
+        using var db2 = fixture.CreateContext(tenantId: tenant2);
+        var repo2 = fixture.CreateRepo<OrderEntity>(db2);
         var order2 = await repo2.Create(new OrderEntity { CustomerName = "T2" });
 
         // Both tenants start at 00001
         Assert.EndsWith("00001", order1.OrderNumber);
         Assert.EndsWith("00001", order2.OrderNumber);
     }
-
-    public void Dispose() => _fixture.Dispose();
 }
