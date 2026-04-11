@@ -24,10 +24,7 @@ title: Attributes
 | `OwnerField` | `string` | — | Property holding the owner user ID for row-level security |
 
 ```csharp
-[CrudEntity(
-    Resource = "orders",
-    EnableBulkDelete = true,
-    BulkLimit = 500)]
+[CrudEntity(EnableBulkDelete = true, BulkLimit = 500)]
 public class Order : FullAuditableEntity { }
 ```
 
@@ -51,7 +48,7 @@ public class Order : FullAuditableEntity { }
 All endpoints on this entity require an authenticated user. Unauthenticated requests return `401`.
 
 ```csharp
-[CrudEntity(Resource = "orders")]
+[CrudEntity]
 [RequireAuth]
 public class Order : FullAuditableEntity { }
 ```
@@ -68,11 +65,11 @@ public class AdminSetting : AuditableEntity { }
 
 ### [RequirePermissions]
 
-Auto-derives convention-based permission names from the resource name. For `Resource = "products"`, requires:
+Auto-derives convention-based permission names from the resource name. For a `Product` entity (resource: `"products"`), requires:
 `products:read`, `products:create`, `products:update`, `products:delete`.
 
 ```csharp
-[CrudEntity(Resource = "products")]
+[CrudEntity]
 [RequirePermissions]
 public class Product : AuditableEntity { }
 ```
@@ -82,7 +79,7 @@ public class Product : AuditableEntity { }
 Applies a role restriction to a specific operation only. Operations: `"Read"`, `"Create"`, `"Update"`, `"Delete"`.
 
 ```csharp
-[CrudEntity(Resource = "invoices")]
+[CrudEntity]
 [RequireAuth]
 [AuthorizeOperation("Create", "manager")]
 [AuthorizeOperation("Delete", "admin")]
@@ -94,7 +91,7 @@ public class Invoice : FullAuditableEntity { }
 When the parent is soft-deleted, all matching child records are soft-deleted in the same operation using a raw SQL `UPDATE` (no N+1 queries). Restore also cascades.
 
 ```csharp
-[CrudEntity(Resource = "orders")]
+[CrudEntity]
 [CascadeSoftDelete(typeof(OrderLine), nameof(OrderLine.OrderId))]
 public class Order : FullAuditableEntity { }
 ```
@@ -122,7 +119,7 @@ public class OrderLine : AuditableEntity
 public class OrderItem : AuditableEntity { }
 ```
 
-Auto-generated endpoints (assuming `[CrudEntity(Resource = "orders")]` on parent):
+Auto-generated endpoints (assuming an `Order` parent entity with route `/api/orders`):
 
 | Method | Route |
 |--------|-------|
@@ -202,7 +199,7 @@ public Money Price { get; set; } = new();
 | `[DefaultInclude]` | Class | Auto-includes a navigation property in queries. Supports `IncludeScope.All` or `IncludeScope.DetailOnly`. |
 
 ```csharp
-[CrudEntity(Resource = "users")]
+[CrudEntity]
 [Audited]
 public class User : FullAuditableEntity
 {

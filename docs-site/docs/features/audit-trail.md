@@ -18,7 +18,7 @@ opts.UseAuditTrail();
 **2. Opt entities in:**
 
 ```csharp
-[CrudEntity(Resource = "orders")]
+[CrudEntity]
 [Audited]
 public class Order : FullAuditableEntity { }
 ```

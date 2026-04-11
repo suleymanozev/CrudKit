@@ -42,7 +42,7 @@ The `batch` endpoint replaces all child records for a master in a single transac
 ## Endpoint Mapping Overloads
 
 ```csharp
-// Full CRUD — route derived from [CrudEntity(Resource = ...)]
+// Full CRUD — route derived from entity name
 app.MapCrudEndpoints<TEntity, TCreate, TUpdate>();
 
 // ReadOnly — List + Get only

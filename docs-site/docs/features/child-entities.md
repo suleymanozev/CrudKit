@@ -21,7 +21,7 @@ public class OrderLine : AuditableEntity
 }
 ```
 
-Assuming `Order` has `[CrudEntity(Resource = "orders")]`, the following endpoints are generated:
+Assuming an `Order` parent entity (route: `/api/orders`), the following endpoints are generated:
 
 | Method | Route | Description |
 |--------|-------|-------------|

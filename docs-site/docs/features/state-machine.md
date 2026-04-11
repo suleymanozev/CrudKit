@@ -12,7 +12,7 @@ Implement `IStateMachine<TState>` to add state transition endpoints. CrudKit map
 ```csharp
 public enum OrderStatus { Pending, Processing, Completed, Cancelled }
 
-[CrudEntity(Resource = "orders")]
+[CrudEntity]
 public class Order : FullAuditableEntity, IStateMachine<OrderStatus>
 {
     public string CustomerName { get; set; } = string.Empty;

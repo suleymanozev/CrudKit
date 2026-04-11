@@ -10,7 +10,7 @@ Use `FullAuditableEntity` (or implement `ISoftDeletable` directly) for soft-dele
 The `DELETE` endpoint sets `DeletedAt` instead of removing the row. Soft-deleted records are excluded from all queries automatically via a global EF Core query filter.
 
 ```csharp
-[CrudEntity(Resource = "categories")]
+[CrudEntity]
 public class Category : FullAuditableEntity
 {
     public string Name { get; set; } = string.Empty;
@@ -24,7 +24,7 @@ The restore endpoint is mapped automatically: `POST /api/categories/{id}/restore
 When the parent is soft-deleted, all matching child records are soft-deleted in the same operation using a raw SQL `UPDATE` (no N+1 queries). A shared `DeleteBatchId` is assigned to the parent and all cascade-deleted children.
 
 ```csharp
-[CrudEntity(Resource = "orders")]
+[CrudEntity]
 [CascadeSoftDelete(typeof(OrderLine), nameof(OrderLine.OrderId))]
 public class Order : FullAuditableEntity { }
 ```

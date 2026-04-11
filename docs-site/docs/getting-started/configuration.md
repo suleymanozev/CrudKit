@@ -128,12 +128,18 @@ This is especially useful in [modular monolith](../advanced/modular-monolith) se
 `[CrudEntity]` is **required** on all entities used with `MapCrudEndpoints`. The `Resource` property (formerly `Table`) controls the URL route segment:
 
 ```csharp
-[CrudEntity(Resource = "products")]
+[CrudEntity]
 public class Product : FullAuditableEntity { }
-// → /api/products
+// → /api/products  (auto-derived: "Product" → "products")
 ```
 
-If `Resource` is omitted, the entity name is kebab-cased and pluralized automatically.
+The entity name is kebab-cased and pluralized automatically. Specify `Resource` only to override the default:
+
+```csharp
+[CrudEntity(Resource = "admin-settings")]
+public class AdminSetting : AuditableEntity { }
+// → /api/admin-settings  (overrides default "admin-settings")
+```
 
 ## Startup Validation
 

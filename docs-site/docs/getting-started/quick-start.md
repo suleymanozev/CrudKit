@@ -58,7 +58,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 var app = builder.Build();
 app.UseCrudKit();
 
-// Route auto-derived from [CrudEntity(Resource = "products")]
+// Route auto-derived from entity name: "products"
 app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
 
 // Or with SourceGen — maps all [CrudEntity] types in one call
@@ -70,7 +70,7 @@ app.Run();
 ## Step 4 — Define an Entity
 
 ```csharp
-[CrudEntity(Resource = "products")]
+[CrudEntity]
 [Audited]
 [RequirePermissions]  // auto-convention: products:read, products:create, ...
 public class Product : FullAuditableEntity
@@ -114,7 +114,7 @@ dotnet ef database update -c AppDbContext
 
 ## Generated Endpoints
 
-For `[CrudEntity(Resource = "products")]`:
+For a `Product` entity (route: `/api/products`):
 
 | Method | Route | Description |
 |--------|-------|-------------|
