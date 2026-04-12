@@ -14,6 +14,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 {
     // Pagination
     opts.DefaultPageSize = 25;           // Default: 20
+    opts.MinPageSize = 1;               // Default: 1
     opts.MaxPageSize = 100;              // Default: 100
 
     // Routing
@@ -64,6 +65,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `DefaultPageSize` | `int` | `20` | Default page size for List endpoints |
+| `MinPageSize` | `int` | `1` | Minimum allowed page size |
 | `MaxPageSize` | `int` | `100` | Maximum allowed page size |
 | `ApiPrefix` | `string` | `"/api"` | Route prefix for all generated endpoints |
 | `BulkLimit` | `int` | `10000` | Maximum records per bulk operation |

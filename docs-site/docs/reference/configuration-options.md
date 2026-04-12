@@ -14,7 +14,8 @@ All options are set via `AddCrudKit<TContext>(opts => ...)`.
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `DefaultPageSize` | `int` | `20` | Default page size for List endpoints |
-| `MaxPageSize` | `int` | `100` | Maximum allowed page size |
+| `MinPageSize` | `int` | `1` | Minimum allowed page size (clamped via `Math.Clamp`) |
+| `MaxPageSize` | `int` | `100` | Maximum allowed page size (clamped via `Math.Clamp`) |
 | `ApiPrefix` | `string` | `"/api"` | Route prefix for all generated endpoints |
 | `BulkLimit` | `int` | `10000` | Maximum records per bulk operation |
 | `EnableIdempotency` | `bool` | `false` | Enable idempotency key support via request header |
