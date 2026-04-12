@@ -127,6 +127,27 @@ public static class CrudKitDbContextHelper
                 if (isSoftDeletable)
                     indexBuilder.HasFilter($"\"{nameof(ISoftDeletable.DeletedAt)}\" IS NULL");
             }
+
+            // ---- [CrudIndex] attribute → custom indexes (tenant-aware by default) ----
+            var crudIndexAttributes = clrType.GetCustomAttributes<CrudIndexAttribute>();
+            foreach (var indexAttr in crudIndexAttributes)
+            {
+                var columns = new List<string>();
+
+                // Prepend TenantId if entity is multi-tenant and TenantAware is true
+                if (isMultiTenant && indexAttr.TenantAware)
+                    columns.Add(nameof(IMultiTenant.TenantId));
+
+                columns.AddRange(indexAttr.Properties);
+
+                var crudIndexBuilder = modelBuilder.Entity(clrType)
+                    .HasIndex(columns.ToArray())
+                    .IsUnique(indexAttr.IsUnique);
+
+                // Partial index for unique + soft-deletable
+                if (indexAttr.IsUnique && isSoftDeletable)
+                    crudIndexBuilder.HasFilter($"\"{nameof(ISoftDeletable.DeletedAt)}\" IS NULL");
+            }
         }
 
         // CrudKit internal tables — audit log when global UseAuditTrail() is on,

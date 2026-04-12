@@ -128,6 +128,30 @@ Auto-generated endpoints (assuming an `Order` parent entity with route `/api/ord
 | DELETE | `/api/orders/{id}/order-lines/{lineId}` |
 | POST | `/api/orders/{id}/order-lines` (when `[CreateDtoFor]` exists for the child) |
 
+### [CrudIndex]
+
+Defines an index on one or more properties. For `IMultiTenant` entities, `TenantId` is automatically prepended unless `TenantAware = false`.
+
+```csharp
+[CrudEntity]
+[CrudIndex("Code", IsUnique = true)]                          // → (TenantId, Code) unique
+[CrudIndex("AssociateId", "InvoiceDate")]                      // → (TenantId, AssociateId, InvoiceDate)
+[CrudIndex("Status", TenantAware = false)]                     // → (Status) — tenant-independent
+public class Invoice : FullAuditableAggregateRoot, IMultiTenant { }
+```
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Properties` | `string[]` | required | Property names for the index |
+| `IsUnique` | `bool` | `false` | Enforce uniqueness |
+| `TenantAware` | `bool` | `true` | Prepend TenantId for IMultiTenant entities |
+
+When `IsUnique = true` on a soft-deletable entity, a partial index (`WHERE DeletedAt IS NULL`) is created — same behavior as `[Unique]`.
+
+:::tip
+Use `[Unique]` for simple single-property unique indexes. Use `[CrudIndex]` for composite indexes, non-unique indexes, or when you need explicit control over tenant awareness.
+:::
+
 ### [CreateDtoFor(typeof(TEntity))] / [UpdateDtoFor(typeof(TEntity))]
 
 Applied to a manually written DTO. Tells SourceGen to skip generating the corresponding DTO for `TEntity`. `ResponseDto` and mapper are still generated automatically.

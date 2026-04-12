@@ -126,6 +126,76 @@ public class DbContextHelperTests
     }
 
     [Fact]
+    public void ConfigureModel_CrudIndex_UniqueWithTenant_CreatesTenantScopedUniqueIndex()
+    {
+        using var db = DbHelper.CreateDb();
+        var entityType = db.Model.FindEntityType(typeof(CrudIndexEntity))!;
+        var indexes = entityType.GetIndexes().ToList();
+
+        // [CrudIndex("Code", IsUnique = true)] on IMultiTenant → (TenantId, Code) unique
+        var codeIndex = indexes.FirstOrDefault(i =>
+            i.Properties.Any(p => p.Name == "Code") &&
+            i.Properties.Any(p => p.Name == "TenantId"));
+        Assert.NotNull(codeIndex);
+        Assert.True(codeIndex!.IsUnique);
+        Assert.Equal(2, codeIndex.Properties.Count);
+        // Soft-deletable + unique → partial index filter
+        Assert.NotNull(codeIndex.GetFilter());
+        Assert.Contains("DeletedAt", codeIndex.GetFilter()!);
+    }
+
+    [Fact]
+    public void ConfigureModel_CrudIndex_Composite_CreatesTenantPrependedIndex()
+    {
+        using var db = DbHelper.CreateDb();
+        var entityType = db.Model.FindEntityType(typeof(CrudIndexEntity))!;
+        var indexes = entityType.GetIndexes().ToList();
+
+        // [CrudIndex("Category", "SubCategory")] on IMultiTenant → (TenantId, Category, SubCategory)
+        var compositeIndex = indexes.FirstOrDefault(i =>
+            i.Properties.Any(p => p.Name == "Category") &&
+            i.Properties.Any(p => p.Name == "SubCategory"));
+        Assert.NotNull(compositeIndex);
+        Assert.False(compositeIndex!.IsUnique);
+        Assert.Equal(3, compositeIndex.Properties.Count);
+        Assert.Equal("TenantId", compositeIndex.Properties[0].Name);
+    }
+
+    [Fact]
+    public void ConfigureModel_CrudIndex_TenantAwareFalse_DoesNotPrependTenantId()
+    {
+        using var db = DbHelper.CreateDb();
+        var entityType = db.Model.FindEntityType(typeof(CrudIndexEntity))!;
+        var indexes = entityType.GetIndexes().ToList();
+
+        // [CrudIndex("GlobalCode", TenantAware = false)] → (GlobalCode) only
+        var globalIndex = indexes.FirstOrDefault(i =>
+            i.Properties.Any(p => p.Name == "GlobalCode") &&
+            i.Properties.Count == 1);
+        Assert.NotNull(globalIndex);
+        Assert.False(globalIndex!.IsUnique);
+        Assert.DoesNotContain(globalIndex.Properties, p => p.Name == "TenantId");
+    }
+
+    [Fact]
+    public void ConfigureModel_CrudIndex_NonTenantEntity_NoTenantIdPrepended()
+    {
+        using var db = DbHelper.CreateDb();
+        var entityType = db.Model.FindEntityType(typeof(CrudIndexNonTenantEntity))!;
+        var indexes = entityType.GetIndexes().ToList();
+
+        // [CrudIndex("Code", IsUnique = true)] on non-tenant entity → (Code) unique
+        var codeIndex = indexes.FirstOrDefault(i =>
+            i.Properties.Any(p => p.Name == "Code"));
+        Assert.NotNull(codeIndex);
+        Assert.True(codeIndex!.IsUnique);
+        Assert.Single(codeIndex.Properties);
+        Assert.Equal("Code", codeIndex.Properties[0].Name);
+        // Soft-deletable + unique → partial index filter
+        Assert.NotNull(codeIndex.GetFilter());
+    }
+
+    [Fact]
     public async Task SaveChanges_MultiTenant_PreservesTenantId_OnUpdate()
     {
         var tenant = new TenantContext { TenantId = "tenant-A" };

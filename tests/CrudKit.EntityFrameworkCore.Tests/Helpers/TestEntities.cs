@@ -243,6 +243,40 @@ public class EntityLevelNotSortableEntity : IAuditableEntity
 }
 
 // ---------------------------------------------------------------------------
+// Entities used by CrudIndex tests
+// ---------------------------------------------------------------------------
+
+/// <summary>Multi-tenant + soft-deletable entity with [CrudIndex] for index configuration tests.</summary>
+[CrudIndex("Code", IsUnique = true)]
+[CrudIndex("Category", "SubCategory")]
+[CrudIndex("GlobalCode", TenantAware = false)]
+public class CrudIndexEntity : IAuditableEntity, ISoftDeletable, IMultiTenant
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string SubCategory { get; set; } = string.Empty;
+    public string GlobalCode { get; set; } = string.Empty;
+    public string TenantId { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public Guid? DeleteBatchId { get; set; }
+}
+
+/// <summary>Non-tenant entity with [CrudIndex] — TenantId should NOT be prepended.</summary>
+[CrudIndex("Code", IsUnique = true)]
+public class CrudIndexNonTenantEntity : IAuditableEntity, ISoftDeletable
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public Guid? DeleteBatchId { get; set; }
+}
+
+// ---------------------------------------------------------------------------
 // Entities used by UserTracking tests
 // ---------------------------------------------------------------------------
 

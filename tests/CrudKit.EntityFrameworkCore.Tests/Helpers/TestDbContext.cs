@@ -44,6 +44,10 @@ public class TestDbContext : CrudKitDbContext
     // DbSets for Unique constraint restore tests
     public DbSet<UniqueCodeEntity> UniqueCodeEntities => Set<UniqueCodeEntity>();
 
+    // DbSets for CrudIndex tests
+    public DbSet<CrudIndexEntity> CrudIndexEntities => Set<CrudIndexEntity>();
+    public DbSet<CrudIndexNonTenantEntity> CrudIndexNonTenantEntities => Set<CrudIndexNonTenantEntity>();
+
     // DbSets for UserTracking tests
     public DbSet<TrackedEntity> TrackedEntities => Set<TrackedEntity>();
     public DbSet<SoftDeleteTrackedEntity> SoftDeleteTrackedEntities => Set<SoftDeleteTrackedEntity>();
