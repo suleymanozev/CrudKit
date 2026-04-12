@@ -237,3 +237,150 @@ public class User : FullAuditableEntity
     public string InternalToken { get; set; } = string.Empty;
 }
 ```
+
+### [AuditIgnore]
+
+Applied to a property to exclude it from audit trail change tracking. The field never appears in old/new change values written to `__crud_audit_logs`.
+
+```csharp
+public class Employee : FullAuditableAggregateRoot
+{
+    public string Name { get; set; }
+
+    [AuditIgnore]
+    public string TempCalculation { get; set; } // not tracked in audit log
+}
+```
+
+### [DefaultInclude]
+
+Applied to an entity class to auto-include a navigation property in every query for that entity. Accepts an `IncludeScope` to limit inclusion to detail queries only.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `PropertyName` | `string` | — | Name of the navigation property to include |
+| `Scope` | `IncludeScope` | `All` | `All` includes in list + detail; `DetailOnly` includes only in single-record queries |
+
+```csharp
+[DefaultInclude(nameof(Lines))]
+public class Invoice : FullAuditableAggregateRoot
+{
+    public List<InvoiceLine> Lines { get; set; }
+}
+```
+
+### [Filterable] / [NotFilterable]
+
+Controls whether a property or entity can be filtered via query string parameters. Follows the 3-level flag pattern: global default → entity-level override → property-level override.
+
+- `[Filterable]` on a property — force-enables filtering even when the entity has `[NotFilterable]`.
+- `[NotFilterable]` on a property — disables filtering for that field; queries using it are silently skipped.
+- `[NotFilterable]` on a class — disables filtering for the entire entity.
+
+```csharp
+public class Product : FullAuditableAggregateRoot
+{
+    [Filterable]
+    public string Name { get; set; }          // ?name=like:widget
+
+    [NotFilterable]
+    public string InternalNotes { get; set; } // cannot be filtered
+}
+```
+
+### [Sortable] / [NotSortable]
+
+Controls whether a property or entity can be sorted via query string parameters. Follows the same 3-level override pattern as `[Filterable]`.
+
+- `[Sortable]` on a property — force-enables sorting even when the entity has `[NotSortable]`.
+- `[NotSortable]` on a property — disables sorting for that field; sort requests on it are silently skipped.
+
+```csharp
+public class Product : FullAuditableAggregateRoot
+{
+    [Sortable]
+    public decimal Price { get; set; }      // ?sort=-price
+
+    [NotSortable]
+    public string Description { get; set; } // cannot be sorted
+}
+```
+
+### [Searchable]
+
+Marks a string property to be included in global full-text search queries (`?search=term`). Multiple properties can be marked; the query performs a case-insensitive `LIKE` on each.
+
+```csharp
+public class Product : FullAuditableAggregateRoot
+{
+    [Searchable]
+    public string Name { get; set; }          // included in ?search=widget
+
+    [Searchable]
+    public string Code { get; set; }          // also included
+
+    public string InternalNotes { get; set; } // not searchable
+}
+```
+
+### [Hashed]
+
+BCrypt-hashes the property value on Create. The raw value is never stored. In the audit trail the field is masked as `"***"`. Combine with `[SkipResponse]` to prevent the hash from appearing in API responses.
+
+```csharp
+public class User : AuditableEntity
+{
+    [Hashed, SkipResponse]
+    public string Password { get; set; } // stored as BCrypt hash, not returned in responses
+}
+```
+
+### [SkipResponse]
+
+Excludes the property from the generated `ResponseDto` and therefore from all API response JSON. Use for sensitive fields such as password hashes or internal tokens. The property is still persisted and audited unless `[AuditIgnore]` is also applied.
+
+```csharp
+public class User : AuditableEntity
+{
+    public string Username { get; set; }
+
+    [SkipResponse]
+    public string PasswordHash { get; set; } // not included in GET response
+}
+```
+
+### [SkipUpdate]
+
+The property is included in the `CreateDto` but excluded from the `UpdateDto`. The value is set once at creation and cannot be changed through the standard update endpoint.
+
+```csharp
+public class Invoice : FullAuditableAggregateRoot
+{
+    [SkipUpdate]
+    public InvoiceDirection Direction { get; set; } // set at creation, cannot change
+}
+```
+
+### [Protected]
+
+The property is excluded from the `UpdateDto`. Typically applied to a `Status` field managed by a state machine or workflow hook. The only way to change the value is through a dedicated `/transition` endpoint or via server-side logic.
+
+```csharp
+public class Invoice : FullAuditableAggregateRoot, IStateMachine<InvoiceStatus>
+{
+    [Protected]
+    public InvoiceStatus Status { get; set; } // only changed via /transition endpoint
+}
+```
+
+### [Unique]
+
+Creates a unique index on the property. When the entity implements `ISoftDeletable`, the index is a partial index scoped to active (non-deleted) records, so soft-deleted rows do not block reuse of a value. On restore, a `409 Conflict` is returned if the value is already taken by an active record.
+
+```csharp
+public class Product : FullAuditableAggregateRoot
+{
+    [Unique]
+    public string Code { get; set; } // unique among active records (soft-deleted excluded)
+}
+```
