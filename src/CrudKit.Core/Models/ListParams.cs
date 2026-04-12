@@ -25,8 +25,8 @@ public class ListParams
         if (query.TryGetValue("page", out var pageVal) && int.TryParse(pageVal, out var page) && page > 0)
             result.Page = page;
 
-        if (query.TryGetValue("per_page", out var ppVal) && int.TryParse(ppVal, out var pp) && pp > 0)
-            result.PerPage = Math.Min(pp, maxPageSize);
+        if (query.TryGetValue("per_page", out var ppVal) && int.TryParse(ppVal, out var pp))
+            result.PerPage = Math.Clamp(pp, 1, maxPageSize);
 
         if (query.TryGetValue("sort", out var sortVal))
             result.Sort = sortVal.ToString();
