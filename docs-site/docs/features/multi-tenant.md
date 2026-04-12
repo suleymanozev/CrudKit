@@ -134,9 +134,9 @@ app.Run();
 
 ## IDataFilter — Tenant Filter
 
-The tenant filter is always active and cannot be disabled at runtime via `IDataFilter<T>`. Cross-tenant access must be granted explicitly via `CrossTenantPolicy` at configuration time.
+The tenant filter is always active and **cannot be disabled** at runtime via `IDataFilter<T>`. This is a deliberate security decision — accidentally disabling the tenant filter would leak data across tenants. Cross-tenant access must be granted explicitly via `CrossTenantPolicy` at configuration time.
 
-Use `IDataFilter<T>.Disable<ISoftDeletable>()` if you need to bypass the soft-delete filter for an entity without affecting tenant isolation.
+Use `IDataFilter<ISoftDeletable>.Disable()` if you need to bypass the soft-delete filter without affecting tenant isolation.
 
 ## UseMultiTenancy() Scoped Builder
 
