@@ -37,6 +37,8 @@ All options are set via `AddCrudKit<TContext>(opts => ...)`.
 | `UseImport()` | `CrudKitApiOptions` | Enable CSV import globally |
 | `UseEnumAsString()` | `CrudKitApiOptions` | Store enums as strings in DB |
 | `UseMultiTenancy()` | `MultiTenancyOptions` | Enable multi-tenancy |
+| `UseDomainEvents()` | `CrudKitApiOptions` | Enable domain event dispatching after SaveChanges |
+| `UseDomainEvents<T>()` | `CrudKitApiOptions` | Enable with custom `IDomainEventDispatcher` |
 | `UseGlobalHook<T>()` | `CrudKitApiOptions` | Register a global `IGlobalCrudHook` |
 
 ## AuditTrailOptions
@@ -76,6 +78,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
     opts.UseImport();
     opts.MaxImportFileSize = 10 * 1024 * 1024;
     opts.UseEnumAsString();
+    opts.UseDomainEvents();
 
     opts.UseMultiTenancy()
         .ResolveTenantFromHeader("X-Tenant-Id")

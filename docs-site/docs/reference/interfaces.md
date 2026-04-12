@@ -5,6 +5,31 @@ title: Interfaces
 
 # Interfaces
 
+## IEntity / IEntity\<TKey\>
+
+Base interface for all entities. `IRepo<T>` constraint requires `IEntity`. Any entity implementing this can participate in CRUD operations.
+
+```csharp
+public interface IEntity<TKey> where TKey : notnull
+{
+    TKey Id { get; set; }
+}
+
+public interface IEntity : IEntity<Guid> { }
+```
+
+## IAuditableEntity
+
+Extends `IEntity` with `CreatedAt` and `UpdatedAt` timestamps. Set automatically by `ProcessBeforeSave`.
+
+```csharp
+public interface IAuditableEntity : IEntity
+{
+    DateTime CreatedAt { get; set; }
+    DateTime UpdatedAt { get; set; }
+}
+```
+
 ## ISoftDeletable
 
 Marks an entity as soft-deletable. `CrudKitDbContext` applies a global query filter excluding records where `DeletedAt != null`. Implemented by `FullAuditableEntity` and its variants.
@@ -245,5 +270,49 @@ Marker interface implemented by `CrudKitDbContext` and `CrudKitIdentityDbContext
 public interface ICrudKitDbContext
 {
     // Marker — no members. Implemented by CrudKitDbContext.
+}
+```
+
+## IRepo\<T\>
+
+Built-in generic repository. All CRUD operations go through this interface. Not user-extensible — use `WithCustomEndpoints` and direct `DbContext` access for custom queries.
+
+```csharp
+public interface IRepo<T> where T : class, IEntity
+{
+    Task<T> FindById(Guid id, CancellationToken ct = default);
+    Task<T?> FindByIdOrDefault(Guid id, CancellationToken ct = default);
+    Task<Paginated<T>> List(ListParams listParams, CancellationToken ct = default);
+    Task<T> Create(object createDto, CancellationToken ct = default);
+    Task<T> Update(Guid id, object updateDto, CancellationToken ct = default);
+    Task Delete(Guid id, CancellationToken ct = default);
+    Task Restore(Guid id, CancellationToken ct = default);
+    Task HardDelete(Guid id, CancellationToken ct = default);
+}
+```
+
+## IEndpointConfigurer\<TEntity\>
+
+Implement to add custom endpoints to an entity's route group. Auto-discovered by scanning the entity's assembly — no DI registration needed.
+
+```csharp
+public interface IEndpointConfigurer<TEntity> where TEntity : class, IEntity
+{
+    void Configure(CrudEndpointGroup<TEntity> group);
+}
+```
+
+Usage:
+
+```csharp
+public class InvoiceEndpointConfigurer : IEndpointConfigurer<Invoice>
+{
+    public void Configure(CrudEndpointGroup<Invoice> group)
+    {
+        group.WithCustomEndpoints(g =>
+        {
+            g.MapPost("/from-quote/{quoteId}", handler);
+        });
+    }
 }
 ```
