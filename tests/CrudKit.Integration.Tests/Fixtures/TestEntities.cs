@@ -52,3 +52,18 @@ public class TenantUniqueItem : FullAuditableAggregateRoot, IMultiTenant
     public string Name { get; set; } = "";
     public string TenantId { get; set; } = "";
 }
+
+[CrudEntity]
+[CrudIndex("Code", "Category", IsUnique = true)]           // → (TenantId, Code, Category) unique
+[CrudIndex("Category")]                                     // → (TenantId, Category) non-unique
+[CrudIndex("Priority", TenantAware = false)]               // → (Priority) tenant-independent
+[CrudIndex("Code", IsUnique = true, Name = "IX_Custom_Code")] // → custom name, (TenantId, Code)
+public class IndexedItem : FullAuditableAggregateRoot, IMultiTenant
+{
+    [Required, MaxLength(50)]
+    public string Code { get; set; } = "";
+    [MaxLength(100)]
+    public string Category { get; set; } = "";
+    public int Priority { get; set; }
+    public string TenantId { get; set; } = "";
+}

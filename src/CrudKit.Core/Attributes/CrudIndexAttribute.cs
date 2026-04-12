@@ -20,6 +20,11 @@ public class CrudIndexAttribute : Attribute
     /// </summary>
     public bool TenantAware { get; set; } = true;
 
+    /// <summary>
+    /// Custom index name. When null, EF Core generates a default name.
+    /// </summary>
+    public string? Name { get; set; }
+
     public CrudIndexAttribute(params string[] properties)
     {
         Properties = properties;

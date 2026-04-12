@@ -14,6 +14,7 @@ public class IntegrationDbContext : CrudKitDbContext
     public DbSet<OrderLineEntity> OrderLines => Set<OrderLineEntity>();
     public DbSet<TenantAwareItem> TenantAwareItems => Set<TenantAwareItem>();
     public DbSet<TenantUniqueItem> TenantUniqueItems => Set<TenantUniqueItem>();
+    public DbSet<IndexedItem> IndexedItems => Set<IndexedItem>();
 
     protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
     {

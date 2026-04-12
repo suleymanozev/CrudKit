@@ -52,4 +52,18 @@ public class CrudIndexAttributeTests
         Assert.True(attr.TenantAware);
         Assert.False(attr.IsUnique);
     }
+
+    [Fact]
+    public void CrudIndex_CustomName()
+    {
+        var attr = new CrudIndexAttribute("Code") { Name = "IX_Custom" };
+        Assert.Equal("IX_Custom", attr.Name);
+    }
+
+    [Fact]
+    public void CrudIndex_DefaultNameNull()
+    {
+        var attr = new CrudIndexAttribute("Code");
+        Assert.Null(attr.Name);
+    }
 }

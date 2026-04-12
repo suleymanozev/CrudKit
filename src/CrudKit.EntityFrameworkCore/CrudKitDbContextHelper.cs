@@ -144,6 +144,9 @@ public static class CrudKitDbContextHelper
                     .HasIndex(columns.ToArray())
                     .IsUnique(indexAttr.IsUnique);
 
+                if (indexAttr.Name is not null)
+                    crudIndexBuilder.HasDatabaseName(indexAttr.Name);
+
                 // Partial index for unique + soft-deletable
                 if (indexAttr.IsUnique && isSoftDeletable)
                     crudIndexBuilder.HasFilter($"\"{nameof(ISoftDeletable.DeletedAt)}\" IS NULL");
