@@ -109,13 +109,19 @@ public static class CrudKitDbContextHelper
                 }
             }
 
-            // ---- [Unique] attribute → unique index ----
+            // ---- [Unique] attribute → unique index (tenant-scoped if IMultiTenant) ----
             foreach (var prop in clrType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
                 if (prop.GetCustomAttribute<UniqueAttribute>() is null) continue;
 
+                // Multi-tenant entities get a composite index: (TenantId, Property)
+                // so each tenant can have its own unique values
+                var indexColumns = isMultiTenant
+                    ? new[] { nameof(IMultiTenant.TenantId), prop.Name }
+                    : new[] { prop.Name };
+
                 var indexBuilder = modelBuilder.Entity(clrType)
-                    .HasIndex(prop.Name)
+                    .HasIndex(indexColumns)
                     .IsUnique();
 
                 if (isSoftDeletable)
