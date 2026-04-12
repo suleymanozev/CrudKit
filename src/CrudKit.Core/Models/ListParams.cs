@@ -18,7 +18,7 @@ public class ListParams
     public string? Include { get; set; }
     public Dictionary<string, FilterOp> Filters { get; set; } = new();
 
-    public static ListParams FromQuery(IQueryCollection query, int maxPageSize = 100)
+    public static ListParams FromQuery(IQueryCollection query, int minPageSize = 1, int maxPageSize = 100)
     {
         var result = new ListParams();
 
@@ -26,7 +26,7 @@ public class ListParams
             result.Page = page;
 
         if (query.TryGetValue("per_page", out var ppVal) && int.TryParse(ppVal, out var pp))
-            result.PerPage = Math.Clamp(pp, 1, maxPageSize);
+            result.PerPage = Math.Clamp(pp, minPageSize, maxPageSize);
 
         if (query.TryGetValue("sort", out var sortVal))
             result.Sort = sortVal.ToString();

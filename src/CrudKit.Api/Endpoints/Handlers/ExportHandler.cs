@@ -17,12 +17,12 @@ internal static class ExportHandler
     {
         group.MapGet("/export", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
-            var listParams = ListParams.FromQuery(httpCtx.Request.Query);
+            var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
+            var listParams = ListParams.FromQuery(httpCtx.Request.Query, apiOpts.MinPageSize, apiOpts.MaxPageSize);
             var format = httpCtx.Request.Query["format"].FirstOrDefault() ?? "csv";
             if (format is not "csv")
                 throw AppError.BadRequest($"Unsupported export format: '{format}'. Supported: csv");
 
-            var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
             var maxRows = apiOpts.MaxExportRows;
 
             // Count first to prevent memory DoS

@@ -9,6 +9,7 @@ namespace CrudKit.Api.Configuration;
 public class CrudKitApiOptions
 {
     public int DefaultPageSize { get; set; } = 20;
+    public int MinPageSize { get; set; } = 1;
     public int MaxPageSize { get; set; } = 100;
     public string ApiPrefix { get; set; } = "/api";
     public int BulkLimit { get; set; } = 10_000;

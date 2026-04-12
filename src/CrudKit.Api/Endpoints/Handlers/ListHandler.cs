@@ -16,7 +16,8 @@ internal static class ListHandler
     {
         group.MapGet("/", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
-            var listParams = ListParams.FromQuery(httpCtx.Request.Query);
+            var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
+            var listParams = ListParams.FromQuery(httpCtx.Request.Query, apiOpts.MinPageSize, apiOpts.MaxPageSize);
             var result = await repo.List(listParams, ct);
             var mapped = CrudEndpointMapper.TryMapPaginated(httpCtx.RequestServices, result);
             return Results.Ok(mapped);

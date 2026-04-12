@@ -18,7 +18,8 @@ internal static class BulkHandler
         // GET /api/{route}/bulk-count -- Count with filters
         group.MapGet("/bulk-count", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
-            var listParams = ListParams.FromQuery(httpCtx.Request.Query);
+            var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
+            var listParams = ListParams.FromQuery(httpCtx.Request.Query, apiOpts.MinPageSize, apiOpts.MaxPageSize);
             var count = await repo.BulkCount(listParams.Filters, ct);
             return Results.Ok(new { count });
         })
