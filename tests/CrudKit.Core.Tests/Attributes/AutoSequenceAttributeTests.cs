@@ -23,6 +23,21 @@ public class AutoSequenceAttributeTests
         Assert.Equal("INV-{year}-{seq:5}", attr!.Template);
     }
 
+    private class TestOrder
+    {
+        [AutoSequence]
+        public string OrderCode { get; set; } = "";
+    }
+
+    [Fact]
+    public void AutoSequence_DefaultTemplate()
+    {
+        var prop = typeof(TestOrder).GetProperty("OrderCode");
+        var attr = prop!.GetCustomAttribute<AutoSequenceAttribute>();
+        Assert.NotNull(attr);
+        Assert.Equal("{seq:5}", attr!.Template);
+    }
+
     [Fact]
     public void AutoSequence_NotPresentOnOtherProperties()
     {

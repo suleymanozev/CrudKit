@@ -11,9 +11,20 @@ public static partial class SequenceGenerator
     /// Resolves date tokens in the template and extracts the prefix (everything before {seq}).
     /// Returns the prefix and the zero-padding width.
     /// </summary>
-    public static (string Prefix, int Padding) ResolvePrefix(string template, DateOnly date)
+    public static (string Prefix, int Padding) ResolvePrefix(string template, DateOnly date, Dictionary<string, string>? customPlaceholders = null)
     {
-        var resolved = template
+        // First resolve custom placeholders
+        var resolved = template;
+        if (customPlaceholders is not null)
+        {
+            foreach (var (key, value) in customPlaceholders)
+            {
+                resolved = resolved.Replace($"{{{key}}}", value);
+            }
+        }
+
+        // Then resolve built-in date tokens
+        resolved = resolved
             .Replace("{year}", date.Year.ToString())
             .Replace("{month}", date.Month.ToString("D2"))
             .Replace("{day}", date.Day.ToString("D2"));

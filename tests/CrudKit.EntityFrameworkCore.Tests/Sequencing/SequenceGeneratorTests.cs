@@ -37,4 +37,30 @@ public class SequenceGeneratorTests
         Assert.Throws<ArgumentException>(() =>
             SequenceGenerator.ResolvePrefix("INV-{year}", new DateOnly(2026, 1, 1)));
     }
+
+    [Fact]
+    public void ResolvePrefix_WithCustomPlaceholders()
+    {
+        var placeholders = new Dictionary<string, string> { ["prefix"] = "FTR" };
+        var (prefix, padding) = SequenceGenerator.ResolvePrefix("{prefix}-{year}-{seq:5}", new DateOnly(2026, 4, 12), placeholders);
+        Assert.Equal("FTR-2026-", prefix);
+        Assert.Equal(5, padding);
+    }
+
+    [Fact]
+    public void ResolvePrefix_WithMultiplePlaceholders()
+    {
+        var placeholders = new Dictionary<string, string> { ["branch"] = "IST", ["prefix"] = "INV" };
+        var (prefix, padding) = SequenceGenerator.ResolvePrefix("{branch}-{prefix}-{year}{month}-{seq:4}", new DateOnly(2026, 4, 12), placeholders);
+        Assert.Equal("IST-INV-202604-", prefix);
+        Assert.Equal(4, padding);
+    }
+
+    [Fact]
+    public void ResolvePrefix_NullPlaceholders_WorksAsDefault()
+    {
+        var (prefix, padding) = SequenceGenerator.ResolvePrefix("INV-{year}-{seq:5}", new DateOnly(2026, 4, 12), null);
+        Assert.Equal("INV-2026-", prefix);
+        Assert.Equal(5, padding);
+    }
 }

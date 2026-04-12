@@ -492,6 +492,14 @@ public static class CrudKitDbContextHelper
             .Where(e => e.State == EntityState.Added)
             .ToList();
 
+        // Resolve IServiceProvider from the DbContext for customizer lookup
+        IServiceProvider? serviceProvider = null;
+        try
+        {
+            serviceProvider = ((IInfrastructure<IServiceProvider>)dbContext).Instance;
+        }
+        catch { /* no service provider available */ }
+
         foreach (var entry in addedEntries)
         {
             var entityType = entry.Entity.GetType();
@@ -503,6 +511,15 @@ public static class CrudKitDbContextHelper
 
             var entityTypeName = entityType.Name;
 
+            // Try resolve ISequenceCustomizer<TEntity> from DI
+            object? customizer = null;
+            if (serviceProvider is not null)
+            {
+                var customizerType = typeof(ISequenceCustomizer<>).MakeGenericType(entityType);
+                try { customizer = serviceProvider.GetService(customizerType); }
+                catch { /* customizer not registered */ }
+            }
+
             foreach (var prop in seqProperties)
             {
                 // Skip if value is already set (non-null, non-empty)
@@ -510,7 +527,26 @@ public static class CrudKitDbContextHelper
                 if (!string.IsNullOrEmpty(currentValue)) continue;
 
                 var attr = prop.GetCustomAttribute<AutoSequenceAttribute>()!;
-                var (prefix, padding) = SequenceGenerator.ResolvePrefix(attr.Template, now);
+                var template = attr.Template;
+                Dictionary<string, string>? placeholders = null;
+
+                if (customizer is not null)
+                {
+                    var customizerType = customizer.GetType().GetInterfaces()
+                        .First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ISequenceCustomizer<>));
+
+                    // Call ResolveTemplate
+                    var resolveTemplateMethod = customizerType.GetMethod("ResolveTemplate");
+                    var customTemplate = (string?)resolveTemplateMethod?.Invoke(customizer, [tenantId]);
+                    if (customTemplate is not null)
+                        template = customTemplate;
+
+                    // Call ResolvePlaceholders
+                    var resolvePlaceholdersMethod = customizerType.GetMethod("ResolvePlaceholders");
+                    placeholders = (Dictionary<string, string>?)resolvePlaceholdersMethod?.Invoke(customizer, [tenantId]);
+                }
+
+                var (prefix, padding) = SequenceGenerator.ResolvePrefix(template, now, placeholders);
 
                 // Look up the sequence row — query directly to avoid ChangeTracker conflicts
                 var seq = await sequences.FirstOrDefaultAsync(

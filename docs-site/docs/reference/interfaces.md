@@ -228,6 +228,23 @@ Mapper interfaces for converting between entities and DTOs. Implement manually o
 - `IUpdateMapper<T, TUpdate>` — apply update DTO to existing entity
 - `ICrudMapper<T, TCreate, TUpdate, TResponse>` — combines all three
 
+## ISequenceCustomizer\<TEntity\>
+
+Customize auto-sequence generation per entity. Resolved from DI automatically when processing `[AutoSequence]` properties.
+
+```csharp
+public interface ISequenceCustomizer<TEntity> where TEntity : class
+{
+    // Override the template from [AutoSequence]. Return null to use the attribute template.
+    string? ResolveTemplate(string? tenantId) => null;
+
+    // Resolve custom placeholders in the template (e.g. {prefix} → "INV").
+    Dictionary<string, string>? ResolvePlaceholders(string? tenantId) => null;
+}
+```
+
+Both methods have default implementations returning `null` — override only what you need. See [Auto Sequence](../features/auto-sequence) for full usage.
+
 ## IDataFilter\<T\>
 
 Runtime toggle for global query filters on a specific entity type. Inject as a scoped service and use `Disable<TFilter>()` inside a `using` block — the filter is restored automatically when the block exits.
