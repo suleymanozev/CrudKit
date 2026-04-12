@@ -1,5 +1,6 @@
 using CrudKit.Api.Models;
 using CrudKit.Api.Tests.Events;
+using CrudKit.Api.Tests.Security;
 using CrudKit.Api.Tests.Sequencing;
 using CrudKit.Api.Tests.ValueObjects;
 using CrudKit.Core.Events;
@@ -43,6 +44,7 @@ public class ApiTestDbContext : CrudKitDbContext
     public DbSet<AggregateOrderEntity> AggregateOrders => Set<AggregateOrderEntity>();
     public DbSet<SeqInvoiceEntity> SeqInvoices => Set<SeqInvoiceEntity>();
     public DbSet<PricedItem> PricedItems => Set<PricedItem>();
+    public DbSet<SecureItem> SecureItems => Set<SecureItem>();
 
     protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
     {
