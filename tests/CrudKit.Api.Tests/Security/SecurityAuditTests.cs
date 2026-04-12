@@ -360,4 +360,190 @@ public class SecurityAuditTests
         var body = await resp.Content.ReadAsStringAsync();
         Assert.DoesNotContain("deleteBatchId", body, StringComparison.OrdinalIgnoreCase);
     }
+
+    // ─── 6. PAGINATION ABUSE ───
+
+    [Fact]
+    public async Task PaginationAbuse_PerPageCappedAtMaxPageSize()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        // Create a few items
+        for (int i = 0; i < 5; i++)
+        {
+            await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items")
+            {
+                Content = JsonContent.Create(new { Name = $"Item {i}" }),
+                Headers = { { "X-Tenant-Id", "tenant-a" } }
+            });
+        }
+
+        // Request absurdly large page
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+            "/api/secure-items?per_page=999999")
+        {
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var json = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        var perPage = json.RootElement.GetProperty("perPage").GetInt32();
+
+        // perPage should be capped at MaxPageSize (default 100), not 999999
+        Assert.True(perPage <= 100, $"perPage was {perPage} — should be capped at MaxPageSize");
+    }
+
+    [Fact]
+    public async Task PaginationAbuse_NegativePageNumberHandled()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+            "/api/secure-items?page=-1&per_page=-5")
+        {
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        // Should not crash — return 200 with sane defaults
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task PaginationAbuse_ZeroPerPageHandled()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+            "/api/secure-items?per_page=0")
+        {
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var json = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        var perPage = json.RootElement.GetProperty("perPage").GetInt32();
+        Assert.True(perPage > 0, "perPage should default to a positive number");
+    }
+
+    // ─── 7. AUTH BYPASS ───
+
+    // Unauthenticated user
+    private sealed class AnonymousUser : ICurrentUser
+    {
+        public string? Id => null;
+        public string? Username => null;
+        public IReadOnlyList<string> Roles => [];
+        public bool IsAuthenticated => false;
+        public bool HasRole(string role) => false;
+        public bool HasPermission(string entity, string action) => false;
+        public IReadOnlyList<string>? AccessibleTenants => null;
+    }
+
+    // User without admin role
+    private sealed class RegularUser : ICurrentUser
+    {
+        public string? Id => "user-regular";
+        public string? Username => "regular";
+        public IReadOnlyList<string> Roles => ["user"];
+        public bool IsAuthenticated => true;
+        public bool HasRole(string role) => role == "user";
+        public bool HasPermission(string entity, string action) => false;
+        public IReadOnlyList<string>? AccessibleTenants => ["tenant-a"];
+    }
+
+    [Fact]
+    public async Task AuthBypass_UnauthenticatedCannotAccessProtectedEntity()
+    {
+        await using var app = await TestWebApp.CreateAsync(
+            currentUser: new AnonymousUser(),
+            configureEndpoints: web =>
+                web.MapCrudEndpoints<AdminEntity>("admin-items"));
+
+        var resp = await app.Client.GetAsync("/api/admin-items");
+        // Should be 401 or 403
+        Assert.True(resp.StatusCode == HttpStatusCode.Unauthorized || resp.StatusCode == HttpStatusCode.Forbidden,
+            $"Expected 401/403 but got {resp.StatusCode}");
+    }
+
+    [Fact]
+    public async Task AuthBypass_WrongRoleCannotAccessRoleProtectedEntity()
+    {
+        await using var app = await TestWebApp.CreateAsync(
+            currentUser: new RegularUser(),
+            configureEndpoints: web =>
+                web.MapCrudEndpoints<AdminEntity>("admin-items"));
+
+        var resp = await app.Client.GetAsync("/api/admin-items");
+        Assert.True(resp.StatusCode == HttpStatusCode.Forbidden,
+            $"Expected 403 but got {resp.StatusCode}");
+    }
+
+    [Fact]
+    public async Task AuthBypass_WrongRoleCannotCreateOnProtectedEntity()
+    {
+        await using var app = await TestWebApp.CreateAsync(
+            currentUser: new RegularUser(),
+            configureEndpoints: web =>
+                web.MapCrudEndpoints<AdminEntity>("admin-items"));
+
+        var resp = await app.Client.PostAsJsonAsync("/api/admin-items", new { Name = "Hacked" });
+        Assert.True(resp.StatusCode == HttpStatusCode.Forbidden,
+            $"Expected 403 but got {resp.StatusCode}");
+    }
+
+    // ─── 8. ERROR INFORMATION LEAKAGE ───
+
+    [Fact]
+    public async Task ErrorLeakage_InternalErrorDoesNotExposeStackTrace()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        // Request a non-existent entity — triggers controlled 404
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+            $"/api/secure-items/{Guid.NewGuid()}")
+        {
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        var body = await resp.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("StackTrace", body);
+        Assert.DoesNotContain("at CrudKit", body);
+        Assert.DoesNotContain("NpgsqlConnection", body);
+        Assert.DoesNotContain("ConnectionString", body);
+    }
+
+    [Fact]
+    public async Task ErrorLeakage_ValidationErrorDoesNotExposeInternals()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        // Send invalid data — empty required field
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items")
+        {
+            Content = JsonContent.Create(new { Name = "" }), // Required field empty
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        var body = await resp.Content.ReadAsStringAsync();
+
+        // Should contain structured error, not internals
+        Assert.DoesNotContain("Exception", body);
+        Assert.DoesNotContain("StackTrace", body);
+    }
+
+    [Fact]
+    public async Task ErrorLeakage_InvalidGuidDoesNotExposeInternals()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+            "/api/secure-items/not-a-guid")
+        {
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        var body = await resp.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("FormatException", body);
+        Assert.DoesNotContain("StackTrace", body);
+    }
 }
