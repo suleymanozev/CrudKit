@@ -13,6 +13,7 @@ public class IntegrationDbContext : CrudKitDbContext
     public DbSet<OrderEntity> Orders => Set<OrderEntity>();
     public DbSet<OrderLineEntity> OrderLines => Set<OrderLineEntity>();
     public DbSet<TenantAwareItem> TenantAwareItems => Set<TenantAwareItem>();
+    public DbSet<TenantUniqueItem> TenantUniqueItems => Set<TenantUniqueItem>();
 
     protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
     {

@@ -43,3 +43,12 @@ public class TenantAwareItem : FullAuditableAggregateRoot, IMultiTenant
     [Required, MaxLength(100)] public string Name { get; set; } = "";
     public string TenantId { get; set; } = "";
 }
+
+[CrudEntity]
+public class TenantUniqueItem : FullAuditableAggregateRoot, IMultiTenant
+{
+    [Required, MaxLength(50), Unique]
+    public string Code { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string TenantId { get; set; } = "";
+}
