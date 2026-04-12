@@ -37,13 +37,67 @@ dotnet ef database update -c OrderDbContext
 dotnet ef database update -c InventoryDbContext
 ```
 
+## Entity Configuration
+
+CrudKit auto-configures system fields (query filters, concurrency tokens, unique indexes). For custom entity configuration, use EF Core's `IEntityTypeConfiguration<T>` pattern:
+
+```csharp
+// Per-entity configuration file
+public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
+{
+    public void Configure(EntityTypeBuilder<Invoice> builder)
+    {
+        builder.HasIndex(e => new { e.TenantId, e.InvoiceNumber }).IsUnique();
+        builder.Property(e => e.CurrencyCode).HasMaxLength(3).IsRequired();
+        builder.Property(e => e.Notes).HasMaxLength(2000);
+        builder.OwnsOne(e => e.Total); // value object
+    }
+}
+```
+
+Register in your DbContext:
+
+```csharp
+protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
+{
+    UseModuleSchema(modelBuilder, "finance");
+    
+    // Apply all IEntityTypeConfiguration<T> from this assembly
+    modelBuilder.ApplyConfigurationsFromAssembly(typeof(FinanceDbContext).Assembly);
+}
+```
+
+### What CrudKit configures automatically
+
+You do **not** need to configure these — CrudKit handles them in `OnModelCreating`:
+
+| Feature | Configuration |
+|---------|--------------|
+| `IEntity` | Guid value generator |
+| `ISoftDeletable` | `HasQueryFilter` — `DeletedAt == null` |
+| `IMultiTenant` | `HasQueryFilter` — `TenantId == CurrentTenantId` |
+| `IConcurrent` | `RowVersion` as concurrency token |
+| `[Unique]` | Partial unique index (soft-delete aware) |
+
+### What you configure
+
+| Feature | Your configuration |
+|---------|-------------------|
+| Property constraints | `HasMaxLength`, `IsRequired`, `HasPrecision` |
+| Composite indexes | `HasIndex(e => new { e.A, e.B })` |
+| Value objects | `OwnsOne(e => e.Address)` |
+| Relations | `HasMany`, `HasOne` (navigation properties) |
+| Table name override | `ToTable("custom_name")` |
+| Schema | `UseModuleSchema(modelBuilder, "schema")` |
+
 ## CrudKit Internal Tables
 
 `CrudKitDbContext` automatically creates these tables when migrations are generated:
 
 | Table | Purpose |
 |-------|---------|
-| `__crud_audit_logs` | Audit trail entries (created when `UseAuditTrail()` is enabled) |
+| `__crud_audit_logs` | Audit trail entries (when `UseAuditTrail()` is enabled) |
+| `__crud_sequences` | Auto-sequence counters (when `[AutoSequence]` is used) |
 
 These tables are defined in `OnModelCreating` and included in the initial migration automatically.
 
