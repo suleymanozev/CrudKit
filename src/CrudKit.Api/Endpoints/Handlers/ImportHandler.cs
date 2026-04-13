@@ -41,52 +41,45 @@ internal static class ImportHandler
             var importAppCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
             var importGlobalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
+
+            foreach (var (row, rowIndex) in rows.Select((r, i) => (r, i + 2))) // +2: header=1, first data=2
             {
-                foreach (var (row, rowIndex) in rows.Select((r, i) => (r, i + 2))) // +2: header=1, first data=2
+                try
                 {
-                    try
+                    var entity = Activator.CreateInstance<TEntity>();
+                    foreach (var (key, value) in row)
                     {
-                        var entity = Activator.CreateInstance<TEntity>();
-                        foreach (var (key, value) in row)
-                        {
-                            var prop = typeof(TEntity).GetProperty(key,
-                                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                            if (prop is not null && prop.CanWrite && value is not null)
-                                prop.SetValue(entity, value);
-                        }
-
-                        // Call global before hooks per entity
-                        foreach (var gh in importGlobalHooks)
-                            await gh.BeforeCreate(entity, importAppCtx);
-
-                        db.Set<TEntity>().Add(entity);
-                        await db.SaveChangesAsync(ct);
-
-                        // Call global after hooks per entity
-                        foreach (var gh in importGlobalHooks)
-                            await gh.AfterCreate(entity, importAppCtx);
-
-                        importResult.Created++;
+                        var prop = typeof(TEntity).GetProperty(key,
+                            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                        if (prop is not null && prop.CanWrite && value is not null)
+                            prop.SetValue(entity, value);
                     }
-                    catch (Exception ex)
-                    {
-                        importResult.Failed++;
-                        importResult.Errors.Add(new ImportError
-                        {
-                            Row = rowIndex,
-                            Message = ex is AppError appErr ? appErr.Message : ex.Message
-                        });
-                    }
+
+                    // Call global before hooks per entity
+                    foreach (var gh in importGlobalHooks)
+                        await gh.BeforeCreate(entity, importAppCtx);
+
+                    db.Set<TEntity>().Add(entity);
+                    await db.SaveChangesAsync(ct);
+
+                    // Call global after hooks per entity
+                    foreach (var gh in importGlobalHooks)
+                        await gh.AfterCreate(entity, importAppCtx);
+
+                    importResult.Created++;
                 }
+                catch (Exception ex)
+                {
+                    importResult.Failed++;
+                    importResult.Errors.Add(new ImportError
+                    {
+                        Row = rowIndex,
+                        Message = ex is AppError appErr ? appErr.Message : ex.Message
+                    });
+                }
+            }
 
-                await tx.CommitAsync(ct);
-            }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
+            await tx.CommitAsync(ct);
 
             return Results.Ok(importResult);
         })

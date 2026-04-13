@@ -339,6 +339,12 @@ public static class CrudKitDbContextHelper
     /// apply auto-sequences, call base save, execute cascade ops, write audit.
     /// Used by both CrudKitDbContext and CrudKitIdentityDbContext to avoid duplication.
     /// </summary>
+    /// <remarks>
+    /// WARNING: This synchronous overload uses .GetAwaiter().GetResult() for audit writes
+    /// and domain event dispatch. This can cause thread pool exhaustion or deadlocks under
+    /// high concurrency (especially in ASP.NET scenarios with a synchronization context).
+    /// Prefer <see cref="SaveChangesAsync"/> in production code wherever possible.
+    /// </remarks>
     public static int SaveChanges(
         ICrudKitDbContext context,
         Func<bool, int> baseSaveChanges,
@@ -364,7 +370,8 @@ public static class CrudKitDbContextHelper
             var result = baseSaveChanges(acceptAllChangesOnSuccess);
             ExecuteCascadeOps(context.Database, cascadeOps);
 
-            // Sync path has no cancellation token — use None
+            // WARNING: sync-over-async — can cause thread pool starvation under load.
+            // Prefer SaveChangesAsync() to avoid this path entirely.
             if (auditEntries.Count > 0 && auditWriter is not null)
                 auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
 
@@ -382,6 +389,7 @@ public static class CrudKitDbContextHelper
 
                 entitiesWithEvents.ForEach(e => e.ClearDomainEvents());
 
+                // WARNING: sync-over-async — can cause thread pool starvation under load.
                 if (domainEvents.Count > 0)
                     domainEventDispatcher.DispatchAsync(domainEvents).GetAwaiter().GetResult();
             }
@@ -391,7 +399,7 @@ public static class CrudKitDbContextHelper
         catch when (efOptions?.AuditFailedOperations == true && auditEntries.Count > 0 && auditWriter is not null)
         {
             foreach (var e in auditEntries) e.Action = $"Failed{e.Action}";
-            // Sync path has no cancellation token — use None
+            // WARNING: sync-over-async — can cause thread pool starvation under load.
             auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
             throw;
         }

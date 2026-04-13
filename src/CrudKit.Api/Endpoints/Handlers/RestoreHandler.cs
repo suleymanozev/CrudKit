@@ -19,28 +19,20 @@ internal static class RestoreHandler
             var guid = CrudEndpointMapper.ParseGuid(id, typeof(TEntity).Name);
             var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
+
+            var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
+            var appCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
+
+            await repo.Restore(guid, ct);
+
+            if (hooks is not null)
             {
-                var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
-                var appCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
-
-                await repo.Restore(guid, ct);
-
-                if (hooks is not null)
-                {
-                    var entity = await repo.FindById(guid, ct);
-                    await hooks.BeforeRestore(entity, appCtx);
-                    await db.SaveChangesAsync(ct);
-                }
-
-                await tx.CommitAsync(ct);
-                return Results.Ok();
+                var entity = await repo.FindById(guid, ct);
+                await hooks.BeforeRestore(entity, appCtx);
             }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
+
+            await tx.CommitAsync(ct);
+            return Results.Ok();
         })
         // Note: Restore is not part of the standard CRUD lifecycle for IGlobalCrudHook
         // (no BeforeRestore/AfterRestore on IGlobalCrudHook -- entity-specific hooks handle it)

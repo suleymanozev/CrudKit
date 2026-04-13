@@ -405,9 +405,14 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             // Handle Optional<T> — absent fields (HasValue=false) are skipped
             if (m.IsOptional)
             {
-                var hasValue = (bool)m.DtoProperty.PropertyType.GetProperty("HasValue")!.GetValue(dtoValue)!;
+                if (dtoValue is null) continue;
+                var hasValueProp = m.DtoProperty.PropertyType.GetProperty("HasValue");
+                if (hasValueProp is null) continue;
+                var hasValue = (bool)(hasValueProp.GetValue(dtoValue) ?? false);
                 if (!hasValue) continue;
-                dtoValue = m.DtoProperty.PropertyType.GetProperty("Value")!.GetValue(dtoValue);
+                var valueProp = m.DtoProperty.PropertyType.GetProperty("Value");
+                if (valueProp is null) continue;
+                dtoValue = valueProp.GetValue(dtoValue);
             }
             else if (!isCreate && dtoValue is null)
             {
@@ -445,9 +450,14 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
                 // Handle Optional<T> for update DTOs
                 if (IsOptionalType(dtoPropInfo.PropertyType))
                 {
-                    var hasValue = (bool)dtoPropInfo.PropertyType.GetProperty("HasValue")!.GetValue(dtoValue)!;
+                    if (dtoValue is null) continue;
+                    var hasValueProp = dtoPropInfo.PropertyType.GetProperty("HasValue");
+                    if (hasValueProp is null) continue;
+                    var hasValue = (bool)(hasValueProp.GetValue(dtoValue) ?? false);
                     if (!hasValue) continue;
-                    dtoValue = dtoPropInfo.PropertyType.GetProperty("Value")!.GetValue(dtoValue);
+                    var valueProp = dtoPropInfo.PropertyType.GetProperty("Value");
+                    if (valueProp is null) continue;
+                    dtoValue = valueProp.GetValue(dtoValue);
                 }
                 else if (!isCreate && dtoValue is null)
                 {

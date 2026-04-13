@@ -41,55 +41,48 @@ internal static class TransitionHandler
             var guid = CrudEndpointMapper.ParseGuid(id, typeof(TEntity).Name);
             var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
+
+            // Load entity for update (tracked)
+            var dbSet = db.Set<TEntity>();
+            var entity = await dbSet.FirstOrDefaultAsync(e => e.Id == guid, ct)
+                ?? throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
+
+            var currentStatus = statusProp.GetValue(entity)!;
+            var transitions = transitionsProp.GetValue(null)!;
+
+            // Check if the requested action is valid from the current state
+            var found = false;
+            object? targetStatus = null;
+
+            // Iterate the transitions list via reflection
+            foreach (var t in (System.Collections.IEnumerable)transitions)
             {
-                // Load entity for update (tracked)
-                var dbSet = db.Set<TEntity>();
-                var entity = await dbSet.FirstOrDefaultAsync(e => e.Id == guid, ct)
-                    ?? throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
+                var tType = t.GetType();
+                var fromField = tType.GetField("Item1");
+                var toField = tType.GetField("Item2");
+                var actField = tType.GetField("Item3");
+                if (fromField is null || toField is null || actField is null)
+                    throw new InvalidOperationException($"Invalid Transitions format on {typeof(TEntity).Name}. Expected (TState From, TState To, string Action) tuples.");
+                var from = fromField.GetValue(t)!;
+                var to = toField.GetValue(t)!;
+                var act = (string)actField.GetValue(t)!;
 
-                var currentStatus = statusProp.GetValue(entity)!;
-                var transitions = transitionsProp.GetValue(null)!;
-
-                // Check if the requested action is valid from the current state
-                var found = false;
-                object? targetStatus = null;
-
-                // Iterate the transitions list via reflection
-                foreach (var t in (System.Collections.IEnumerable)transitions)
+                if (from.Equals(currentStatus) && string.Equals(act, action, StringComparison.OrdinalIgnoreCase))
                 {
-                    var tType = t.GetType();
-                    var fromField = tType.GetField("Item1");
-                    var toField = tType.GetField("Item2");
-                    var actField = tType.GetField("Item3");
-                    if (fromField is null || toField is null || actField is null)
-                        throw new InvalidOperationException($"Invalid Transitions format on {typeof(TEntity).Name}. Expected (TState From, TState To, string Action) tuples.");
-                    var from = fromField.GetValue(t)!;
-                    var to = toField.GetValue(t)!;
-                    var act = (string)actField.GetValue(t)!;
-
-                    if (from.Equals(currentStatus) && string.Equals(act, action, StringComparison.OrdinalIgnoreCase))
-                    {
-                        found = true;
-                        targetStatus = to;
-                        break;
-                    }
+                    found = true;
+                    targetStatus = to;
+                    break;
                 }
-
-                if (!found)
-                    throw AppError.BadRequest($"Invalid transition '{action}' from state '{currentStatus}'.");
-
-                statusProp.SetValue(entity, targetStatus);
-                await db.SaveChangesAsync(ct);
-                await tx.CommitAsync(ct);
-
-                return Results.Ok(entity);
             }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
+
+            if (!found)
+                throw AppError.BadRequest($"Invalid transition '{action}' from state '{currentStatus}'.");
+
+            statusProp.SetValue(entity, targetStatus);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            return Results.Ok(entity);
         })
         .WithName($"Transition{tag}")
         .Produces<TEntity>(200)

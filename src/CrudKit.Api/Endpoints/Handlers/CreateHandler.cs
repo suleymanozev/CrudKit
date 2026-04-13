@@ -1,4 +1,5 @@
 using CrudKit.Api.Filters;
+using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Repository;
@@ -21,40 +22,34 @@ internal static class CreateHandler
         {
             var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
-            {
-                var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
-                var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
-                var entity = await repo.Create(dto, ct);
 
-                var appCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
+            var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
+            var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
+            var entity = await repo.Create(dto, ct);
 
-                // Global before hooks run first
-                foreach (var gh in globalHooks)
-                    await gh.BeforeCreate(entity, appCtx);
+            var appCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
 
-                if (hooks is not null)
-                {
-                    await hooks.BeforeCreate(entity, appCtx);
-                    await db.SaveChangesAsync(ct);
-                }
+            // Global before hooks run first
+            foreach (var gh in globalHooks)
+                await gh.BeforeCreate(entity, appCtx);
 
-                await tx.CommitAsync(ct);
+            if (hooks is not null)
+                await hooks.BeforeCreate(entity, appCtx);
 
-                if (hooks is not null)
-                    await hooks.AfterCreate(entity, appCtx);
+            // Only save again if hooks modified tracked state or added domain events
+            if (db.ChangeTracker.HasChanges() || (entity is IHasDomainEvents de && de.DomainEvents.Count > 0))
+                await db.SaveChangesAsync(ct);
 
-                // Global after hooks run last
-                foreach (var gh in globalHooks)
-                    await gh.AfterCreate(entity, appCtx);
+            await tx.CommitAsync(ct);
 
-                return Results.Created($"/api/{route}/{entity.Id}", entity);
-            }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
+            if (hooks is not null)
+                await hooks.AfterCreate(entity, appCtx);
+
+            // Global after hooks run last
+            foreach (var gh in globalHooks)
+                await gh.AfterCreate(entity, appCtx);
+
+            return Results.Created($"/api/{route}/{entity.Id}", entity);
         })
         .WithName($"Create{tag}")
         .AddEndpointFilter<ValidationFilter<TCreate>>()

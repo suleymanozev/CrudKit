@@ -1,4 +1,5 @@
 using CrudKit.Api.Filters;
+using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Repository;
@@ -22,49 +23,43 @@ internal static class UpdateHandler
             var guid = CrudEndpointMapper.ParseGuid(id, typeof(TEntity).Name);
             var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
+
+            var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
+            var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
+
+            // Capture existing entity state before update (detached snapshot)
+            TEntity? existingEntity = null;
+            if (globalHooks.Count > 0 || hooks is not null)
             {
-                var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
-                var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
-
-                // Capture existing entity state before update (detached snapshot)
-                TEntity? existingEntity = null;
-                if (globalHooks.Count > 0 || hooks is not null)
-                {
-                    existingEntity = await db.Set<TEntity>().AsNoTracking()
-                        .FirstOrDefaultAsync(e => e.Id == guid, ct);
-                }
-
-                var entity = await repo.Update(guid, dto, ct);
-
-                var appCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
-
-                // Global before hooks run first
-                foreach (var gh in globalHooks)
-                    await gh.BeforeUpdate(entity, existingEntity, appCtx);
-
-                if (hooks is not null)
-                {
-                    await hooks.BeforeUpdate(entity, existingEntity, appCtx);
-                    await db.SaveChangesAsync(ct);
-                }
-
-                await tx.CommitAsync(ct);
-
-                if (hooks is not null)
-                    await hooks.AfterUpdate(entity, existingEntity, appCtx);
-
-                // Global after hooks run last
-                foreach (var gh in globalHooks)
-                    await gh.AfterUpdate(entity, existingEntity, appCtx);
-
-                return Results.Ok(entity);
+                existingEntity = await db.Set<TEntity>().AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.Id == guid, ct);
             }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
+
+            var entity = await repo.Update(guid, dto, ct);
+
+            var appCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
+
+            // Global before hooks run first
+            foreach (var gh in globalHooks)
+                await gh.BeforeUpdate(entity, existingEntity, appCtx);
+
+            if (hooks is not null)
+                await hooks.BeforeUpdate(entity, existingEntity, appCtx);
+
+            // Only save again if hooks modified tracked state or added domain events
+            if (db.ChangeTracker.HasChanges() || (entity is IHasDomainEvents de && de.DomainEvents.Count > 0))
+                await db.SaveChangesAsync(ct);
+
+            await tx.CommitAsync(ct);
+
+            if (hooks is not null)
+                await hooks.AfterUpdate(entity, existingEntity, appCtx);
+
+            // Global after hooks run last
+            foreach (var gh in globalHooks)
+                await gh.AfterUpdate(entity, existingEntity, appCtx);
+
+            return Results.Ok(entity);
         })
         .WithName($"Update{tag}")
         .AddEndpointFilter<ValidationFilter<TUpdate>>()
