@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq.Expressions;
 using System.Reflection;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
@@ -14,6 +15,9 @@ internal static class EntityMetadataCache
 {
     // Cache per entity type
     private static readonly ConcurrentDictionary<Type, EntityTypeInfo> EntityCache = new();
+
+    // Cache for SetProperty MethodInfo per UpdateSettersBuilder<T> type
+    private static readonly ConcurrentDictionary<Type, MethodInfo?> SetPropertyMethodCache = new();
 
     // Cache per DTO type
     private static readonly ConcurrentDictionary<Type, DtoTypeInfo> DtoCache = new();
@@ -86,6 +90,24 @@ internal static class EntityMetadataCache
                     dtoProp, entityProp, isProtected, isSkipUpdate, isHashed, isOptional));
             }
             return mappings.ToArray();
+        });
+    }
+
+    /// <summary>
+    /// Returns the non-expression SetProperty overload on UpdateSettersBuilder&lt;T&gt;,
+    /// caching the result so BulkUpdate does not reflect on every call.
+    /// </summary>
+    public static MethodInfo? GetSetPropertyMethod(Type builderType)
+    {
+        return SetPropertyMethodCache.GetOrAdd(builderType, t =>
+        {
+            return t.GetMethods()
+                .FirstOrDefault(m => m.Name == "SetProperty"
+                    && m.IsGenericMethodDefinition
+                    && m.GetGenericArguments().Length == 1
+                    && m.GetParameters().Length == 2
+                    && !(m.GetParameters()[1].ParameterType.IsGenericType
+                        && m.GetParameters()[1].ParameterType.GetGenericTypeDefinition() == typeof(Expression<>)));
         });
     }
 

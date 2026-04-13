@@ -108,6 +108,11 @@ public abstract class CrudKitDbContext : DbContext, ICrudKitDbContext
 
     // ---- SaveChanges overrides — delegated to helper ----
 
+    /// <summary>
+    /// Synchronous SaveChanges. Prefer <see cref="SaveChangesAsync"/> in production code.
+    /// The sync path uses .GetAwaiter().GetResult() for audit and domain events,
+    /// which can cause thread pool exhaustion under high concurrency.
+    /// </summary>
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
         => CrudKitDbContextHelper.SaveChanges(
             this, base.SaveChanges, acceptAllChangesOnSuccess,

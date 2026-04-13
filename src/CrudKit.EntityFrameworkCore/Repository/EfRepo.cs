@@ -135,7 +135,18 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
     public async Task<T> Create(object createDto, CancellationToken ct = default)
     {
         EnsureTenantContext();
-        var entity = Activator.CreateInstance<T>();
+        T entity;
+        try
+        {
+            entity = Activator.CreateInstance<T>()!;
+        }
+        catch (MissingMethodException)
+        {
+            throw new InvalidOperationException(
+                $"Entity '{typeof(T).Name}' must have a public parameterless constructor for entity-as-DTO mapping. " +
+                $"If using DDD pattern (private constructor), register an ICreateMapper<{typeof(T).Name}, TCreateDto>.");
+        }
+
         MapDtoToEntity(createDto, entity, isCreate: true);
 
         _db.Set<T>().Add(entity);
@@ -353,15 +364,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
         var builderType = typeof(Microsoft.EntityFrameworkCore.Query.UpdateSettersBuilder<T>);
 
-        var setPropertyMethods = builderType.GetMethods()
-            .Where(m => m.Name == "SetProperty" && m.IsGenericMethodDefinition && m.GetParameters().Length == 2)
-            .ToList();
-
-        var setPropertyBase = setPropertyMethods.FirstOrDefault(m =>
-        {
-            var p = m.GetParameters()[1];
-            return !p.ParameterType.IsGenericType || p.ParameterType.GetGenericTypeDefinition() != typeof(Expression<>);
-        });
+        var setPropertyBase = EntityMetadataCache.GetSetPropertyMethod(builderType);
 
         if (setPropertyBase is null)
             throw new InvalidOperationException($"Could not find SetProperty<TProperty>(Expression<Func<T,TProperty>>, TProperty) method on UpdateSettersBuilder<{typeof(T).Name}>");

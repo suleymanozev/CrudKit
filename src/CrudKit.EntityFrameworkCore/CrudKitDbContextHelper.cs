@@ -153,6 +153,21 @@ public static class CrudKitDbContextHelper
             }
         }
 
+        // Validate [CascadeSoftDelete] targets exist in the model
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            var cascadeAttrs = entityType.ClrType.GetCustomAttributes<CascadeSoftDeleteAttribute>();
+            foreach (var attr in cascadeAttrs)
+            {
+                if (modelBuilder.Model.FindEntityType(attr.ChildType) is null)
+                {
+                    throw new InvalidOperationException(
+                        $"[CascadeSoftDelete] on '{entityType.ClrType.Name}' references child type '{attr.ChildType.Name}' " +
+                        $"which is not registered in {context.GetType().Name}. Add a DbSet<{attr.ChildType.Name}> to your DbContext.");
+                }
+            }
+        }
+
         // CrudKit internal tables — audit log when global UseAuditTrail() is on,
         // OR when any registered entity type carries [Audited] (entity-level override).
         var anyEntityAudited = modelBuilder.Model.GetEntityTypes()
