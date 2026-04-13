@@ -154,7 +154,7 @@ Use `[Unique]` for simple single-property unique indexes. Use `[CrudIndex]` for 
 
 ### [CreateDtoFor(typeof(TEntity))] / [UpdateDtoFor(typeof(TEntity))]
 
-Applied to a manually written DTO. Tells SourceGen to skip generating the corresponding DTO for `TEntity`. `ResponseDto` and mapper are still generated automatically.
+Applied to a manually written DTO. Tells auto-registration which DTO to use for `TEntity` when mapping endpoints.
 
 ```csharp
 [CreateDtoFor(typeof(Order))]
@@ -167,7 +167,7 @@ public record UpdateOrder
 }
 ```
 
-Use this when the default generated DTO doesn't match your API contract — you retain full control without giving up the generated mapper and response type.
+Use this when you want custom DTOs instead of entity-as-DTO mode. Auto-registration discovers these attributes and wires up the correct endpoint overload.
 
 `[UpdateDtoFor]` is also used for [child entity](../features/child-entities) update auto-discovery.
 
@@ -197,7 +197,7 @@ public string InvoiceNumber { get; set; } = "";
 
 ### [ValueObject]
 
-Marks a class as a value object for SourceGen DTO generation. See [Value Objects](../features/value-objects).
+Marks a class as a value object for DTO flattening. See [Value Objects](../features/value-objects).
 
 ```csharp
 [ValueObject]

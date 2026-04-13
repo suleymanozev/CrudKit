@@ -64,7 +64,7 @@ public class InvoiceEndpointConfigurer : IEndpointConfigurer<Invoice>
 }
 ```
 
-No DI registration needed — just implement the interface. Works with both `MapCrudEndpoints` and `MapAllCrudEndpoints`.
+No DI registration needed — just implement the interface. Works with both manual `MapCrudEndpoints` and auto-registration via `UseCrudKit()`.
 
 ## Endpoint Mapping Overloads
 

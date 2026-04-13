@@ -1,9 +1,12 @@
+using System.Reflection;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using CrudKit.Api.Configuration;
+using CrudKit.Api.Endpoints;
 using CrudKit.Api.Events;
 using CrudKit.Api.Tenancy;
 using CrudKit.Api.Validation;
+using CrudKit.Core.Attributes;
 using CrudKit.Core.Auth;
 using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
@@ -141,9 +144,94 @@ public static class CrudKitAppExtensions
             app.UseMiddleware<TenantResolverMiddleware>();
         }
 
+        // Module endpoints (manual registration via IModule)
         foreach (var module in app.Services.GetServices<IModule>())
             module.MapEndpoints(app);
+
+        // Auto-scan: find all [CrudEntity] entities and register endpoints
+        AutoRegisterCrudEndpoints(app);
+
         return app;
+    }
+
+    /// <summary>
+    /// Scans all loaded assemblies for types decorated with [CrudEntity] and registers
+    /// CRUD endpoints automatically. Skips entities already registered by modules or
+    /// manual MapCrudEndpoints calls. When [CreateDtoFor] / [UpdateDtoFor] DTOs exist
+    /// in the entity's assembly, they are wired up automatically.
+    /// </summary>
+    private static void AutoRegisterCrudEndpoints(WebApplication app)
+    {
+        var crudEntityTypes = AppDomain.CurrentDomain.GetAssemblies()
+            .Where(a => !a.IsDynamic)
+            .SelectMany(a =>
+            {
+                try { return a.GetTypes(); }
+                catch { return Array.Empty<Type>(); }
+            })
+            .Where(t => !t.IsAbstract && t.IsClass
+                && t.GetCustomAttribute<CrudEntityAttribute>() is not null
+                && typeof(IEntity).IsAssignableFrom(t))
+            .ToList();
+
+        foreach (var entityType in crudEntityTypes)
+        {
+            // Skip if already registered by a module or manual MapCrudEndpoints call
+            if (CrudEndpointMapper.IsRegistered(app, entityType))
+                continue;
+
+            // Scan the entity's assembly for [CreateDtoFor] and [UpdateDtoFor] DTOs
+            Type? createDtoType = null;
+            Type? updateDtoType = null;
+
+            foreach (var type in entityType.Assembly.GetTypes())
+            {
+                var createAttr = type.GetCustomAttribute<CreateDtoForAttribute>();
+                if (createAttr?.EntityType == entityType)
+                    createDtoType = type;
+
+                var updateAttr = type.GetCustomAttribute<UpdateDtoForAttribute>();
+                if (updateAttr?.EntityType == entityType)
+                    updateDtoType = type;
+            }
+
+            var route = CrudEndpointMapper.ResolveRouteForType(entityType);
+
+            if (createDtoType is not null && updateDtoType is not null)
+            {
+                // MapCrudEndpoints<TEntity, TCreate, TUpdate>(app, route)
+                var method = typeof(CrudEndpointMapper)
+                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .First(m => m.Name == "MapCrudEndpoints"
+                        && m.GetGenericArguments().Length == 3
+                        && m.GetParameters().Length == 2
+                        && m.GetParameters()[1].ParameterType == typeof(string))
+                    .MakeGenericMethod(entityType, createDtoType, updateDtoType);
+                var group = method.Invoke(null, [app, route]);
+
+                var applyMethod = typeof(CrudEndpointMapper)
+                    .GetMethod("ApplyEndpointConfigurer")!
+                    .MakeGenericMethod(entityType);
+                applyMethod.Invoke(null, [group]);
+            }
+            else
+            {
+                // MapCrudEndpoints<TEntity>(app, route) — entity-as-DTO
+                var method = typeof(CrudEndpointMapper)
+                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .First(m => m.Name == "MapCrudEndpoints"
+                        && m.GetGenericArguments().Length == 1
+                        && m.GetParameters().Length == 2
+                        && m.GetParameters()[1].ParameterType == typeof(string))
+                    .MakeGenericMethod(entityType);
+                var group = method.Invoke(null, [app, route]);
+
+                var applyMethod = typeof(CrudEndpointMapper)
+                    .GetMethod("ApplyEndpointConfigurer")!
+                    .MakeGenericMethod(entityType);
+                applyMethod.Invoke(null, [group]);
+            }
+        }
     }
 
     public static IServiceCollection AddCrudKitModule<TModule>(this IServiceCollection services)

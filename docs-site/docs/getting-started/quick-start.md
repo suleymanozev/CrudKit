@@ -12,9 +12,6 @@ This page walks you through setting up CrudKit in a new .NET 10 Minimal API proj
 ```bash
 dotnet add package CrudKit.Api
 dotnet add package CrudKit.EntityFrameworkCore
-
-# Optional: source generator
-dotnet add package CrudKit.SourceGen
 ```
 
 ## Step 1 — Define your DbContext
@@ -56,13 +53,10 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 
 ```csharp
 var app = builder.Build();
-app.UseCrudKit();
+app.UseCrudKit(); // auto-registers all [CrudEntity] types
 
-// Route auto-derived from entity name: "products"
-app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
-
-// Or with SourceGen — maps all [CrudEntity] types in one call
-app.MapAllCrudEndpoints();
+// Or register manually for full control:
+// app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
 
 app.Run();
 ```
@@ -88,7 +82,7 @@ public class Product : FullAuditableEntity
 
 ## Step 5 — Create DTOs
 
-If not using SourceGen, define DTOs manually:
+Define DTOs manually, or skip this step to use entity-as-DTO mode:
 
 ```csharp
 public record CreateProduct(

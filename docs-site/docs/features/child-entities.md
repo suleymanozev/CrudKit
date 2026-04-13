@@ -90,7 +90,7 @@ Child entities can extend any base class (`Entity`, `AuditableEntity`, `FullAudi
 
 ## Combining with [CreateDtoFor] and [UpdateDtoFor]
 
-Child endpoints that create records require a create DTO. Use `[CreateDtoFor]` on a manual DTO or let SourceGen generate one:
+Child endpoints that create records require a create DTO. Use `[CreateDtoFor]` on a manual DTO:
 
 ```csharp
 [CreateDtoFor(typeof(OrderLine))]

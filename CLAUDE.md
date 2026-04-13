@@ -12,14 +12,13 @@ Always respond in Turkish. All source code comments and XML docs must be in Engl
 # Build entire solution
 dotnet build CrudKit.slnx
 
-# Run all tests (477 tests across 5 projects)
+# Run all tests (565 tests across 5 projects)
 dotnet test CrudKit.slnx
 
 # Run tests for a specific project
 dotnet test tests/CrudKit.Api.Tests/
 dotnet test tests/CrudKit.EntityFrameworkCore.Tests/
 dotnet test tests/CrudKit.Core.Tests/
-dotnet test tests/CrudKit.SourceGen.Tests/
 dotnet test tests/CrudKit.Identity.Tests/
 
 # Run a single test
@@ -47,7 +46,6 @@ CrudKit.EntityFrameworkCore (→ Core)
 CrudKit.Api (→ Core + EF)
 
 CrudKit.Identity (→ EF, adds ASP.NET Identity compatibility)
-CrudKit.SourceGen (standalone, netstandard2.0, Roslyn analyzer)
 ```
 
 ### Key Abstraction: ICrudKitDbContext
@@ -96,15 +94,9 @@ Same pattern: Audited/NotAudited, Exportable/NotExportable, Importable/NotImport
               Filterable/NotFilterable, Sortable/NotSortable
 ```
 
-### SourceGen Pipeline
+### Auto Registration
 
-Targets `netstandard2.0`. Uses `IIncrementalGenerator` with `ForAttributeWithMetadataName`. Tests use `GeneratorTestHelper` with in-memory compilation + attribute stubs (not real CrudKit.Core references).
-
-Generates per entity: CreateDto, UpdateDto, ResponseDto, Mapper, HookStub.
-Generates collectively: `MapAllCrudEndpoints()`, DI registration.
-
-Respects `[CreateDtoFor]`/`[UpdateDtoFor]` — skips generation when manual DTO exists.
-Respects `[assembly: CrudKit(CreateDtoNamingTemplate = "...")]` for naming customization.
+`UseCrudKit()` scans all loaded assemblies for `[CrudEntity]`-decorated types and registers CRUD endpoints automatically. Discovers `[CreateDtoFor]`/`[UpdateDtoFor]` DTOs in the entity's assembly. Skips entities already registered by modules or manual `MapCrudEndpoints` calls.
 
 ### Multi-DbContext (Modular Monolith)
 
@@ -114,7 +106,6 @@ Respects `[assembly: CrudKit(CreateDtoNamingTemplate = "...")]` for naming custo
 
 - **EF tests**: `DbHelper.CreateDb()` → in-memory SQLite, returns `TestDbContext`
 - **API tests**: `TestWebApp.CreateAsync(configureEndpoints, configureServices)` → in-process web app with test server
-- **SourceGen tests**: `GeneratorTestHelper.RunGenerator<CrudKitSourceGenerator>(sourceCode)` → in-memory compilation
 
 ### Master-Child Relationships
 

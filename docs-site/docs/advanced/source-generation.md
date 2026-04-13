@@ -1,70 +1,35 @@
 ---
 sidebar_position: 2
-title: Source Generation
+title: Auto Registration
 ---
 
-# Source Generation
+# Auto Registration
 
-Add the `CrudKit.SourceGen` package to enable Roslyn-based code generation. The generator scans for all `[CrudEntity]`-decorated classes at compile time.
+`UseCrudKit()` automatically scans all loaded assemblies for types decorated with `[CrudEntity]` and registers their CRUD endpoints at startup. No additional packages or code generation required.
 
-## Installation
+## How It Works
 
-```bash
-dotnet add package CrudKit.SourceGen
-```
+When `app.UseCrudKit()` is called, it:
 
-## Generated Files
-
-SourceGen no longer generates DTOs or mappers. It generates two things per project:
-
-| Generated File | Description |
-|----------------|-------------|
-| `{Entity}Hooks.g.cs` | Empty `ICrudHooks<T>` partial class stub to extend |
-| `CrudKitEndpoints.g.cs` | `MapAllCrudEndpoints()` extension method |
-
-DTOs and mappers are written by hand and registered via `[CreateDtoFor]`, `[UpdateDtoFor]`, and `[ResponseDtoFor]`.
+1. Runs any `IModule.MapEndpoints()` registrations first (manual/module-based)
+2. Scans all loaded assemblies for `[CrudEntity]`-decorated entity types
+3. Skips entities already registered by modules or manual `MapCrudEndpoints` calls
+4. For each unregistered entity, checks if `[CreateDtoFor]` / `[UpdateDtoFor]` DTOs exist in the entity's assembly
+5. Registers CRUD endpoints using the discovered DTOs, or falls back to entity-as-DTO mode
 
 ## Usage
 
 ```csharp
-// Maps all entities in one call
-app.MapAllCrudEndpoints();
+var app = builder.Build();
+app.UseCrudKit(); // auto-registers all [CrudEntity] types
+app.Run();
 ```
+
+That's it. Every entity decorated with `[CrudEntity]` gets full CRUD endpoints automatically.
 
 ## Entity as DTO
 
-If no DTOs are provided for an entity, `MapCrudEndpoints<T>()` uses the entity itself as both the Create and Update DTO. System fields (`Id`, `CreatedAt`, `UpdatedAt`, `DeletedAt`, `TenantId`, etc.) are automatically skipped during mapping — only user-defined properties are written.
-
-## Extending Generated Hook Stubs
-
-The generator creates a partial hook class for each entity. Override only what you need:
-
-```csharp
-// Extend the generated partial class — only override what you need
-public partial class ProductHooks
-{
-    public override Task BeforeCreate(Product entity, AppContext ctx)
-    {
-        entity.Sku = entity.Sku.ToUpperInvariant();
-        return Task.CompletedTask;
-    }
-}
-```
-
-## Naming Templates
-
-By default, SourceGen uses the naming convention `Create{Name}`, `Update{Name}`, `{Name}Response`, etc. Override these project-wide with an assembly-level attribute — add it to any `.cs` file (e.g. `GlobalUsings.cs`):
-
-```csharp
-[assembly: CrudKit(
-    CreateDtoNamingTemplate   = "{Name}CreateRequest",   // default: "Create{Name}"
-    UpdateDtoNamingTemplate   = "{Name}UpdateRequest",   // default: "Update{Name}"
-    ResponseDtoNamingTemplate = "{Name}Dto",             // default: "{Name}Response"
-    MapperNamingTemplate      = "{Name}Mapper",          // default: "{Name}Mapper"
-    HooksNamingTemplate       = "{Name}Hooks")]          // default: "{Name}Hooks"
-```
-
-The `{Name}` placeholder is required in every template. An empty template or a template missing `{Name}` produces a compile-time error.
+If no DTOs are provided for an entity, `UseCrudKit` uses the entity itself as both the Create and Update DTO. System fields (`Id`, `CreatedAt`, `UpdatedAt`, `DeletedAt`, `TenantId`, etc.) are automatically skipped during mapping — only user-defined properties are written.
 
 ## Manual DTOs — [CreateDtoFor] / [UpdateDtoFor] / [ResponseDtoFor]
 
@@ -95,8 +60,34 @@ public class OrderResponse
 }
 ```
 
+## Manual Registration
+
+You can still register entities manually with `MapCrudEndpoints` if you need full control. Auto-scan skips entities already registered this way:
+
+```csharp
+app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>("products")
+    .Authorize(auth => auth.RequireRole("Admin"));
+
+app.UseCrudKit(); // skips Product — already registered above
+app.Run();
+```
+
+## Extending with IEndpointConfigurer
+
+Implement `IEndpointConfigurer<TEntity>` to customize auto-registered endpoints. The configurer is discovered and applied automatically:
+
+```csharp
+public class ProductEndpointConfigurer : IEndpointConfigurer<Product>
+{
+    public void Configure(CrudEndpointGroup<Product> group)
+    {
+        group.Authorize(auth => auth.RequireRole("Admin"));
+    }
+}
+```
+
 ## Notes
 
-- Generated files are in the `obj/` folder and are not committed to source control.
-- You can mix source-generated and manual mappings in the same project.
-- If you prefer to write DTOs manually, skip `CrudKit.SourceGen` and define them yourself — the rest of CrudKit works the same.
+- Auto-scan only finds entities in assemblies that are already loaded at the time `UseCrudKit()` is called.
+- If you prefer fully manual registration, simply call `MapCrudEndpoints` for each entity before `UseCrudKit()` — auto-scan will skip them all.
+- You can mix auto-registered and manually registered entities in the same application.

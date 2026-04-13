@@ -25,8 +25,8 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Bulk operations (`/bulk-count`, `/bulk-delete`, `/bulk-update`)
 - ReadOnly entities (List + Get only)
 - CSV import/export (`[Exportable]`, `[Importable]`, per-property control)
-- Source generation — DTOs, mappers, endpoint mapping, hook stubs (naming templates via `[assembly: CrudKit(...)]`)
-- `[CreateDtoFor]` / `[UpdateDtoFor]` — manual DTOs that suppress SourceGen for those types
+- Auto-registration — `UseCrudKit()` scans assemblies for `[CrudEntity]` types and registers endpoints automatically
+- `[CreateDtoFor]` / `[UpdateDtoFor]` — manual DTOs discovered by auto-registration
 - `Optional<T>` for partial updates (distinguishes null from missing)
 - Property attributes: `[Hashed]`, `[SkipResponse]`, `[SkipUpdate]`, `[Protected]`, `[Unique]`, `[Searchable]`
 - Filter/sort control per entity and property (`[NotFilterable]`, `[NotSortable]`)
@@ -61,13 +61,10 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 
 ```csharp
 var app = builder.Build();
-app.UseCrudKit();
+app.UseCrudKit(); // auto-registers all [CrudEntity] types
 
-// Route auto-derived from entity name: "products"
-app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
-
-// Or with SourceGen — maps all [CrudEntity] types in one call
-app.MapAllCrudEndpoints();
+// Or register manually for full control:
+// app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
 
 app.Run();
 ```
@@ -108,7 +105,7 @@ public class Product : FullAuditableEntity
 | POST | `/api/products/{id}/restore` | Restore soft-deleted record |
 | POST | `/api/products/{id}/transition/{action}` | State transition (`IStateMachine<TState>` only) |
 
-**Mappers are optional.** Without them, CrudKit uses reflection for DTO ↔ entity mapping and serializes entities directly for responses. Register `IResponseMapper<T, TResponse>` for custom response shapes, or use SourceGen to eliminate reflection entirely.
+**Mappers are optional.** Without them, CrudKit uses reflection for DTO ↔ entity mapping and serializes entities directly for responses. Register `IResponseMapper<T, TResponse>` for custom response shapes.
 
 ---
 
@@ -229,8 +226,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 });
 
 var app = builder.Build();
-app.UseCrudKit();
-app.MapAllCrudEndpoints();
+app.UseCrudKit(); // auto-registers all [CrudEntity] types
 app.Run();
 ```
 
@@ -261,13 +257,11 @@ src/
 ├── CrudKit.Core/                # Attributes, interfaces, models
 ├── CrudKit.EntityFrameworkCore/ # EF Core integration, repository, query
 ├── CrudKit.Api/                 # Minimal API layer, endpoint mapping, filters
-├── CrudKit.Identity/            # ASP.NET Identity integration (CrudKitIdentityDbContext)
-└── CrudKit.SourceGen/           # Roslyn source generator
+└── CrudKit.Identity/            # ASP.NET Identity integration (CrudKitIdentityDbContext)
 tests/
 ├── CrudKit.Core.Tests/
 ├── CrudKit.EntityFrameworkCore.Tests/
-├── CrudKit.Api.Tests/
-└── CrudKit.SourceGen.Tests/
+└── CrudKit.Api.Tests/
 samples/
 └── CrudKit.Sample.Api/          # Working sample with Product, Category, Order, Unit
 docs/
@@ -300,7 +294,7 @@ For explicit control use the fluent API: `app.MapCrudEndpoints<Order, ...>().Wit
 
 ## Manual DTOs with [CreateDtoFor] / [UpdateDtoFor]
 
-When a DTO is annotated with `[CreateDtoFor(typeof(T))]` or `[UpdateDtoFor(typeof(T))]`, SourceGen skips generating the corresponding DTO for that entity. The `ResponseDto` and mapper are still generated.
+When a DTO is annotated with `[CreateDtoFor(typeof(T))]` or `[UpdateDtoFor(typeof(T))]`, auto-registration discovers and wires them up automatically.
 
 ```csharp
 [CreateDtoFor(typeof(Order))]
@@ -312,19 +306,6 @@ public record UpdateOrder
     public Optional<string?> CustomerName { get; init; }
 }
 ```
-
-## Naming Templates
-
-Customize SourceGen naming conventions at assembly level:
-
-```csharp
-[assembly: CrudKit(
-    CreateDtoNamingTemplate = "{Name}CreateRequest",   // default: "Create{Name}"
-    UpdateDtoNamingTemplate = "{Name}UpdateRequest",   // default: "Update{Name}"
-    ResponseDtoNamingTemplate = "{Name}Dto")]          // default: "{Name}Response"
-```
-
-`{Name}` placeholder is required — empty or missing placeholder causes a compile error.
 
 ---
 

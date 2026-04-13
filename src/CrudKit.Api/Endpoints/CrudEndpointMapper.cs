@@ -362,6 +362,44 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
 public static class CrudEndpointMapper
 {
     /// <summary>
+    /// Tracks entity types already registered via any MapCrudEndpoints overload per WebApplication instance.
+    /// Prevents duplicate route registration when auto-scan runs after manual module registration.
+    /// Uses ConditionalWeakTable so entries are cleaned up when the WebApplication is collected.
+    /// </summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WebApplication, HashSet<Type>>
+        RegisteredEntityTypesByApp = new();
+
+    /// <summary>
+    /// Returns true if the entity type has already been registered for the given app.
+    /// </summary>
+    internal static bool IsRegistered(WebApplication app, Type entityType)
+    {
+        if (RegisteredEntityTypesByApp.TryGetValue(app, out var set))
+            return set.Contains(entityType);
+        return false;
+    }
+
+    /// <summary>
+    /// Marks an entity type as registered for the given app.
+    /// </summary>
+    private static void MarkRegistered(WebApplication app, Type entityType)
+    {
+        var set = RegisteredEntityTypesByApp.GetOrCreateValue(app);
+        set.Add(entityType);
+    }
+
+    /// <summary>
+    /// Resolves the route for a given entity type. Used by auto-scan registration.
+    /// </summary>
+    internal static string ResolveRouteForType(Type entityType)
+    {
+        var attr = entityType.GetCustomAttribute<CrudEntityAttribute>();
+        if (!string.IsNullOrEmpty(attr?.Resource))
+            return attr.Resource;
+        return Pluralize(ToKebabCase(entityType.Name));
+    }
+
+    /// <summary>
     /// Maps CRUD endpoints using the entity as both Create and Update DTO.
     /// Use [CrudEntity(ReadOnly = true)] to restrict to read-only (GET only).
     /// Use the 3-type overload for custom Create/Update DTOs.
@@ -400,6 +438,7 @@ public static class CrudEndpointMapper
         where TUpdate : class
     {
         EnsureCrudEntity<TEntity>();
+        MarkRegistered(app, typeof(TEntity));
 
         var crudAttr = typeof(TEntity).GetCustomAttribute<CrudEntityAttribute>()!;
 
@@ -989,7 +1028,7 @@ public static class CrudEndpointMapper
 
     /// <summary>
     /// Scans the entity's assembly for <see cref="IEndpointConfigurer{TEntity}"/> implementations
-    /// and invokes them. Called by generated MapAllCrudEndpoints after registering CRUD endpoints
+    /// and invokes them. Called by auto-registration after registering CRUD endpoints
     /// for each entity.
     /// </summary>
     public static void ApplyEndpointConfigurer<TEntity>(CrudEndpointGroup<TEntity> group)

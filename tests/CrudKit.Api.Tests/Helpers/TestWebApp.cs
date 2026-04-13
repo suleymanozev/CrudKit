@@ -50,8 +50,8 @@ public sealed class TestWebApp : IAsyncDisposable
         configureServices?.Invoke(builder.Services);
 
         var app = builder.Build();
-        app.UseCrudKit();
         configureEndpoints?.Invoke(app);
+        app.UseCrudKit();
 
         using (var scope = app.Services.CreateScope())
         {

@@ -221,7 +221,7 @@ public interface ICurrentUser
 
 ## IResponseMapper, ICreateMapper, IUpdateMapper, ICrudMapper
 
-Mapper interfaces for converting between entities and DTOs. Implement manually or let SourceGen generate them.
+Mapper interfaces for converting between entities and DTOs. Implement manually for custom mapping logic.
 
 - `IResponseMapper<T, TResponse>` — entity → response DTO
 - `ICreateMapper<T, TCreate>` — create DTO → entity

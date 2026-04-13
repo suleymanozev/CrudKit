@@ -1,14 +1,12 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/CrudKit.Sample.Api/CrudKit.Sample.Api.csproj" />
-    <Project Path="samples/CrudKit.Sample.SourceGen/CrudKit.Sample.SourceGen.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/CrudKit.Api/CrudKit.Api.csproj" />
     <Project Path="src/CrudKit.Core/CrudKit.Core.csproj" />
     <Project Path="src/CrudKit.EntityFrameworkCore/CrudKit.EntityFrameworkCore.csproj" />
     <Project Path="src/CrudKit.Identity/CrudKit.Identity.csproj" />
-    <Project Path="src/CrudKit.SourceGen/CrudKit.SourceGen.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/CrudKit.Api.Tests/CrudKit.Api.Tests.csproj" />
@@ -16,6 +14,5 @@
     <Project Path="tests/CrudKit.EntityFrameworkCore.Tests/CrudKit.EntityFrameworkCore.Tests.csproj" />
     <Project Path="tests/CrudKit.Identity.Tests/CrudKit.Identity.Tests.csproj" />
     <Project Path="tests/CrudKit.Integration.Tests/CrudKit.Integration.Tests.csproj" />
-    <Project Path="tests/CrudKit.SourceGen.Tests/CrudKit.SourceGen.Tests.csproj" />
   </Folder>
 </Solution>

@@ -60,11 +60,9 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 var app = builder.Build();
 app.UseCrudKit();
 
-// Route auto-derived from entity name: "products"
+// All [CrudEntity] types are auto-registered by UseCrudKit()
+// Or register manually for full control:
 app.MapCrudEndpoints<Product, CreateProduct, UpdateProduct>();
-
-// Or with SourceGen — maps all [CrudEntity] types in one call
-app.MapAllCrudEndpoints();
 
 app.Run();
 ```

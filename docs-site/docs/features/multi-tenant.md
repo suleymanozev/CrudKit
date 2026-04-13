@@ -127,8 +127,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 });
 
 var app = builder.Build();
-app.UseCrudKit();
-app.MapAllCrudEndpoints();
+app.UseCrudKit(); // auto-registers all [CrudEntity] types
 app.Run();
 ```
 
