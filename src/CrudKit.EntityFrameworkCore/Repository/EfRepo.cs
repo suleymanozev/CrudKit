@@ -139,7 +139,14 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         MapDtoToEntity(createDto, entity, isCreate: true);
 
         _db.Set<T>().Add(entity);
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            throw AppError.Conflict($"A {typeof(T).Name} with the same unique value already exists.");
+        }
 
         ClearSkipResponseFields(entity);
         return entity;
@@ -152,7 +159,14 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
 
         MapDtoToEntity(updateDto, entity, isCreate: false);
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            throw AppError.Conflict($"A {typeof(T).Name} with the same unique value already exists.");
+        }
 
         ClearSkipResponseFields(entity);
         return entity;
@@ -384,6 +398,26 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             foreach (var (method, lambda, value) in setterCalls)
                 method.Invoke(setters, [lambda, value]);
         }, ct);
+    }
+
+    // ---- Unique constraint detection ----
+
+    /// <summary>
+    /// Returns true when the exception originates from a unique/duplicate key constraint violation.
+    /// Covers PostgreSQL ("duplicate key value"), SQL Server ("duplicate key" / "UNIQUE KEY constraint"),
+    /// and SQLite ("UNIQUE constraint failed").
+    /// </summary>
+    private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+    {
+        var inner = ex.InnerException;
+        if (inner is null) return false;
+
+        var message = inner.Message;
+        // PostgreSQL: "duplicate key value violates unique constraint"
+        // SQL Server: "Cannot insert duplicate key" or "Violation of UNIQUE KEY constraint"
+        // SQLite:     "UNIQUE constraint failed"
+        return message.Contains("unique", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("duplicate", StringComparison.OrdinalIgnoreCase);
     }
 
     // ---- Reflection-based DTO mapping ----

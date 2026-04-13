@@ -37,6 +37,14 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 public class Product : AuditableEntity { }
 ```
 
+## Hook Limitation
+
+:::warning
+Bulk operations **do not trigger entity lifecycle hooks** (`ICrudHooks<T>`, `IGlobalCrudHook`). They execute directly against the database via `ExecuteUpdateAsync`/`ExecuteDeleteAsync` without loading entities into the EF Core change tracker.
+
+If you rely on hooks for business logic, validation, or side effects (e.g. sending events, updating related data), use single-entity endpoints instead.
+:::
+
 ## Concurrency Warning
 
 Bulk updates bypass optimistic concurrency. CrudKit logs a warning at startup if `IConcurrent` and `EnableBulkUpdate` are both configured on the same entity.

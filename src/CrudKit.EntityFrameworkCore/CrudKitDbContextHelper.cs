@@ -370,12 +370,22 @@ public static class CrudKitDbContextHelper
             var result = baseSaveChanges(acceptAllChangesOnSuccess);
             ExecuteCascadeOps(context.Database, cascadeOps);
 
+            // Audit write — failure must not prevent domain event dispatch
             // WARNING: sync-over-async — can cause thread pool starvation under load.
             // Prefer SaveChangesAsync() to avoid this path entirely.
             if (auditEntries.Count > 0 && auditWriter is not null)
-                auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
+            {
+                try
+                {
+                    auditWriter.WriteAsync(auditEntries, CancellationToken.None).GetAwaiter().GetResult();
+                }
+                catch (Exception auditEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"CrudKit: Audit write failed: {auditEx.Message}");
+                }
+            }
 
-            // Dispatch domain events after successful save
+            // Domain events — always dispatch after successful save, even if audit write failed
             if (domainEventDispatcher is not null)
             {
                 var entitiesWithEvents = context.ChangeTracker.Entries<IHasDomainEvents>()
@@ -434,10 +444,20 @@ public static class CrudKitDbContextHelper
             var result = await baseSaveChangesAsync(acceptAllChangesOnSuccess, ct);
             ExecuteCascadeOps(context.Database, cascadeOps);
 
+            // Audit write — failure must not prevent domain event dispatch
             if (auditEntries.Count > 0 && auditWriter is not null)
-                await auditWriter.WriteAsync(auditEntries, ct);
+            {
+                try
+                {
+                    await auditWriter.WriteAsync(auditEntries, ct);
+                }
+                catch (Exception auditEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"CrudKit: Audit write failed: {auditEx.Message}");
+                }
+            }
 
-            // Dispatch domain events after successful save
+            // Domain events — always dispatch after successful save, even if audit write failed
             if (domainEventDispatcher is not null)
             {
                 var entitiesWithEvents = context.ChangeTracker.Entries<IHasDomainEvents>()

@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using Microsoft.Extensions.Logging;
 using CrudKit.Api.Configuration;
 using CrudKit.Api.Endpoints;
 using CrudKit.Api.Events;
@@ -167,7 +168,21 @@ public static class CrudKitAppExtensions
             .SelectMany(a =>
             {
                 try { return a.GetTypes(); }
-                catch { return Array.Empty<Type>(); }
+                catch (ReflectionTypeLoadException ex)
+                {
+                    // Return types that loaded successfully; warn about partial failure
+                    app.Logger.LogWarning(
+                        "CrudKit: Assembly '{Assembly}' partially loaded — some types could not be scanned: {Message}",
+                        a.FullName, ex.Message);
+                    return ex.Types.Where(t => t is not null).Cast<Type>().ToArray();
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogWarning(
+                        "CrudKit: Failed to scan assembly '{Assembly}': {Message}",
+                        a.FullName, ex.Message);
+                    return Array.Empty<Type>();
+                }
             })
             .Where(t => !t.IsAbstract && t.IsClass
                 && t.GetCustomAttribute<CrudEntityAttribute>() is not null

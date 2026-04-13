@@ -9,7 +9,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CrudKit.Api.Endpoints.Handlers;
 
-/// <summary>Maps GET /bulk-count, POST /bulk-delete, and POST /bulk-update endpoints.</summary>
+/// <summary>
+/// Maps GET /bulk-count, POST /bulk-delete, and POST /bulk-update endpoints.
+/// <para>
+/// WARNING: Bulk operations bypass entity lifecycle hooks (<see cref="CrudKit.Core.Interfaces.ICrudHooks{T}"/>,
+/// <see cref="CrudKit.Core.Events.IGlobalCrudHook"/>). They execute directly against the database via
+/// <c>ExecuteUpdateAsync</c>/<c>ExecuteDeleteAsync</c> without loading entities into the change tracker.
+/// Use single-entity endpoints if hooks must run.
+/// </para>
+/// </summary>
 internal static class BulkHandler
 {
     public static void Map<TEntity>(RouteGroupBuilder group, string tag, bool isDeleteEnabled, bool isUpdateEnabled)
