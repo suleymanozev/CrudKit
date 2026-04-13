@@ -191,9 +191,8 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             // Check [Unique] properties — re-enable soft-delete filter to check only active records
             using (_softDeleteFilter.Enable())
             {
-                var uniqueProps = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                    .Where(p => p.GetCustomAttribute<UniqueAttribute>() is not null)
-                    .ToList();
+                var entityInfo = EntityMetadataCache.GetEntityInfo(typeof(T));
+                var uniqueProps = entityInfo.UniqueProperties;
 
                 foreach (var prop in uniqueProps)
                 {
@@ -222,7 +221,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             // Cascade restore: restore child entities that were deleted in the same batch as the parent
             if (deleteBatchId is not null)
             {
-                var cascadeAttributes = typeof(T).GetCustomAttributes<CascadeSoftDeleteAttribute>();
+                var cascadeAttributes = EntityMetadataCache.GetEntityInfo(typeof(T)).CascadeAttributes;
                 foreach (var attr in cascadeAttributes)
                 {
                     var childEntityType = _db.Model.FindEntityType(attr.ChildType);
@@ -391,39 +390,24 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
     private static void MapDtoToEntity(object dto, T entity, bool isCreate)
     {
-        var entityProps = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        var entityPropMap = entityProps.ToDictionary(
-            p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
+        var mappings = EntityMetadataCache.GetMappings(typeof(T), dto.GetType());
 
-        foreach (var dtoProp in dto.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        foreach (var m in mappings)
         {
-            if (!entityPropMap.TryGetValue(dtoProp.Name, out var entityProp)) continue;
-
-            // Skip read-only properties (no setter)
-            if (!entityProp.CanWrite) continue;
-
-            // Skip system/infrastructure fields (managed by DbContext)
-            if (entityProp.Name is nameof(IAuditableEntity.Id)
-                or nameof(IAuditableEntity.CreatedAt)
-                or nameof(IAuditableEntity.UpdatedAt)
-                or nameof(ISoftDeletable.DeletedAt)
-                or nameof(ISoftDeletable.DeleteBatchId)
-                or "TenantId") continue;
-
             if (!isCreate)
             {
-                if (entityProp.GetCustomAttribute<ProtectedAttribute>() is not null) continue;
-                if (entityProp.GetCustomAttribute<SkipUpdateAttribute>() is not null) continue;
+                if (m.IsProtected) continue;
+                if (m.IsSkipUpdate) continue;
             }
 
-            var dtoValue = dtoProp.GetValue(dto);
+            var dtoValue = m.DtoProperty.GetValue(dto);
 
             // Handle Optional<T> — absent fields (HasValue=false) are skipped
-            if (IsOptionalType(dtoProp.PropertyType))
+            if (m.IsOptional)
             {
-                var hasValue = (bool)dtoProp.PropertyType.GetProperty("HasValue")!.GetValue(dtoValue)!;
+                var hasValue = (bool)m.DtoProperty.PropertyType.GetProperty("HasValue")!.GetValue(dtoValue)!;
                 if (!hasValue) continue;
-                dtoValue = dtoProp.PropertyType.GetProperty("Value")!.GetValue(dtoValue);
+                dtoValue = m.DtoProperty.PropertyType.GetProperty("Value")!.GetValue(dtoValue);
             }
             else if (!isCreate && dtoValue is null)
             {
@@ -432,42 +416,38 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             }
 
             // Apply BCrypt hashing for [Hashed] fields
-            if (entityProp.GetCustomAttribute<HashedAttribute>() is not null
-                && dtoValue is string plainText)
+            if (m.IsHashed && dtoValue is string plainText)
             {
-                entityProp.SetValue(entity, BCrypt.Net.BCrypt.HashPassword(plainText));
+                m.EntityProperty.SetValue(entity, BCrypt.Net.BCrypt.HashPassword(plainText));
                 continue;
             }
 
-            entityProp.SetValue(entity, dtoValue);
+            m.EntityProperty.SetValue(entity, dtoValue);
         }
 
-        // Handle [Flatten] value object properties
-        // DTO has: PurchasePriceAmount, PurchasePriceCurrency
-        // Entity has: PurchasePrice (Money with Amount, Currency)
-        foreach (var entityProp in entityProps)
+        // Handle [Flatten] value object properties — use cached flatten props
+        var entityInfo = EntityMetadataCache.GetEntityInfo(typeof(T));
+        foreach (var flatProp in entityInfo.FlattenProperties)
         {
-            if (entityProp.GetCustomAttribute<FlattenAttribute>() is null) continue;
-            if (entityProp.PropertyType.GetCustomAttribute<ValueObjectAttribute>() is null) continue;
-
-            var vo = entityProp.GetValue(entity) ?? Activator.CreateInstance(entityProp.PropertyType);
-            var voType = entityProp.PropertyType;
+            var vo = flatProp.GetValue(entity) ?? Activator.CreateInstance(flatProp.PropertyType);
+            var voType = flatProp.PropertyType;
             bool anySet = false;
 
             foreach (var voProp in voType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
-                var flatName = entityProp.Name + voProp.Name;
-                var dtoProp = dto.GetType().GetProperty(flatName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                if (dtoProp is null) continue;
+                var flatName = flatProp.Name + voProp.Name;
+                var dtoPropInfo = dto.GetType().GetProperty(flatName,
+                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                if (dtoPropInfo is null) continue;
 
-                var dtoValue = dtoProp.GetValue(dto);
+                var dtoValue = dtoPropInfo.GetValue(dto);
 
                 // Handle Optional<T> for update DTOs
-                if (IsOptionalType(dtoProp.PropertyType))
+                if (IsOptionalType(dtoPropInfo.PropertyType))
                 {
-                    var hasValue = (bool)dtoProp.PropertyType.GetProperty("HasValue")!.GetValue(dtoValue)!;
+                    var hasValue = (bool)dtoPropInfo.PropertyType.GetProperty("HasValue")!.GetValue(dtoValue)!;
                     if (!hasValue) continue;
-                    dtoValue = dtoProp.PropertyType.GetProperty("Value")!.GetValue(dtoValue);
+                    dtoValue = dtoPropInfo.PropertyType.GetProperty("Value")!.GetValue(dtoValue);
                 }
                 else if (!isCreate && dtoValue is null)
                 {
@@ -479,7 +459,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             }
 
             if (anySet)
-                entityProp.SetValue(entity, vo);
+                flatProp.SetValue(entity, vo);
         }
     }
 
@@ -488,10 +468,9 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
     private static void ClearSkipResponseFields(T entity)
     {
-        foreach (var prop in typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        var entityInfo = EntityMetadataCache.GetEntityInfo(typeof(T));
+        foreach (var prop in entityInfo.SkipResponseProperties)
         {
-            if (prop.GetCustomAttribute<SkipResponseAttribute>() is null || !prop.CanWrite) continue;
-            if (prop.PropertyType.IsValueType && Nullable.GetUnderlyingType(prop.PropertyType) is null) continue;
             prop.SetValue(entity, null);
         }
     }
