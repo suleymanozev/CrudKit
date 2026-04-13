@@ -39,7 +39,7 @@ const sidebars: SidebarsConfig = {
       label: 'Advanced',
       items: [
         'advanced/modular-monolith',
-        'advanced/source-generation',
+        'advanced/auto-registration',
         'advanced/custom-endpoints',
         'advanced/feature-flags',
         'advanced/error-handling',
