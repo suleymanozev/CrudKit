@@ -57,7 +57,6 @@ jobs:
           name: Test Results
           path: '**/TestResults/*.trx'
           reporter: dotnet-trx
-          badge-title: tests
 
       - name: Test Summary
         if: always()
@@ -66,3 +65,14 @@ jobs:
           echo "- **Passed:** ${{ steps.test-report.outputs.passed }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Failed:** ${{ steps.test-report.outputs.failed }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Skipped:** ${{ steps.test-report.outputs.skipped }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Update Test Badge
+        if: always() && github.ref == 'refs/heads/main'
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ secrets.GIST_ID }}
+          filename: crudkit-tests.json
+          label: tests
+          message: ${{ steps.test-report.outputs.passed }} passed
+          color: ${{ steps.test-report.outputs.failed == '0' && 'brightgreen' || 'red' }}
