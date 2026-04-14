@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -45,10 +49,20 @@ jobs:
       - name: Integration Tests (SQLite + PostgreSQL)
         run: dotnet test tests/CrudKit.Integration.Tests/ --no-build -v m --logger "trx;LogFileName=integration-tests.trx"
 
-      - name: Publish Test Results
+      - name: Test Report
         uses: dorny/test-reporter@v1
+        id: test-report
         if: always()
         with:
           name: Test Results
           path: '**/TestResults/*.trx'
           reporter: dotnet-trx
+          badge-title: tests
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "- **Passed:** ${{ steps.test-report.outputs.passed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failed:** ${{ steps.test-report.outputs.failed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Skipped:** ${{ steps.test-report.outputs.skipped }}" >> $GITHUB_STEP_SUMMARY
