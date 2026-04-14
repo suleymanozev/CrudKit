@@ -40,7 +40,36 @@ jobs:
         run: dotnet build CrudKit.slnx --no-restore
 
       - name: Unit & API Tests
-        run: dotnet test CrudKit.slnx --no-build -v m --filter "FullyQualifiedName!~Integration"
+        run: dotnet test CrudKit.slnx --no-build -v m --filter "FullyQualifiedName!~Integration" --logger "trx;LogFileName=unit-tests.trx"
 
       - name: Integration Tests (SQLite + PostgreSQL)
-        run: dotnet test tests/CrudKit.Integration.Tests/ --no-build -v m
+        run: dotnet test tests/CrudKit.Integration.Tests/ --no-build -v m --logger "trx;LogFileName=integration-tests.trx"
+
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Test Results
+          path: '**/TestResults/*.trx'
+          reporter: dotnet-trx
+
+      - name: Generate Test Badge
+        if: always() && github.ref == 'refs/heads/main'
+        run: |
+          # Count passed/failed from TRX files
+          PASSED=$(grep -r 'outcome="Passed"' **/TestResults/*.trx 2>/dev/null | wc -l)
+          FAILED=$(grep -r 'outcome="Failed"' **/TestResults/*.trx 2>/dev/null | wc -l)
+
+          if [ "$FAILED" -eq 0 ]; then
+            COLOR="brightgreen"
+            STATUS="${PASSED}%20passed"
+          else
+            COLOR="red"
+            STATUS="${PASSED}%20passed%2C%20${FAILED}%20failed"
+          fi
+
+          # Update badge via gist (requires GIST_TOKEN secret)
+          curl -s -X PATCH \
+            -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+            -d "{\"files\":{\"crudkit-tests.json\":{\"content\":\"{\\\"schemaVersion\\\":1,\\\"label\\\":\\\"tests\\\",\\\"message\\\":\\\"${PASSED} passed\\\",\\\"color\\\":\\\"${COLOR}\\\"}\"}}}" \
+            "https://api.github.com/gists/${{ secrets.GIST_ID }}" || true
