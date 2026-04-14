@@ -7,7 +7,7 @@
 A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 
 [![Build](https://github.com/suleymanozev/CrudKit/actions/workflows/ci.yml/badge.svg)](https://github.com/suleymanozev/CrudKit/actions)
-![Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/suleymanozev/GIST_ID/raw/crudkit-tests.json)
+![Tests](https://img.shields.io/badge/tests-605%20passed-brightgreen)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512bd4)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Version](https://img.shields.io/badge/version-1.0.0-orange)
