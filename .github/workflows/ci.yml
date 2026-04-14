@@ -41,7 +41,7 @@ jobs:
         with:
           name: build-output
       - name: Unit & API Tests
-        run: dotnet test CrudKit.slnx --no-build -v m --filter "FullyQualifiedName!~Integration" --logger "trx;LogFileName=unit-tests.trx"
+        run: dotnet test CrudKit.slnx --no-build -v m --filter "FullyQualifiedName!~Integration" --logger "trx;LogFileName=unit-tests.trx" -- RunConfiguration.MaxCpuCount=0
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -74,7 +74,7 @@ jobs:
         with:
           name: build-output
       - name: Integration Tests (SQLite + PostgreSQL)
-        run: dotnet test tests/CrudKit.Integration.Tests/ --no-build -v m --logger "trx;LogFileName=integration-tests.trx"
+        run: dotnet test tests/CrudKit.Integration.Tests/ --no-build -v m --logger "trx;LogFileName=integration-tests.trx" -- RunConfiguration.MaxCpuCount=0
       - uses: actions/upload-artifact@v4
         if: always()
         with:
