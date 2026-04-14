@@ -299,12 +299,18 @@ public interface IRepo<T> where T : class, IEntity
 {
     Task<T> FindById(Guid id, CancellationToken ct = default);
     Task<T?> FindByIdOrDefault(Guid id, CancellationToken ct = default);
+    Task<List<T>> FindByField(string fieldName, object value, CancellationToken ct = default);
     Task<Paginated<T>> List(ListParams listParams, CancellationToken ct = default);
     Task<T> Create(object createDto, CancellationToken ct = default);
     Task<T> Update(Guid id, object updateDto, CancellationToken ct = default);
     Task Delete(Guid id, CancellationToken ct = default);
     Task Restore(Guid id, CancellationToken ct = default);
     Task HardDelete(Guid id, CancellationToken ct = default);
+    Task<bool> Exists(Guid id, CancellationToken ct = default);
+    Task<long> Count(CancellationToken ct = default);
+    Task<long> BulkCount(Dictionary<string, FilterOp> filters, CancellationToken ct = default);
+    Task<int> BulkDelete(Dictionary<string, FilterOp> filters, CancellationToken ct = default);
+    Task<int> BulkUpdate(Dictionary<string, FilterOp> filters, Dictionary<string, object?> values, CancellationToken ct = default);
 }
 ```
 

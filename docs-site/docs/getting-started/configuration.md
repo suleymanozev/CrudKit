@@ -21,7 +21,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
     opts.ApiPrefix = "/api";             // Default: "/api"
 
     // Bulk operations
-    opts.BulkLimit = 10_000;             // Default: 10,000
+    opts.BulkLimit = 1_000;              // Default: 1,000
 
     // Idempotency
     opts.EnableIdempotency = true;       // Default: false

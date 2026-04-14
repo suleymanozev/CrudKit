@@ -17,7 +17,7 @@ All options are set via `AddCrudKit<TContext>(opts => ...)`.
 | `MinPageSize` | `int` | `1` | Minimum allowed page size (clamped via `Math.Clamp`) |
 | `MaxPageSize` | `int` | `100` | Maximum allowed page size (clamped via `Math.Clamp`) |
 | `ApiPrefix` | `string` | `"/api"` | Route prefix for all generated endpoints |
-| `BulkLimit` | `int` | `10000` | Maximum records per bulk operation |
+| `BulkLimit` | `int` | `1000` | Maximum records per bulk operation |
 | `EnableIdempotency` | `bool` | `false` | Enable idempotency key support via request header |
 | `ScanModulesFromAssembly` | `Assembly?` | `null` | Assembly to scan for `IModule` implementations |
 | `AuditTrailEnabled` | `bool` | `false` | Set via `UseAuditTrail()` |
@@ -67,7 +67,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
     opts.DefaultPageSize = 25;
     opts.MaxPageSize = 100;
     opts.ApiPrefix = "/api";
-    opts.BulkLimit = 10_000;
+    opts.BulkLimit = 1_000;
     opts.EnableIdempotency = true;
 
     opts.UseAuditTrail()
