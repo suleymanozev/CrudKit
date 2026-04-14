@@ -71,14 +71,14 @@ public class DialectTests
         var dialect = new SqliteDialect();
         var source = new[]
         {
-            new PersonEntity { Id = Guid.NewGuid(), Name = "Istanbul" },
             new PersonEntity { Id = Guid.NewGuid(), Name = "Ankara" },
+            new PersonEntity { Id = Guid.NewGuid(), Name = "Berlin" },
         }.AsQueryable();
 
-        var result = dialect.ApplyStartsWith(source, NameExpr(), "ist");
+        var result = dialect.ApplyStartsWith(source, NameExpr(), "ank");
 
         Assert.Single(result);
-        Assert.Equal("Istanbul", result.First().Name);
+        Assert.Equal("Ankara", result.First().Name);
     }
 
     [Fact]

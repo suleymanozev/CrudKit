@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.ValueGeneration;
 
 namespace CrudKit.EntityFrameworkCore;
@@ -591,34 +592,129 @@ public static class CrudKitDbContextHelper
 
                 var (prefix, padding) = SequenceGenerator.ResolvePrefix(template, now, placeholders);
 
-                // Look up the sequence row — query directly to avoid ChangeTracker conflicts
-                var seq = await sequences.FirstOrDefaultAsync(
-                    s => s.EntityType == entityTypeName && s.TenantId == tenantId && s.Prefix == prefix, ct);
-
-                long nextValue;
-                if (seq is null)
-                {
-                    seq = new CrudKitSequence
-                    {
-                        Id = Guid.NewGuid(),
-                        EntityType = entityTypeName,
-                        TenantId = tenantId,
-                        Prefix = prefix,
-                        CurrentValue = 1
-                    };
-                    sequences.Add(seq);
-                    nextValue = 1;
-                }
-                else
-                {
-                    seq.CurrentValue++;
-                    nextValue = seq.CurrentValue;
-                }
+                // Atomic upsert — avoids race condition where concurrent requests
+                // both read the same CurrentValue and produce duplicate sequence numbers.
+                var nextValue = await GetNextSequenceValueAsync(
+                    dbContext, entityTypeName, tenantId, prefix, ct);
 
                 var formatted = SequenceGenerator.FormatSequenceValue(prefix, nextValue, padding);
                 prop.SetValue(entry.Entity, formatted);
             }
         }
+    }
+
+    /// <summary>
+    /// Atomically increments (or inserts) a sequence row and returns the new value.
+    /// Uses database-level upsert with RETURNING/OUTPUT to prevent race conditions
+    /// across concurrent requests. Executes via raw ADO.NET to avoid EF Core
+    /// composability limitations with non-composable SQL (INSERT...RETURNING).
+    /// </summary>
+    private static async Task<long> GetNextSequenceValueAsync(
+        DbContext dbContext, string entityType, string tenantId, string prefix, CancellationToken ct)
+    {
+        var providerName = dbContext.Database.ProviderName ?? "";
+        var id = Guid.NewGuid();
+
+        // Resolve the fully-qualified table name from the EF model
+        var seqEntityType = dbContext.Model.FindEntityType(typeof(CrudKitSequence));
+        var tableName = seqEntityType?.GetTableName() ?? "__crud_sequences";
+        var schema = seqEntityType?.GetSchema();
+        var qualifiedTable = schema is not null ? $"\"{schema}\".\"{tableName}\"" : $"\"{tableName}\"";
+
+        string sql;
+
+        if (providerName.Contains("Npgsql"))
+        {
+            // PostgreSQL: INSERT ... ON CONFLICT DO UPDATE ... RETURNING (fully atomic)
+            sql =
+                $"INSERT INTO {qualifiedTable} (\"Id\", \"EntityType\", \"TenantId\", \"Prefix\", \"CurrentValue\") " +
+                "VALUES (@p0, @p1, @p2, @p3, 1) " +
+                "ON CONFLICT (\"EntityType\", \"TenantId\", \"Prefix\") " +
+                $"DO UPDATE SET \"CurrentValue\" = {qualifiedTable}.\"CurrentValue\" + 1 " +
+                "RETURNING \"CurrentValue\"";
+        }
+        else if (providerName.Contains("Sqlite"))
+        {
+            // SQLite: INSERT ... ON CONFLICT DO UPDATE ... RETURNING (SQLite 3.35+)
+            sql =
+                $"INSERT INTO {qualifiedTable} (\"Id\", \"EntityType\", \"TenantId\", \"Prefix\", \"CurrentValue\") " +
+                "VALUES (@p0, @p1, @p2, @p3, 1) " +
+                "ON CONFLICT (\"EntityType\", \"TenantId\", \"Prefix\") " +
+                "DO UPDATE SET \"CurrentValue\" = \"CurrentValue\" + 1 " +
+                "RETURNING \"CurrentValue\"";
+        }
+        else if (providerName.Contains("SqlServer"))
+        {
+            // SQL Server: MERGE ... OUTPUT (fully atomic)
+            var bracketTable = schema is not null ? $"[{schema}].[{tableName}]" : $"[{tableName}]";
+            sql =
+                $"MERGE INTO {bracketTable} AS t " +
+                "USING (SELECT @p1 AS EntityType, @p2 AS TenantId, @p3 AS Prefix) AS s " +
+                "ON t.EntityType = s.EntityType AND t.TenantId = s.TenantId AND t.Prefix = s.Prefix " +
+                "WHEN MATCHED THEN UPDATE SET CurrentValue = CurrentValue + 1 " +
+                "WHEN NOT MATCHED THEN INSERT (Id, EntityType, TenantId, Prefix, CurrentValue) " +
+                "VALUES (@p0, @p1, @p2, @p3, 1) " +
+                "OUTPUT INSERTED.CurrentValue;";
+        }
+        else
+        {
+            // Generic fallback with retry for unknown providers
+            var sequences = dbContext.Set<CrudKitSequence>();
+            int retries = 3;
+            while (true)
+            {
+                try
+                {
+                    var seq = await sequences.FirstOrDefaultAsync(
+                        s => s.EntityType == entityType && s.TenantId == tenantId && s.Prefix == prefix, ct);
+
+                    if (seq is null)
+                    {
+                        seq = new CrudKitSequence
+                        {
+                            Id = Guid.NewGuid(),
+                            EntityType = entityType,
+                            TenantId = tenantId,
+                            Prefix = prefix,
+                            CurrentValue = 1
+                        };
+                        sequences.Add(seq);
+                    }
+                    else
+                    {
+                        seq.CurrentValue++;
+                    }
+
+                    await dbContext.SaveChangesAsync(ct);
+                    return seq.CurrentValue;
+                }
+                catch (DbUpdateException) when (retries-- > 0)
+                {
+                    // Concurrency conflict — detach sequence entries and retry
+                    foreach (var entry in dbContext.ChangeTracker.Entries<CrudKitSequence>().ToList())
+                        entry.State = EntityState.Detached;
+                }
+            }
+        }
+
+        // Execute the upsert + RETURNING/OUTPUT via raw ADO.NET to get the scalar value
+        var conn = dbContext.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
+            await conn.OpenAsync(ct);
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+
+        // Reuse the ambient transaction if one exists
+        cmd.Transaction = dbContext.Database.CurrentTransaction?.GetDbTransaction();
+
+        var p0 = cmd.CreateParameter(); p0.ParameterName = "@p0"; p0.Value = id; cmd.Parameters.Add(p0);
+        var p1 = cmd.CreateParameter(); p1.ParameterName = "@p1"; p1.Value = entityType; cmd.Parameters.Add(p1);
+        var p2 = cmd.CreateParameter(); p2.ParameterName = "@p2"; p2.Value = tenantId; cmd.Parameters.Add(p2);
+        var p3 = cmd.CreateParameter(); p3.ParameterName = "@p3"; p3.Value = prefix; cmd.Parameters.Add(p3);
+
+        var result = await cmd.ExecuteScalarAsync(ct);
+        return Convert.ToInt64(result);
     }
 
     // ---- Filter expression builders ----

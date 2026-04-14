@@ -5,8 +5,9 @@ using Microsoft.EntityFrameworkCore;
 namespace CrudKit.EntityFrameworkCore.Dialect;
 
 /// <summary>
-/// SQLite dialect. Uses ToLowerInvariant() for case-insensitive operations since
-/// SQLite LIKE is only ASCII case-insensitive by default.
+/// SQLite dialect. Uses ToLower() for case-insensitive operations because
+/// EF Core translates ToLower() to SQLite's lower() function, whereas
+/// ToLowerInvariant() is not translatable by the SQLite provider.
 /// SQLite supports the same ON CONFLICT syntax as PostgreSQL.
 /// </summary>
 public class SqliteDialect : IDbDialect
@@ -22,11 +23,11 @@ public class SqliteDialect : IDbDialect
         var memberAccess = property.Body;
         var toLower = Expression.Call(
             memberAccess,
-            typeof(string).GetMethod(nameof(string.ToLowerInvariant), Type.EmptyTypes)!);
+            typeof(string).GetMethod(nameof(string.ToLower), Type.EmptyTypes)!);
         var contains = Expression.Call(
             toLower,
             typeof(string).GetMethod(nameof(string.Contains), [typeof(string)])!,
-            Expression.Constant(value.ToLowerInvariant()));
+            Expression.Constant(value.ToLower()));
         return query.Where(Expression.Lambda<Func<T, bool>>(contains, param));
     }
 
@@ -39,11 +40,11 @@ public class SqliteDialect : IDbDialect
         var memberAccess = property.Body;
         var toLower = Expression.Call(
             memberAccess,
-            typeof(string).GetMethod(nameof(string.ToLowerInvariant), Type.EmptyTypes)!);
+            typeof(string).GetMethod(nameof(string.ToLower), Type.EmptyTypes)!);
         var startsWith = Expression.Call(
             toLower,
             typeof(string).GetMethod(nameof(string.StartsWith), [typeof(string)])!,
-            Expression.Constant(value.ToLowerInvariant()));
+            Expression.Constant(value.ToLower()));
         return query.Where(Expression.Lambda<Func<T, bool>>(startsWith, param));
     }
 
