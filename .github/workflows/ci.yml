@@ -11,9 +11,46 @@ permissions:
   checks: write
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet restore CrudKit.slnx
+      - run: dotnet build CrudKit.slnx --no-restore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            src/**/bin/
+            tests/**/bin/
+            src/**/obj/
+            tests/**/obj/
 
+  unit-tests:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-output
+      - name: Unit & API Tests
+        run: dotnet test CrudKit.slnx --no-build -v m --filter "FullyQualifiedName!~Integration" --logger "trx;LogFileName=unit-tests.trx"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: '**/TestResults/*.trx'
+
+  integration-tests:
+    needs: build
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:17
@@ -28,38 +65,45 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-
-      - name: Restore
-        run: dotnet restore CrudKit.slnx
-
-      - name: Build
-        run: dotnet build CrudKit.slnx --no-restore
-
-      - name: Unit & API Tests
-        run: dotnet test CrudKit.slnx --no-build -v m --filter "FullyQualifiedName!~Integration" --logger "trx;LogFileName=unit-tests.trx"
-
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-output
       - name: Integration Tests (SQLite + PostgreSQL)
         run: dotnet test tests/CrudKit.Integration.Tests/ --no-build -v m --logger "trx;LogFileName=integration-tests.trx"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: '**/TestResults/*.trx'
+
+  report:
+    needs: [unit-tests, integration-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: unit-test-results
+          path: unit-results
+      - uses: actions/download-artifact@v4
+        with:
+          name: integration-test-results
+          path: integration-results
 
       - name: Test Report
         uses: dorny/test-reporter@v1
         id: test-report
-        if: always()
         with:
           name: Test Results
-          path: '**/TestResults/*.trx'
+          path: '**/*.trx'
           reporter: dotnet-trx
 
       - name: Test Summary
-        if: always()
         run: |
           echo "### Test Results" >> $GITHUB_STEP_SUMMARY
           echo "- **Passed:** ${{ steps.test-report.outputs.passed }}" >> $GITHUB_STEP_SUMMARY
@@ -67,7 +111,7 @@ jobs:
           echo "- **Skipped:** ${{ steps.test-report.outputs.skipped }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Update Test Badge
-        if: always() && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         uses: schneegans/dynamic-badges-action@v1.7.0
         with:
           auth: ${{ secrets.GIST_TOKEN }}
