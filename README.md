@@ -35,6 +35,20 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Entity base class hierarchy (`Entity`, `AuditableEntity`, `FullAuditableEntity` — with `<TUser>` variants)
 - Enum properties stored as strings automatically
 - Structured error responses (409 concurrency, dev/prod stack trace toggle)
+- Domain events (`IDomainEvent`, `IHasDomainEvents`, `IDomainEventHandler<T>`, automatic dispatch after SaveChanges)
+- Auto-sequence (`[AutoSequence]` with `{year}`, `{month}`, `{seq:N}` tokens, per-tenant isolation, `ISequenceCustomizer<T>`)
+- AggregateRoot hierarchy (`AggregateRoot`, `AuditableAggregateRoot`, `FullAuditableAggregateRoot` with domain event support)
+- Value object flattening (`[ValueObject]` + `[Flatten]` for flat DTO properties)
+- Smart cascade restore (DeleteBatchId — only restores children deleted in same batch)
+- Custom index support (`[CrudIndex]` with tenant-aware composite indexes, custom names)
+- `IEndpointConfigurer<T>` — auto-discovered custom endpoint configuration
+- Entity-as-DTO — `MapCrudEndpoints<T>()` without DTOs, entity used directly
+- `[ResponseDtoFor]` — custom response DTOs
+- `CrudKitDbContextDependencies` — simplified 2-parameter DbContext constructor
+- `UseModuleSchema()` — cross-provider schema support (PostgreSQL, SQL Server = schema; MySQL, SQLite = skipped)
+- Reflection metadata caching for performance
+- Hook-aware bulk operations (entities loaded, hooks triggered)
+- System fields hidden from responses (TenantId, DeleteBatchId, DomainEvents)
 
 ---
 
@@ -119,6 +133,11 @@ public class Product : FullAuditableEntity
 | `AuditableEntityWithUser<TUser>` | + `CreatedById`, `UpdatedById` (auto-set from `ICurrentUser`) + navigations |
 | `FullAuditableEntity` | `AuditableEntity` + `DeletedAt` (implements `ISoftDeletable`) |
 | `FullAuditableEntityWithUser<TUser>` | + `CreatedById`, `UpdatedById`, `DeletedById` (auto-set) + navigations |
+| `AggregateRoot` | `Id` + domain events (`IHasDomainEvents`) |
+| `AuditableAggregateRoot` | + `CreatedAt`, `UpdatedAt` + domain events |
+| `AuditableAggregateRootWithUser<TUser>` | + `CreatedById`, `UpdatedById` (auto-set) + domain events |
+| `FullAuditableAggregateRoot` | + `DeletedAt`, `DeleteBatchId` + domain events |
+| `FullAuditableAggregateRootWithUser<TUser>` | + `CreatedById`, `UpdatedById`, `DeletedById` (auto-set) + domain events |
 
 ```csharp
 // Lookup table — Guid Id only
@@ -150,6 +169,29 @@ public class LegacyOrder : FullAuditableEntityWithUser<long, AppUser, int> { }
 
 ---
 
+## Auto-Sequence
+
+Use `[AutoSequence]` on a string property to generate formatted sequential numbers automatically. Supports `{year}`, `{month}`, `{seq:N}` tokens, per-tenant isolation, and custom logic via `ISequenceCustomizer<T>`.
+
+```csharp
+[CrudEntity]
+public class Invoice : FullAuditableAggregateRoot, IMultiTenant, IStateMachine<InvoiceStatus>
+{
+    [AutoSequence("INV-{year}-{seq:5}")]
+    public string InvoiceNumber { get; set; } = "";
+
+    [Protected]
+    public InvoiceStatus Status { get; set; } = InvoiceStatus.Draft;
+
+    public string TenantId { get; set; } = "";
+
+    public static IReadOnlyList<(InvoiceStatus From, InvoiceStatus To, string Action)> Transitions => [...];
+}
+// → INV-2026-00001 auto-generated, per-tenant sequence
+```
+
+---
+
 ## Configuration
 
 ```csharp
@@ -163,7 +205,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
     opts.ApiPrefix = "/api";             // Default: "/api"
 
     // Bulk operations
-    opts.BulkLimit = 10_000;             // Default: 10,000
+    opts.BulkLimit = 1_000;              // Default: 1,000
 
     // Idempotency
     opts.EnableIdempotency = true;       // Default: false
@@ -206,6 +248,7 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 | `UseEnumAsString()` | `CrudKitApiOptions` | Store all enum properties as strings |
 | `UseMultiTenancy()` | `MultiTenancyOptions` | Enable multi-tenancy, chain resolver method |
 | `UseGlobalHook<T>()` | `CrudKitApiOptions` | Register a global `IGlobalCrudHook` |
+| `UseDomainEvents()` | `CrudKitApiOptions` | Enable domain event dispatching after SaveChanges |
 
 ## Multi-Tenant Program.cs Example
 
@@ -261,7 +304,9 @@ src/
 tests/
 ├── CrudKit.Core.Tests/
 ├── CrudKit.EntityFrameworkCore.Tests/
-└── CrudKit.Api.Tests/
+├── CrudKit.Api.Tests/
+├── CrudKit.Identity.Tests/
+└── CrudKit.Integration.Tests/      # Provider-agnostic tests (SQLite + PostgreSQL via Testcontainers)
 samples/
 └── CrudKit.Sample.Api/          # Working sample with Product, Category, Order, Unit
 docs/
