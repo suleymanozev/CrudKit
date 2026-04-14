@@ -63,4 +63,19 @@ public class SequenceGeneratorTests
         Assert.Equal("INV-2026-", prefix);
         Assert.Equal(5, padding);
     }
+
+    [Fact]
+    public void ResolvePrefix_EmptyTemplate_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            SequenceGenerator.ResolvePrefix("", new DateOnly(2026, 4, 12)));
+    }
+
+    [Fact]
+    public void ResolvePrefix_NoSeqToken_WithYearOnly_ThrowsArgumentException()
+    {
+        // Verify templates without {seq:N} are rejected even with other tokens
+        Assert.Throws<ArgumentException>(() =>
+            SequenceGenerator.ResolvePrefix("INV-{year}", new DateOnly(2026, 4, 12)));
+    }
 }

@@ -54,6 +54,19 @@ public class TenantUniqueItem : FullAuditableAggregateRoot, IMultiTenant
 }
 
 [CrudEntity]
+public class MultiSequenceEntity : AuditableAggregateRoot, IMultiTenant
+{
+    [AutoSequence("INV-{seq:5}")]
+    public string InvoiceNumber { get; set; } = "";
+
+    [AutoSequence("REF-{seq:3}")]
+    public string ReferenceCode { get; set; } = "";
+
+    public string Name { get; set; } = "";
+    public string TenantId { get; set; } = "";
+}
+
+[CrudEntity]
 [CrudIndex("Code", "Category", IsUnique = true)]           // → (TenantId, Code, Category) unique
 [CrudIndex("Category")]                                     // → (TenantId, Category) non-unique
 [CrudIndex("Priority", TenantAware = false)]               // → (Priority) tenant-independent

@@ -688,4 +688,105 @@ public class SecurityAuditTests
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
+
+    // ─── 11. TENANT HEADER EDGE CASES ───
+
+    [Fact]
+    public async Task TenantHeader_EmptyString_HandledGracefully()
+    {
+        await using var app = await TestWebApp.CreateAsync(
+            currentUser: new TenantUser("tenant-a"),
+            configureEndpoints: web =>
+                web.MapCrudEndpoints<SecureItem>("secure-items"),
+            configureOptions: opts =>
+                opts.UseMultiTenancy().ResolveTenantFromHeader("X-Tenant-Id"));
+
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "/api/secure-items")
+        {
+            Headers = { { "X-Tenant-Id", "" } }
+        });
+
+        // Should not crash — either 400 or empty results
+        Assert.True(resp.StatusCode == HttpStatusCode.OK || resp.StatusCode == HttpStatusCode.BadRequest,
+            $"Expected OK or BadRequest, got {resp.StatusCode}");
+    }
+
+    [Fact]
+    public async Task TenantHeader_Missing_HandledGracefully()
+    {
+        await using var app = await TestWebApp.CreateAsync(
+            currentUser: new TenantUser("tenant-a"),
+            configureEndpoints: web =>
+                web.MapCrudEndpoints<SecureItem>("secure-items"),
+            configureOptions: opts =>
+                opts.UseMultiTenancy().ResolveTenantFromHeader("X-Tenant-Id"));
+
+        // No X-Tenant-Id header at all
+        var resp = await app.Client.GetAsync("/api/secure-items");
+
+        // Should not crash
+        Assert.True(resp.StatusCode == HttpStatusCode.OK || resp.StatusCode == HttpStatusCode.BadRequest,
+            $"Expected OK or BadRequest, got {resp.StatusCode}");
+    }
+
+    // ─── 12. SPECIAL ID VALUES ───
+
+    [Fact]
+    public async Task GetById_GuidEmpty_Returns404()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+            $"/api/secure-items/{Guid.Empty}")
+        {
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_GuidEmpty_Returns404()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Delete,
+            $"/api/secure-items/{Guid.Empty}")
+        {
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    // ─── 13. ID MANIPULATION VIA UPDATE ───
+
+    [Fact]
+    public async Task Update_CannotChangeId()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        var createResp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items")
+        {
+            Content = JsonContent.Create(new { Name = "Original" }),
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+        var created = JsonDocument.Parse(await createResp.Content.ReadAsStringAsync());
+        var originalId = created.RootElement.GetProperty("id").GetString()!;
+
+        var fakeId = Guid.NewGuid().ToString();
+        var updateResp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Put, $"/api/secure-items/{originalId}")
+        {
+            Content = JsonContent.Create(new { Name = "Updated", Id = fakeId }),
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        Assert.Equal(HttpStatusCode.OK, updateResp.StatusCode);
+        var updated = JsonDocument.Parse(await updateResp.Content.ReadAsStringAsync());
+        var returnedId = updated.RootElement.GetProperty("id").GetString()!;
+
+        // Id should NOT have changed
+        Assert.Equal(originalId, returnedId);
+        Assert.NotEqual(fakeId, returnedId);
+    }
 }

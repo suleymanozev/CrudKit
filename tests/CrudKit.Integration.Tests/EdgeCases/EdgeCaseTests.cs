@@ -237,4 +237,125 @@ public class EdgeCaseTests
         Assert.NotNull(result);
         Assert.Equal(0, result.Total); // No match, but no crash
     }
+
+    // ─── Test 9: Multiple AutoSequence fields on same entity ───
+
+    [Theory]
+    [ClassData(typeof(AllProviders))]
+    public async Task MultipleAutoSequence_BothFieldsGenerated(string provider)
+    {
+        await using var fixture = await FixtureFactory.CreateAsync(provider);
+        var tenantId = Guid.NewGuid().ToString();
+        using var db = fixture.CreateContext(tenantId: tenantId);
+        var repo = fixture.CreateRepo<MultiSequenceEntity>(db);
+
+        var item = await repo.Create(new MultiSequenceEntity { Name = "Test" });
+
+        Assert.StartsWith("INV-", item.InvoiceNumber);
+        Assert.StartsWith("REF-", item.ReferenceCode);
+        Assert.EndsWith("00001", item.InvoiceNumber);
+        Assert.EndsWith("001", item.ReferenceCode);
+
+        // Second create — both increment independently
+        var item2 = await repo.Create(new MultiSequenceEntity { Name = "Test2" });
+        Assert.EndsWith("00002", item2.InvoiceNumber);
+        Assert.EndsWith("002", item2.ReferenceCode);
+    }
+
+    // ─── Test 10: Decimal precision preserved ───
+
+    [Theory]
+    [ClassData(typeof(AllProviders))]
+    public async Task DecimalPrecision_PreservedCorrectly(string provider)
+    {
+        await using var fixture = await FixtureFactory.CreateAsync(provider);
+        var tenantId = Guid.NewGuid().ToString();
+        using var db = fixture.CreateContext(tenantId: tenantId);
+        var repo = fixture.CreateRepo<OrderLineEntity>(db);
+
+        // Need a parent order first
+        var orderRepo = fixture.CreateRepo<OrderEntity>(db);
+        var order = await orderRepo.Create(new OrderEntity { CustomerName = "Test" });
+
+        var line = await repo.Create(new OrderLineEntity
+        {
+            OrderEntityId = order.Id,
+            ProductName = "Widget",
+            Quantity = 3,
+            UnitPrice = 29.99m,
+            TenantId = tenantId
+        });
+
+        // Detach and read back to verify precision
+        foreach (var entry in db.ChangeTracker.Entries().ToList())
+            entry.State = EntityState.Detached;
+
+        var loaded = await repo.FindById(line.Id);
+        Assert.Equal(29.99m, loaded.UnitPrice);
+        Assert.Equal(3, loaded.Quantity);
+    }
+
+    // ─── Test 11: Invalid filter operator handled gracefully ───
+
+    [Theory]
+    [ClassData(typeof(AllProviders))]
+    public async Task Filter_InvalidOperator_HandledGracefully(string provider)
+    {
+        await using var fixture = await FixtureFactory.CreateAsync(provider);
+        var tenantId = Guid.NewGuid().ToString();
+        using var db = fixture.CreateContext(tenantId: tenantId);
+        var repo = fixture.CreateRepo<TenantAwareItem>(db);
+
+        await repo.Create(new TenantAwareItem { Name = "Test" });
+
+        // "invalidop:value" is not a known operator — FilterOp.Parse falls back to eq
+        var filters = new Dictionary<string, FilterOp>
+        {
+            ["name"] = FilterOp.Parse("invalidop:value")
+        };
+
+        // Should either work as eq or throw a user-friendly error — not crash
+        try
+        {
+            var result = await repo.List(new ListParams { Page = 1, PerPage = 10, Filters = filters });
+            Assert.NotNull(result);
+        }
+        catch (Exception ex)
+        {
+            // Acceptable — as long as it's not an unhandled crash
+            Assert.False(ex is NullReferenceException, "Should not throw NRE");
+        }
+    }
+
+    // ─── Test 12: Sort by non-existent property handled gracefully ───
+
+    [Theory]
+    [ClassData(typeof(AllProviders))]
+    public async Task Sort_NonExistentProperty_HandledGracefully(string provider)
+    {
+        await using var fixture = await FixtureFactory.CreateAsync(provider);
+        var tenantId = Guid.NewGuid().ToString();
+        using var db = fixture.CreateContext(tenantId: tenantId);
+        var repo = fixture.CreateRepo<TenantAwareItem>(db);
+
+        await repo.Create(new TenantAwareItem { Name = "Test" });
+
+        // Sort by property that doesn't exist
+        try
+        {
+            var result = await repo.List(new ListParams
+            {
+                Page = 1, PerPage = 10, Sort = "-nonExistentField"
+            });
+            // If it doesn't throw, that's fine — just ignores invalid sort
+            Assert.NotNull(result);
+        }
+        catch (Exception ex)
+        {
+            // Should be a user-friendly error, not unhandled crash
+            Assert.False(ex is NullReferenceException, "Should not throw NRE");
+            Assert.False(ex is InvalidOperationException && ex.Message.Contains("LINQ"),
+                "Should not throw LINQ translation error");
+        }
+    }
 }
