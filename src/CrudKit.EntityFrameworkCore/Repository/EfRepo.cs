@@ -237,7 +237,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
                     var conflicts = await _db.Set<T>().Where(predicate).AnyAsync(ct);
                     if (conflicts)
                         throw AppError.Conflict(
-                            $"Cannot restore: active {typeof(T).Name} with {prop.Name} = '{value}' already exists.");
+                            $"Cannot restore: a {typeof(T).Name} with the same '{prop.Name}' already exists.");
                 }
             }
 
@@ -355,9 +355,38 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         return await query.ExecuteDeleteAsync(ct);
     }
 
+    /// <summary>
+    /// System fields that cannot be modified via bulk update.
+    /// These are managed by the framework (timestamps, tenant, soft-delete, user tracking).
+    /// </summary>
+    private static readonly HashSet<string> BulkUpdateBlockedFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Id", "CreatedAt", "UpdatedAt", "DeletedAt", "DeleteBatchId",
+        "TenantId", "CreatedById", "UpdatedById", "DeletedById"
+    };
+
     public async Task<int> BulkUpdate(Dictionary<string, FilterOp> filters, Dictionary<string, object?> values, CancellationToken ct = default)
     {
         EnsureTenantContext();
+
+        // Block system fields from bulk update
+        foreach (var fieldName in values.Keys)
+        {
+            if (BulkUpdateBlockedFields.Contains(fieldName))
+                throw AppError.BadRequest($"Field '{fieldName}' cannot be modified via bulk update.");
+        }
+
+        // Block [Protected] and [SkipUpdate] fields
+        foreach (var fieldName in values.Keys)
+        {
+            var prop = typeof(T).GetProperty(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (prop is null) continue;
+            if (prop.GetCustomAttribute<ProtectedAttribute>() is not null)
+                throw AppError.BadRequest($"Field '{fieldName}' is protected and cannot be modified via bulk update.");
+            if (prop.GetCustomAttribute<SkipUpdateAttribute>() is not null)
+                throw AppError.BadRequest($"Field '{fieldName}' cannot be modified after creation.");
+        }
+
         var query = _db.Set<T>().AsQueryable();
         foreach (var (field, op) in filters)
             query = _filterApplier.Apply(query, field, op);

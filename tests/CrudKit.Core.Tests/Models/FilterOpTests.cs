@@ -41,4 +41,21 @@ public class FilterOpTests
         Assert.Equal("eq", result.Operator);
         Assert.Equal("", result.Value);
     }
+
+    [Fact]
+    public void Parse_TooLongValue_ShouldThrow()
+    {
+        var longValue = new string('x', 501);
+        var ex = Assert.Throws<ArgumentException>(() => FilterOp.Parse(longValue));
+        Assert.Contains("Filter value too long", ex.Message);
+    }
+
+    [Fact]
+    public void Parse_MaxLengthValue_ShouldSucceed()
+    {
+        var maxValue = new string('x', 500);
+        var result = FilterOp.Parse(maxValue);
+        Assert.Equal("eq", result.Operator);
+        Assert.Equal(maxValue, result.Value);
+    }
 }

@@ -546,4 +546,107 @@ public class SecurityAuditTests
         Assert.DoesNotContain("FormatException", body);
         Assert.DoesNotContain("StackTrace", body);
     }
+
+    // ─── 9. BULK UPDATE SYSTEM FIELD BYPASS ───
+
+    [Fact]
+    public async Task BulkUpdate_CannotSetSystemFields()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        // Create an item
+        await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items")
+        {
+            Content = JsonContent.Create(new { Name = "Target" }),
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        // Try bulk update with system field (DeletedAt)
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items/bulk-update")
+        {
+            Content = JsonContent.Create(new
+            {
+                filters = new { name = "eq:Target" },
+                values = new { DeletedAt = "2099-01-01T00:00:00Z" }
+            }),
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task BulkUpdate_CannotSetTenantId()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items")
+        {
+            Content = JsonContent.Create(new { Name = "Target" }),
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        // Try bulk update with TenantId — should be blocked
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items/bulk-update")
+        {
+            Content = JsonContent.Create(new
+            {
+                filters = new { name = "eq:Target" },
+                values = new { TenantId = "tenant-hacker" }
+            }),
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task BulkUpdate_CannotSetId()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items")
+        {
+            Content = JsonContent.Create(new { Name = "Target" }),
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        // Try bulk update with Id — should be blocked
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items/bulk-update")
+        {
+            Content = JsonContent.Create(new
+            {
+                filters = new { name = "eq:Target" },
+                values = new { Id = Guid.NewGuid() }
+            }),
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task BulkUpdate_CannotSetCreatedAt()
+    {
+        await using var app = await CreateTenantApp("tenant-a");
+
+        await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items")
+        {
+            Content = JsonContent.Create(new { Name = "Target" }),
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        // Try bulk update with CreatedAt — should be blocked
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items/bulk-update")
+        {
+            Content = JsonContent.Create(new
+            {
+                filters = new { name = "eq:Target" },
+                values = new { CreatedAt = "2020-01-01T00:00:00Z" }
+            }),
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
 }

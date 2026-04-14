@@ -22,6 +22,11 @@ public class FilterOp
         if (string.IsNullOrEmpty(raw))
             return new FilterOp { Operator = "eq", Value = "" };
 
+        // Limit filter value length to prevent ReDoS and abuse
+        if (raw.Length > 500)
+            throw new ArgumentException($"Filter value too long ({raw.Length} chars). Maximum allowed: 500.");
+
+
         if (NullaryOperators.Contains(raw))
             return new FilterOp { Operator = raw.ToLowerInvariant(), Value = "" };
 
