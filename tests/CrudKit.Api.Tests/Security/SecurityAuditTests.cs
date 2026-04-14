@@ -547,7 +547,46 @@ public class SecurityAuditTests
         Assert.DoesNotContain("StackTrace", body);
     }
 
-    // ─── 9. BULK UPDATE SYSTEM FIELD BYPASS ───
+    // ─── 9. TENANT HEADER SPOOFING ───
+
+    [Fact]
+    public async Task TenantSpoofing_UserWithLimitedTenants_CannotAccessOtherTenant()
+    {
+        // User with access to only tenant-a
+        var limitedUser = new TenantUser("tenant-a"); // AccessibleTenants = ["tenant-a"]
+
+        await using var app = await TestWebApp.CreateAsync(
+            currentUser: limitedUser,
+            configureEndpoints: web =>
+                web.MapCrudEndpoints<SecureItem>("secure-items"),
+            configureOptions: opts =>
+            {
+                opts.UseMultiTenancy()
+                    .ResolveTenantFromHeader("X-Tenant-Id");
+            });
+
+        // Create item in tenant-a
+        await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "/api/secure-items")
+        {
+            Content = JsonContent.Create(new { Name = "Secret" }),
+            Headers = { { "X-Tenant-Id", "tenant-a" } }
+        });
+
+        // Try to access tenant-b data — user only has access to tenant-a
+        var resp = await app.Client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "/api/secure-items")
+        {
+            Headers = { { "X-Tenant-Id", "tenant-b" } }
+        });
+
+        // Should be forbidden or return empty (depending on CrossTenantPolicy)
+        var json = await resp.Content.ReadAsStringAsync();
+        Assert.True(
+            resp.StatusCode == HttpStatusCode.Forbidden ||
+            (resp.StatusCode == HttpStatusCode.OK && json.Contains("\"total\":0")),
+            $"Expected forbidden or empty list, got {resp.StatusCode}: {json}");
+    }
+
+    // ─── 10. BULK UPDATE SYSTEM FIELD BYPASS ───
 
     [Fact]
     public async Task BulkUpdate_CannotSetSystemFields()
