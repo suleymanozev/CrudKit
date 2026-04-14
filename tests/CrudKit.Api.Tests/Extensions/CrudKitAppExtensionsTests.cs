@@ -61,7 +61,7 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
         Assert.Equal(20, opts.DefaultPageSize);
         Assert.Equal(100, opts.MaxPageSize);
         Assert.Equal("/api", opts.ApiPrefix);
-        Assert.Equal(10_000, opts.BulkLimit);
+        Assert.Equal(1_000, opts.BulkLimit);
         Assert.False(opts.EnableIdempotency);
     }
 

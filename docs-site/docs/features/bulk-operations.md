@@ -24,7 +24,7 @@ public class Product : AuditableEntity { }
 
 ## Limits
 
-The global bulk limit is `CrudKitApiOptions.BulkLimit` (default: 10,000). Override per entity with `[CrudEntity(BulkLimit = N)]`.
+The global bulk limit is `CrudKitApiOptions.BulkLimit` (default: 1,000). Override per entity with `[CrudEntity(BulkLimit = N)]`.
 
 ```csharp
 builder.Services.AddCrudKit<AppDbContext>(opts =>
@@ -37,12 +37,16 @@ builder.Services.AddCrudKit<AppDbContext>(opts =>
 public class Product : AuditableEntity { }
 ```
 
-## Hook Limitation
+## Hook-Aware
 
-:::warning
-Bulk operations **do not trigger entity lifecycle hooks** (`ICrudHooks<T>`, `IGlobalCrudHook`). They execute directly against the database via `ExecuteUpdateAsync`/`ExecuteDeleteAsync` without loading entities into the EF Core change tracker.
+Bulk operations load entities into the EF Core change tracker and call `SaveChangesAsync`. This means all lifecycle hooks run:
 
-If you rely on hooks for business logic, validation, or side effects (e.g. sending events, updating related data), use single-entity endpoints instead.
+- **ProcessBeforeSave** — timestamps (`UpdatedAt`), soft-delete interception, cascade soft-delete, audit trail entries
+- **Domain events** — dispatched after `SaveChanges`
+- **EF interceptors** — any registered `SaveChangesInterceptor` will fire
+
+:::caution Performance Note
+Because entities are loaded into memory, bulk operations consume more memory than raw SQL. For very large datasets, narrow your filters. The bulk limit (default: 1,000) prevents accidental full-table operations.
 :::
 
 ## Concurrency Warning

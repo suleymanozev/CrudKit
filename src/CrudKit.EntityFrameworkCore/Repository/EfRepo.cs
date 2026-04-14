@@ -327,32 +327,21 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
     public async Task<int> BulkDelete(Dictionary<string, FilterOp> filters, CancellationToken ct = default)
     {
         EnsureTenantContext();
+
         var query = _db.Set<T>().AsQueryable();
         foreach (var (field, op) in filters)
             query = _filterApplier.Apply(query, field, op);
 
-        if (typeof(ISoftDeletable).IsAssignableFrom(typeof(T)))
-        {
-            var now = DateTime.UtcNow;
+        // Load entities into change tracker so SaveChanges triggers
+        // ProcessBeforeSave (soft-delete, cascade, audit, timestamps) and domain events.
+        var entities = await query.ToListAsync(ct);
+        if (entities.Count == 0) return 0;
 
-            // Build property expressions without interface casts so EF Core can translate them.
-            var deletedAtProp = typeof(T).GetProperty(nameof(ISoftDeletable.DeletedAt))!;
-            var updatedAtProp = typeof(T).GetProperty(nameof(IAuditableEntity.UpdatedAt))!;
+        foreach (var entity in entities)
+            _db.Set<T>().Remove(entity);
 
-            var param = Expression.Parameter(typeof(T), "e");
-            var deletedAtLambda = Expression.Lambda<Func<T, DateTime?>>(
-                Expression.Property(param, deletedAtProp), param);
-            var updatedAtLambda = Expression.Lambda<Func<T, DateTime>>(
-                Expression.Property(param, updatedAtProp), param);
-
-            return await query.ExecuteUpdateAsync(setters =>
-            {
-                setters.SetProperty(deletedAtLambda, now);
-                setters.SetProperty(updatedAtLambda, now);
-            }, ct);
-        }
-
-        return await query.ExecuteDeleteAsync(ct);
+        await _db.SaveChangesAsync(ct);
+        return entities.Count;
     }
 
     /// <summary>
@@ -391,45 +380,35 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         foreach (var (field, op) in filters)
             query = _filterApplier.Apply(query, field, op);
 
-        var builderType = typeof(Microsoft.EntityFrameworkCore.Query.UpdateSettersBuilder<T>);
+        // Load entities into change tracker so SaveChanges triggers
+        // ProcessBeforeSave (timestamps, audit) and domain events.
+        var entities = await query.ToListAsync(ct);
+        if (entities.Count == 0) return 0;
 
-        var setPropertyBase = EntityMetadataCache.GetSetPropertyMethod(builderType);
-
-        if (setPropertyBase is null)
-            throw new InvalidOperationException($"Could not find SetProperty<TProperty>(Expression<Func<T,TProperty>>, TProperty) method on UpdateSettersBuilder<{typeof(T).Name}>");
-
-        var setterCalls = new List<(MethodInfo method, object lambda, object? value)>();
-        var entityParam = Expression.Parameter(typeof(T), "e");
-
-        foreach (var (fieldName, value) in values)
+        var entityInfo = EntityMetadataCache.GetEntityInfo(typeof(T));
+        foreach (var entity in entities)
         {
-            var prop = typeof(T).GetProperty(fieldName,
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-            if (prop is null) continue;
-
-            object? converted;
-            try
+            foreach (var (fieldName, value) in values)
             {
-                converted = value is null ? null : Convert.ChangeType(value, prop.PropertyType);
+                if (entityInfo.PropertyMap.TryGetValue(fieldName, out var prop) && prop.CanWrite)
+                {
+                    var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                    object? converted;
+                    try
+                    {
+                        converted = value is null ? null : Convert.ChangeType(value, targetType);
+                    }
+                    catch
+                    {
+                        throw AppError.BadRequest($"Invalid value for property '{fieldName}'. Expected type: {targetType.Name}");
+                    }
+                    prop.SetValue(entity, converted);
+                }
             }
-            catch
-            {
-                throw AppError.BadRequest($"Invalid value for property '{fieldName}'. Expected type: {prop.PropertyType.Name}");
-            }
-
-            var propAccess = Expression.Property(entityParam, prop);
-            var funcType = typeof(Func<,>).MakeGenericType(typeof(T), prop.PropertyType);
-            var lambda = Expression.Lambda(funcType, propAccess, entityParam);
-
-            var typedSetProperty = setPropertyBase.MakeGenericMethod(prop.PropertyType);
-            setterCalls.Add((typedSetProperty, lambda, converted));
         }
 
-        return await query.ExecuteUpdateAsync(setters =>
-        {
-            foreach (var (method, lambda, value) in setterCalls)
-                method.Invoke(setters, [lambda, value]);
-        }, ct);
+        await _db.SaveChangesAsync(ct);
+        return entities.Count;
     }
 
     // ---- Unique constraint detection ----

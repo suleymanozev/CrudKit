@@ -12,10 +12,10 @@ namespace CrudKit.Api.Endpoints.Handlers;
 /// <summary>
 /// Maps GET /bulk-count, POST /bulk-delete, and POST /bulk-update endpoints.
 /// <para>
-/// WARNING: Bulk operations bypass entity lifecycle hooks (<see cref="CrudKit.Core.Interfaces.ICrudHooks{T}"/>,
-/// <see cref="CrudKit.Core.Events.IGlobalCrudHook"/>). They execute directly against the database via
-/// <c>ExecuteUpdateAsync</c>/<c>ExecuteDeleteAsync</c> without loading entities into the change tracker.
-/// Use single-entity endpoints if hooks must run.
+/// Bulk operations load entities into the EF Core change tracker and use <c>SaveChangesAsync</c>,
+/// so all lifecycle hooks run: <c>ProcessBeforeSave</c> (timestamps, soft-delete, cascade, audit),
+/// domain events, and EF interceptors. For very large datasets, narrow your filters — all matching
+/// entities are loaded into memory.
 /// </para>
 /// </summary>
 internal static class BulkHandler
