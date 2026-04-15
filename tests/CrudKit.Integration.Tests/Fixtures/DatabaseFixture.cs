@@ -95,30 +95,52 @@ public class SqliteFixture : DatabaseFixture
     }
 }
 
-/// <summary>PostgreSQL via Testcontainers — automatically starts/stops Docker container.</summary>
+/// <summary>PostgreSQL using shared container — each fixture gets a unique database.</summary>
 public class PostgreSqlFixture : DatabaseFixture
 {
-    private Testcontainers.PostgreSql.PostgreSqlContainer? _container;
+    private readonly string _baseConnectionString;
+    private readonly string _dbName;
+
+    public PostgreSqlFixture(string baseConnectionString)
+    {
+        _baseConnectionString = baseConnectionString;
+        _dbName = $"crudkit_test_{Guid.NewGuid():N}";
+    }
 
     public override string ProviderName => "PostgreSQL";
 
     public override async Task InitializeAsync()
     {
-        _container = new Testcontainers.PostgreSql.PostgreSqlBuilder("postgres:17")
-            .Build();
-        await _container.StartAsync();
+        // Create a unique database for this test
+        await using var conn = new Npgsql.NpgsqlConnection(_baseConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"CREATE DATABASE \"{_dbName}\"";
+        await cmd.ExecuteNonQueryAsync();
     }
 
     public override async ValueTask DisposeAsync()
     {
-        if (_container is not null)
-            await _container.DisposeAsync();
+        // Drop the test database
+        try
+        {
+            await using var conn = new Npgsql.NpgsqlConnection(_baseConnectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"DROP DATABASE IF EXISTS \"{_dbName}\" WITH (FORCE)";
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch { /* best effort cleanup */ }
     }
 
     protected override DbContextOptions<IntegrationDbContext> CreateDbOptions()
     {
+        var builder = new Npgsql.NpgsqlConnectionStringBuilder(_baseConnectionString)
+        {
+            Database = _dbName
+        };
         return new DbContextOptionsBuilder<IntegrationDbContext>()
-            .UseNpgsql(_container!.GetConnectionString())
+            .UseNpgsql(builder.ConnectionString)
             .Options;
     }
 }
