@@ -14,8 +14,8 @@ const config: Config = {
   url: 'https://crudkit.dev',
   baseUrl: '/',
 
-  organizationName: 'suleymanov',
-  projectName: 'crudkit',
+  organizationName: 'suleymanozev',
+  projectName: 'CrudKit',
 
   onBrokenLinks: 'throw',
   markdown: {
@@ -36,7 +36,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/docs',
-          editUrl: 'https://github.com/suleymanov/crudkit/tree/main/docs-site/',
+          editUrl: 'https://github.com/suleymanozev/CrudKit/tree/main/docs-site/',
         },
         blog: false,
         theme: {
@@ -75,7 +75,7 @@ const config: Config = {
           position: 'left',
         },
         {
-          href: 'https://github.com/suleymanov/crudkit',
+          href: 'https://github.com/suleymanozev/CrudKit',
           label: 'GitHub',
           position: 'right',
         },
@@ -105,7 +105,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/suleymanov/crudkit',
+              href: 'https://github.com/suleymanozev/CrudKit',
             },
           ],
         },

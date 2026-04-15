@@ -64,6 +64,7 @@ const sidebars: SidebarsConfig = {
         'guides/migrations',
         'guides/database-dialect',
         'guides/identity',
+        'guides/security',
       ],
     },
   ],
