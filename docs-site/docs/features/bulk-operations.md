@@ -18,9 +18,12 @@ public class Product : AuditableEntity { }
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| POST | `/api/products/bulk-count` | Count matching records by filter |
-| POST | `/api/products/bulk-delete` | Delete multiple records by IDs |
-| POST | `/api/products/bulk-update` | Update multiple records by IDs |
+| POST | `/api/products/bulk-delete` | Delete multiple records by filter |
+| POST | `/api/products/bulk-update` | Update multiple records by filter |
+
+:::tip Counting Records
+Use the standard list endpoint to get a count: `GET /api/products?price=gte:100&per_page=1` — the `total` field in the response gives you the count without loading all records.
+:::
 
 ## Limits
 
@@ -50,18 +53,6 @@ Because entities are loaded into memory, bulk operations consume more memory tha
 :::
 
 ## Request/Response Examples
-
-### Bulk Count
-
-```http
-POST /api/products/bulk-count
-Content-Type: application/json
-
-{ "filters": "price=gte:100" }
-```
-```json
-{ "count": 42 }
-```
 
 ### Bulk Delete
 

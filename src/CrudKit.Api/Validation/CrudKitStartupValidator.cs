@@ -67,7 +67,6 @@ public class CrudKitStartupValidator : IHostedService
             if (attr is null) continue;
 
             ValidateOwnerField(entityType, attr);
-            ValidateWorkflowProtected(entityType, attr);
             ValidateConcurrentBulkUpdate(entityType, attr);
         }
     }
@@ -87,27 +86,6 @@ public class CrudKitStartupValidator : IHostedService
             throw new InvalidOperationException(
                 $"[CrudEntity] on '{entityType.Name}' specifies OwnerField='{attr.OwnerField}', " +
                 $"but no such property exists on the entity.");
-        }
-    }
-
-    /// <summary>
-    /// Checks that all WorkflowProtected field names reference existing properties.
-    /// </summary>
-    private void ValidateWorkflowProtected(Type entityType, CrudEntityAttribute attr)
-    {
-        if (attr.WorkflowProtected is null || attr.WorkflowProtected.Length == 0) return;
-
-        foreach (var field in attr.WorkflowProtected)
-        {
-            var prop = entityType.GetProperty(field,
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-
-            if (prop is null)
-            {
-                throw new InvalidOperationException(
-                    $"[CrudEntity] on '{entityType.Name}' specifies WorkflowProtected field '{field}', " +
-                    $"but no such property exists on the entity.");
-            }
         }
     }
 

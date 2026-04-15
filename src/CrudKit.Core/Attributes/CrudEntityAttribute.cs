@@ -1,7 +1,7 @@
 namespace CrudKit.Core.Attributes;
 
 /// <summary>
-/// Configures entity behavior: API resource name, workflow, and bulk operations.
+/// Configures entity behavior: API resource name, endpoint control, and bulk operations.
 /// Multi-tenancy is driven by the IMultiTenant interface; soft delete by ISoftDeletable; audit by the [Audited] attribute.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class)]
@@ -12,8 +12,6 @@ public class CrudEntityAttribute : Attribute
     /// When omitted, defaults to the entity name in kebab-case + "s" (e.g. OrderLine → order-lines).
     /// </summary>
     public string Resource { get; set; } = string.Empty;
-    public string? Workflow { get; set; }
-    public string[]? WorkflowProtected { get; set; }
     public bool EnableBulkUpdate { get; set; }
     public int BulkLimit { get; set; } = 0; // 0 = use global default from CrudKitApiOptions
 

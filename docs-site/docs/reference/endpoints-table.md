@@ -27,8 +27,7 @@ For an entity named `Product` (route: `/api/products`):
 |--------|-------|-------------|-----------|
 | GET | `/api/products/export` | CSV export | `[Exportable]` or `UseExport()` |
 | POST | `/api/products/import` | CSV import | `[Importable]` or `UseImport()` |
-| POST | `/api/products/bulk-count` | Count by filter | `EnableBulkDelete` or `EnableBulkUpdate` |
-| POST | `/api/products/bulk-delete` | Delete multiple by IDs | `EnableBulkDelete = true` |
+| POST | `/api/products/bulk-delete` | Delete multiple by filter | `EnableBulkDelete = true` |
 | POST | `/api/products/bulk-update` | Update multiple by IDs | `EnableBulkUpdate = true` |
 
 ## Master-Child Endpoints

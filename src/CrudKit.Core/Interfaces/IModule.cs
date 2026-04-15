@@ -13,5 +13,4 @@ public interface IModule
     string Name { get; }
     void RegisterServices(IServiceCollection services, IConfiguration config);
     void MapEndpoints(WebApplication app);
-    void RegisterWorkflowActions(object registry) { }
 }

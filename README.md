@@ -28,7 +28,7 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - State machine transitions (`IStateMachine<TState>`)
 - Master-child relationships (fluent `.WithChild()` or declarative `[ChildOf]`)
 - Idempotency via request header
-- Bulk operations (`/bulk-count`, `/bulk-delete`, `/bulk-update`)
+- Bulk operations (`/bulk-delete`, `/bulk-update`)
 - ReadOnly entities (List + Get only)
 - CSV import/export (`[Exportable]`, `[Importable]`, per-property control)
 - Auto-registration — `UseCrudKit()` scans assemblies for `[CrudEntity]` types and registers endpoints automatically
