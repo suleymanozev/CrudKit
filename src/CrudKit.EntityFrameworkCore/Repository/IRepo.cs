@@ -20,6 +20,9 @@ public interface IRepo<T> where T : class, IEntity
 
     /// <summary>Permanently deletes a soft-deleted entity. Only works on ISoftDeletable entities where DeletedAt is not null.</summary>
     Task HardDelete(Guid id, CancellationToken ct = default);
+
+    /// <summary>Bulk-purges soft-deleted entities older than the given cutoff. Writes audit entries before physical deletion.</summary>
+    Task<int> BulkPurge(DateTime cutoff, CancellationToken ct = default);
     Task<bool> Exists(Guid id, CancellationToken ct = default);
     Task<long> Count(CancellationToken ct = default);
 

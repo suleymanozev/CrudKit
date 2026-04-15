@@ -371,11 +371,62 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             if (((ISoftDeletable)entity).DeletedAt is null)
                 throw AppError.BadRequest($"{typeof(T).Name} with id '{id}' is not soft-deleted. Delete it first.");
 
+            // Write Purge audit entry with old values before physical deletion
+            await WritePurgeAudit(new[] { entity }, ct);
+
             // Hard delete — ExecuteDeleteAsync bypasses SaveChanges interception
             await _db.Set<T>()
                 .Where(e => e.Id == id)
                 .ExecuteDeleteAsync(ct);
         }
+    }
+
+    /// <summary>
+    /// Bulk-purges soft-deleted entities older than the given cutoff, writing Purge audit entries first.
+    /// </summary>
+    public async Task<int> BulkPurge(DateTime cutoff, CancellationToken ct = default)
+    {
+        EnsureTenantContext();
+        if (!typeof(ISoftDeletable).IsAssignableFrom(typeof(T)))
+            throw new InvalidOperationException($"{typeof(T).Name} does not implement ISoftDeletable.");
+
+        using (_softDeleteFilter!.Disable())
+        {
+            var entities = await _db.Set<T>()
+                .Where(e => ((ISoftDeletable)e).DeletedAt != null && ((ISoftDeletable)e).DeletedAt < cutoff)
+                .ToListAsync(ct);
+
+            if (entities.Count == 0) return 0;
+
+            await WritePurgeAudit(entities, ct);
+
+            var purged = await _db.Set<T>()
+                .Where(e => ((ISoftDeletable)e).DeletedAt != null && ((ISoftDeletable)e).DeletedAt < cutoff)
+                .ExecuteDeleteAsync(ct);
+
+            return purged;
+        }
+    }
+
+    private async Task WritePurgeAudit(IReadOnlyCollection<T> entities, CancellationToken ct)
+    {
+        var auditWriter = _services.GetService<IAuditWriter>();
+        if (auditWriter is null) return;
+
+        var correlationId = Guid.NewGuid().ToString();
+        var now = DateTime.UtcNow;
+        var entries = entities.Select(e => new AuditEntry
+        {
+            EntityType = typeof(T).Name,
+            EntityId = e.Id.ToString(),
+            Action = "Purge",
+            UserId = _db.CurrentUser?.Id,
+            CorrelationId = correlationId,
+            Timestamp = now,
+            OldValues = System.Text.Json.JsonSerializer.Serialize(e),
+        }).ToList();
+
+        await auditWriter.WriteAsync(entries, ct);
     }
 
     public Task<bool> Exists(Guid id, CancellationToken ct = default)

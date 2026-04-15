@@ -8,7 +8,7 @@ public class AuditEntry
     public string EntityType { get; set; } = string.Empty;
     public string EntityId { get; set; } = string.Empty;
 
-    /// <summary>"Create", "Update", or "Delete".</summary>
+    /// <summary>"Create", "Update", "Delete", "Restore", or "Purge" (permanent delete).</summary>
     public string Action { get; set; } = string.Empty;
 
     public string? UserId { get; set; }
