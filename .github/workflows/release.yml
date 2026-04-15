@@ -32,7 +32,10 @@ jobs:
       - name: Pack
         run: dotnet pack CrudKit.slnx -c Release --no-build -o nupkg /p:Version=${{ steps.version.outputs.VERSION }}
 
-      - name: Push to NuGet (Trusted Publishing)
+      - name: NuGet Login (Trusted Publishing)
+        uses: NuGet/login@v1
+
+      - name: Push to NuGet
         run: dotnet nuget push "nupkg/*.nupkg" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Extract changelog
