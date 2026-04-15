@@ -38,6 +38,52 @@ public class CreateProductValidator : AbstractValidator<CreateProduct>
 builder.Services.AddScoped<IValidator<CreateProduct>, CreateProductValidator>();
 ```
 
+### Update DTO Validator
+
+Update DTOs use `Optional<T>` for partial updates — validate only when the field is provided:
+
+```csharp
+public record UpdateProduct
+{
+    public Optional<string?> Name { get; init; }
+    public Optional<decimal?> Price { get; init; }
+}
+
+public class UpdateProductValidator : AbstractValidator<UpdateProduct>
+{
+    public UpdateProductValidator()
+    {
+        RuleFor(x => x.Name.Value)
+            .NotEmpty().MaximumLength(200)
+            .When(x => x.Name.HasValue);
+
+        RuleFor(x => x.Price.Value)
+            .GreaterThan(0)
+            .When(x => x.Price.HasValue);
+    }
+}
+```
+
+### Cross-Field and Async Validation
+
+```csharp
+public class CreateInvoiceValidator : AbstractValidator<CreateInvoice>
+{
+    public CreateInvoiceValidator(AppDbContext db)
+    {
+        RuleFor(x => x.DueDate)
+            .GreaterThan(x => x.InvoiceDate)
+            .WithMessage("Due date must be after invoice date.");
+
+        RuleFor(x => x.AssociateId)
+            .MustAsync(async (id, ct) => await db.Associates.AnyAsync(a => a.Id == id, ct))
+            .WithMessage("Associate not found.");
+    }
+}
+```
+
+### Registering All Validators
+
 To register all validators in an assembly at once, use `AddValidatorsFromAssembly` — this is the application's responsibility, not CrudKit's:
 
 ```csharp
