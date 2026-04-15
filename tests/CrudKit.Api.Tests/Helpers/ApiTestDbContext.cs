@@ -45,6 +45,7 @@ public class ApiTestDbContext : CrudKitDbContext
     public DbSet<SeqInvoiceEntity> SeqInvoices => Set<SeqInvoiceEntity>();
     public DbSet<PricedItem> PricedItems => Set<PricedItem>();
     public DbSet<SecureItem> SecureItems => Set<SecureItem>();
+    public DbSet<TicketEntity> Tickets => Set<TicketEntity>();
 
     protected override void OnModelCreatingCustom(ModelBuilder modelBuilder)
     {

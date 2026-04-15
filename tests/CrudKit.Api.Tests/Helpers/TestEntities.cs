@@ -73,6 +73,38 @@ public class OrderEntity : IAuditableEntity, IStateMachine<OrderStatus>
     ];
 }
 
+// ---- State machine with typed payload ----
+public enum TicketStatus { Open, InProgress, Resolved, Closed }
+
+public record ResolvePayload(string Resolution);
+public record ClosePayload(string Reason, int Rating);
+
+[CrudEntity]
+public class TicketEntity : IAuditableEntity, IStateMachineWithPayload<TicketStatus>
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public TicketStatus Status { get; set; } = TicketStatus.Open;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
+    public static IReadOnlyList<(TicketStatus From, TicketStatus To, string Action)> Transitions =>
+    [
+        (TicketStatus.Open,       TicketStatus.InProgress, "start"),
+        (TicketStatus.InProgress, TicketStatus.Resolved,   "resolve"),
+        (TicketStatus.Resolved,   TicketStatus.Closed,     "close"),
+    ];
+
+    public static IReadOnlyDictionary<string, Type> TransitionPayloads => new Dictionary<string, Type>
+    {
+        ["resolve"] = typeof(ResolvePayload),
+        ["close"] = typeof(ClosePayload),
+    };
+}
+
+public class CreateTicketDto { [Required] public string Title { get; set; } = string.Empty; }
+public class UpdateTicketDto { public string? Title { get; set; } }
+
 public class CreateOrderDto
 {
     [Required] public string Customer { get; set; } = string.Empty;

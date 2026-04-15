@@ -36,6 +36,18 @@ internal static class TransitionHandler
             BindingFlags.Public | BindingFlags.Instance);
         if (statusProp is null) return;
 
+        // Check if entity implements IStateMachineWithPayload<TState>
+        var payloadInterface = typeof(TEntity).GetInterfaces()
+            .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IStateMachineWithPayload<>));
+
+        IReadOnlyDictionary<string, Type>? payloadMap = null;
+        if (payloadInterface is not null)
+        {
+            var payloadsProp = typeof(TEntity).GetProperty("TransitionPayloads",
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+            payloadMap = payloadsProp?.GetValue(null) as IReadOnlyDictionary<string, Type>;
+        }
+
         group.MapPost("/{id}/transition/{action}", async (string id, string action, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var guid = CrudEndpointMapper.ParseGuid(id, typeof(TEntity).Name);
@@ -78,8 +90,39 @@ internal static class TransitionHandler
             if (!found)
                 throw AppError.BadRequest($"Invalid transition '{action}' from state '{currentStatus}'.");
 
+            // Deserialize typed payload if required
+            object? payload = null;
+            if (payloadMap is not null && payloadMap.TryGetValue(action.ToLowerInvariant(), out var payloadType))
+            {
+                if (httpCtx.Request.ContentLength is null or 0 && !httpCtx.Request.HasJsonContentType())
+                {
+                    throw AppError.BadRequest($"Transition '{action}' requires a payload of type {payloadType.Name}.");
+                }
+                try
+                {
+                    payload = await httpCtx.Request.ReadFromJsonAsync(payloadType, ct);
+                }
+                catch (Exception) when (payload is null)
+                {
+                    throw AppError.BadRequest($"Invalid payload for transition '{action}'. Expected {payloadType.Name}.");
+                }
+                if (payload is null)
+                    throw AppError.BadRequest($"Transition '{action}' requires a payload of type {payloadType.Name}.");
+            }
+
+            // Resolve transition hook
+            var hook = httpCtx.RequestServices.GetService<ITransitionHook<TEntity>>();
+            var appCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
+
+            if (hook is not null)
+                await hook.BeforeTransition(entity, action, payload, appCtx);
+
             statusProp.SetValue(entity, targetStatus);
             await db.SaveChangesAsync(ct);
+
+            if (hook is not null)
+                await hook.AfterTransition(entity, action, payload, appCtx);
+
             await tx.CommitAsync(ct);
 
             return Results.Ok(entity);
