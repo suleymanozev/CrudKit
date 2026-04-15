@@ -49,18 +49,36 @@ Property attribute > Entity attribute > Global flag
 | `EnableBulkUpdate` | `false` | Generate POST `/bulk-update` endpoint |
 
 ```csharp
-// Read-only entity — List + Get only
+// Read-only entity — List + Get only, no POST/PUT/DELETE
 [CrudEntity(ReadOnly = true)]
-public class Currency : Entity { }
+public class Currency : Entity
+{
+    public string Code { get; set; } = "";  // "USD", "EUR"
+    public string Name { get; set; } = "";
+    public string Symbol { get; set; } = "";
+}
+// Generated: GET /api/currencies, GET /api/currencies/{id}
+// NOT generated: POST, PUT, DELETE
 
 // No delete allowed
-[CrudEntity(Resource = "audit_entries", EnableDelete = false, EnableUpdate = false)]
+[CrudEntity(EnableDelete = false, EnableUpdate = false)]
 public class AuditEntry : AuditableEntity { }
+// Generated: GET (list), GET (by id), POST
+// NOT generated: PUT, DELETE
 
-// Bulk operations enabled
-[CrudEntity(EnableBulkDelete = true, EnableBulkUpdate = true)]
+// Selective write operations
+[CrudEntity(EnableCreate = true, EnableUpdate = true, EnableDelete = false)]
+public class Order : FullAuditableEntity { }
+// Can create and update but never delete
+
+// Bulk operations enabled with limit
+[CrudEntity(EnableBulkDelete = true, EnableBulkUpdate = true, BulkLimit = 500)]
 public class Product : AuditableEntity { }
 ```
+
+:::tip ReadOnly Entities
+Use `ReadOnly = true` for lookup tables (currencies, countries, categories) that are seeded via migrations and should not be modified via the API.
+:::
 
 ## Best Practice: Global First, Exceptions Only
 

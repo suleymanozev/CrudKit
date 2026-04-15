@@ -88,4 +88,69 @@ public interface IAuditWriter
 }
 ```
 
-Implement this to write audit entries to any storage backend (Elasticsearch, a separate database, a file, etc.).
+Implement this to write audit entries to any storage backend.
+
+### AuditEntry Properties
+
+```csharp
+public class AuditEntry
+{
+    public string EntityType { get; set; }
+    public string EntityId { get; set; }
+    public string Operation { get; set; }      // Create, Update, Delete
+    public string? UserId { get; set; }
+    public string? TenantId { get; set; }
+    public DateTime Timestamp { get; set; }
+    public Guid CorrelationId { get; set; }
+    public Dictionary<string, object?> OldValues { get; set; }
+    public Dictionary<string, object?> NewValues { get; set; }
+}
+```
+
+### Custom Writer: Elasticsearch
+
+```csharp
+public class ElasticAuditWriter : IAuditWriter
+{
+    private readonly IElasticClient _elastic;
+
+    public ElasticAuditWriter(IElasticClient elastic) => _elastic = elastic;
+
+    public async Task WriteAsync(IReadOnlyList<AuditEntry> entries, CancellationToken ct)
+    {
+        var bulkRequest = new BulkDescriptor();
+        foreach (var entry in entries)
+        {
+            bulkRequest.Index<AuditEntry>(i => i
+                .Index($"audit-{entry.Timestamp:yyyy-MM}")
+                .Document(entry));
+        }
+        await _elastic.BulkAsync(bulkRequest, ct);
+    }
+}
+```
+
+### Custom Writer: Separate Database
+
+```csharp
+public class DbAuditWriter : IAuditWriter
+{
+    private readonly AuditDbContext _auditDb;
+
+    public DbAuditWriter(AuditDbContext auditDb) => _auditDb = auditDb;
+
+    public async Task WriteAsync(IReadOnlyList<AuditEntry> entries, CancellationToken ct)
+    {
+        _auditDb.AuditLogs.AddRange(entries.Select(e => new AuditLog
+        {
+            EntityType = e.EntityType,
+            EntityId = e.EntityId,
+            Operation = e.Operation,
+            UserId = e.UserId,
+            Changes = JsonSerializer.Serialize(new { e.OldValues, e.NewValues }),
+            Timestamp = e.Timestamp,
+        }));
+        await _auditDb.SaveChangesAsync(ct);
+    }
+}
+```

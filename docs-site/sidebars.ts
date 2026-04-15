@@ -32,6 +32,7 @@ const sidebars: SidebarsConfig = {
         'features/concurrency',
         'features/query-features',
         'features/child-entities',
+        'features/property-attributes',
       ],
     },
     {

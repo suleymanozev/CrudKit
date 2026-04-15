@@ -89,6 +89,49 @@ public interface ICurrentUser
 
 `AddCrudKit()` automatically registers `AnonymousCurrentUser` as the fallback if no other `ICurrentUser` implementation is found in DI.
 
+### JWT Implementation Example
+
+```csharp
+public class JwtCurrentUser : ICurrentUser
+{
+    private readonly IHttpContextAccessor _http;
+
+    public JwtCurrentUser(IHttpContextAccessor http) => _http = http;
+
+    private ClaimsPrincipal? User => _http.HttpContext?.User;
+
+    public string? Id => User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    public string? Username => User?.FindFirst(ClaimTypes.Name)?.Value;
+    public bool IsAuthenticated => User?.Identity?.IsAuthenticated ?? false;
+
+    public IReadOnlyList<string> Roles =>
+        User?.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList()
+        ?? [];
+
+    public IReadOnlyList<Permission> Permissions =>
+        User?.FindAll("permission").Select(c =>
+        {
+            var parts = c.Value.Split(':');
+            return new Permission(parts[0], parts[1]);
+        }).ToList() ?? [];
+
+    public bool HasRole(string role) => Roles.Contains(role);
+
+    public bool HasPermission(string entity, string action)
+        => Permissions.Any(p => p.Entity == entity && p.Action == action);
+
+    public bool HasPermission(string entity, string action, PermScope scope)
+        => HasPermission(entity, action); // extend for scope if needed
+
+    public IReadOnlyList<string>? AccessibleTenants =>
+        User?.FindAll("tenant").Select(c => c.Value).ToList();
+}
+
+// Register in Program.cs
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, JwtCurrentUser>();
+```
+
 ## Custom Endpoints with Auth
 
 Use `.WithCustomEndpoints()` to add additional endpoints under the same route group and apply auth filters per endpoint:

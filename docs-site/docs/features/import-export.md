@@ -55,6 +55,45 @@ GET /api/products/export?format=csv&price=gte:100&sort=-name
 
 System fields (`Id`, `CreatedAt`, `UpdatedAt`, etc.) are handled automatically during import and should not appear in the CSV.
 
+## CSV Format
+
+**Export output:**
+```csv
+Name,Price
+Widget,29.90
+Gadget,49.90
+```
+
+**Import file (same format):**
+```csv
+Name,Price
+New Product,19.90
+Another Product,39.90
+```
+
+## Import Workflow
+
+```bash
+# 1. Export existing data as template
+curl -o template.csv "https://api.example.com/api/products/export?format=csv"
+
+# 2. Edit the CSV (add new rows, modify values)
+
+# 3. Import
+curl -X POST "https://api.example.com/api/products/import" \
+  -F "file=@products.csv"
+```
+
+```csharp
+// C# HttpClient
+using var form = new MultipartFormDataContent();
+form.Add(new StreamContent(File.OpenRead("products.csv")), "file", "products.csv");
+
+var response = await httpClient.PostAsync("/api/products/import", form);
+var result = await response.Content.ReadFromJsonAsync<ImportResult>();
+Console.WriteLine($"Created: {result.Created}, Failed: {result.Failed}");
+```
+
 ## Limits
 
 | Option | Default | Description |
