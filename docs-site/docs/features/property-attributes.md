@@ -11,7 +11,7 @@ CrudKit provides property-level attributes to control how fields behave across e
 
 ### [Protected]
 
-Field is never writable via API — not in Create, Update, or BulkUpdate. Use for computed or system-managed fields.
+Field is **never writable** via API — ignored in Create, Update, and BulkUpdate. Use for computed or system-managed fields that are set server-side only.
 
 ```csharp
 public class Invoice : FullAuditableEntity
@@ -51,6 +51,11 @@ public class Product : FullAuditableEntity
     public string Name { get; set; } = "";
 }
 ```
+
+:::tip Protected vs SkipUpdate
+- **`[Protected]`** — never writable via API. Use for server-computed fields (`GrandTotal`, `Status`).
+- **`[SkipUpdate]`** — writable on Create, immutable after. Use for fields set once (`Sku`, `Username`).
+:::
 
 ### [Hashed]
 
@@ -155,7 +160,7 @@ public class User : FullAuditableEntity
 | Attribute | Create | Update | Response | Filter | Sort | Audit |
 |-----------|--------|--------|----------|--------|------|-------|
 | (none) | Yes | Yes | Yes | Yes | Yes | Yes |
-| `[Protected]` | No | No | Yes | Yes | Yes | Yes |
+| `[Protected]` | Ignored | Ignored | Yes | Yes | Yes | Yes |
 | `[SkipResponse]` | Yes | Yes | No | Yes | Yes | Yes |
 | `[SkipUpdate]` | Yes | No | Yes | Yes | Yes | Yes |
 | `[Hashed]` | Yes | Yes | Hashed | No | No | Masked |

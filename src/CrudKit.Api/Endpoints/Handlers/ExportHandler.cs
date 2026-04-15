@@ -26,7 +26,7 @@ internal static class ExportHandler
             var maxRows = apiOpts.MaxExportRows;
 
             // Count first to prevent memory DoS
-            var count = await repo.BulkCount(listParams.Filters, ct);
+            var count = await repo.Count(listParams.Filters, ct);
             if (count > maxRows)
                 throw AppError.BadRequest($"Export would return {count} rows, exceeding the limit of {maxRows}. Narrow your filters.");
 

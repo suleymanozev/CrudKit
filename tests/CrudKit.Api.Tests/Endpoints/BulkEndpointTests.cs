@@ -17,31 +17,6 @@ public class BulkEndpointTests
     };
 
     [Fact]
-    public async Task BulkCount_WithFilters_ReturnsFilteredCount()
-    {
-        await using var app = await TestWebApp.CreateAsync(configureEndpoints: web =>
-        {
-            web.MapCrudEndpoints<ProductEntity, CreateProductDto, UpdateProductDto>("products");
-        });
-
-        await app.Client.PostAsJsonAsync("/api/products", new { Name = "Alpha", Price = 10.0 });
-        await app.Client.PostAsJsonAsync("/api/products", new { Name = "Beta", Price = 20.0 });
-        await app.Client.PostAsJsonAsync("/api/products", new { Name = "Gamma", Price = 30.0 });
-
-        // Count all
-        var allResponse = await app.Client.GetAsync("/api/products/bulk-count");
-        Assert.Equal(HttpStatusCode.OK, allResponse.StatusCode);
-        var allDoc = JsonDocument.Parse(await allResponse.Content.ReadAsStringAsync());
-        Assert.Equal(3, allDoc.RootElement.GetProperty("count").GetInt64());
-
-        // Count with filter
-        var filteredResponse = await app.Client.GetAsync("/api/products/bulk-count?name=eq:Alpha");
-        Assert.Equal(HttpStatusCode.OK, filteredResponse.StatusCode);
-        var filteredDoc = JsonDocument.Parse(await filteredResponse.Content.ReadAsStringAsync());
-        Assert.Equal(1, filteredDoc.RootElement.GetProperty("count").GetInt64());
-    }
-
-    [Fact]
     public async Task BulkDelete_DeletesMatchingRecords()
     {
         await using var app = await TestWebApp.CreateAsync(configureEndpoints: web =>
@@ -60,7 +35,7 @@ public class BulkEndpointTests
         var deleteDoc = JsonDocument.Parse(await deleteResponse.Content.ReadAsStringAsync());
         Assert.Equal(2, deleteDoc.RootElement.GetProperty("affected").GetInt32());
 
-        // Verify only "Keep" remains
+        // Verify only "Keep" remains via list endpoint
         var listResponse = await app.Client.GetAsync("/api/products");
         var listDoc = JsonDocument.Parse(await listResponse.Content.ReadAsStringAsync());
         Assert.Equal(1, listDoc.RootElement.GetProperty("data").GetArrayLength());
@@ -89,10 +64,10 @@ public class BulkEndpointTests
         var updateDoc = JsonDocument.Parse(await updateResponse.Content.ReadAsStringAsync());
         Assert.Equal(2, updateDoc.RootElement.GetProperty("affected").GetInt32());
 
-        // Verify updated records
-        var countResponse = await app.Client.GetAsync("/api/products/bulk-count?name=eq:New");
-        var countDoc = JsonDocument.Parse(await countResponse.Content.ReadAsStringAsync());
-        Assert.Equal(2, countDoc.RootElement.GetProperty("count").GetInt64());
+        // Verify updated records via list endpoint with filter
+        var listResponse = await app.Client.GetAsync("/api/products?name=eq:New");
+        var listDoc = JsonDocument.Parse(await listResponse.Content.ReadAsStringAsync());
+        Assert.Equal(2, listDoc.RootElement.GetProperty("total").GetInt64());
     }
 
     [Fact]

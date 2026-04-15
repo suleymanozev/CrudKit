@@ -379,10 +379,10 @@ public class EfRepoTests
         Assert.Equal(404, ex.StatusCode);
     }
 
-    // ---- BulkCount ----
+    // ---- Count ----
 
     [Fact]
-    public async Task BulkCount_ReturnsMatchingCount()
+    public async Task Count_ReturnsMatchingCount()
     {
         var (_, repo) = CreatePersonRepo();
         for (var i = 1; i <= 5; i++)
@@ -393,12 +393,12 @@ public class EfRepoTests
             ["Age"] = new FilterOp { Operator = "gte", Value = "23" }
         };
 
-        var count = await repo.BulkCount(filters);
+        var count = await repo.Count(filters);
         Assert.Equal(3, count); // Ages 23, 24, 25
     }
 
     [Fact]
-    public async Task BulkCount_ReturnsZero_WhenNoMatch()
+    public async Task Count_ReturnsZero_WhenNoMatch()
     {
         var (_, repo) = CreatePersonRepo();
         await repo.Create(new { Name = "Alice", Age = 20 });
@@ -408,7 +408,7 @@ public class EfRepoTests
             ["Age"] = new FilterOp { Operator = "eq", Value = "99" }
         };
 
-        var count = await repo.BulkCount(filters);
+        var count = await repo.Count(filters);
         Assert.Equal(0, count);
     }
 

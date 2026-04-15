@@ -5,7 +5,7 @@ namespace CrudKit.Api.Configuration;
 /// </summary>
 public class EndpointAuthorizationBuilder
 {
-    /// <summary>Authorization config for Read (GET list, GET by id, bulk-count) operations.</summary>
+    /// <summary>Authorization config for Read (GET list, GET by id) operations.</summary>
     public OperationAuth Read { get; } = new();
 
     /// <summary>Authorization config for Create (POST) operations.</summary>

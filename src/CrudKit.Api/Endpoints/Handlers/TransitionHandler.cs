@@ -45,7 +45,9 @@ internal static class TransitionHandler
         {
             var payloadsProp = typeof(TEntity).GetProperty("TransitionPayloads",
                 BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
-            payloadMap = payloadsProp?.GetValue(null) as IReadOnlyDictionary<string, Type>;
+            var rawMap = payloadsProp?.GetValue(null) as IReadOnlyDictionary<string, Type>;
+            if (rawMap is not null)
+                payloadMap = new Dictionary<string, Type>(rawMap, StringComparer.OrdinalIgnoreCase);
         }
 
         group.MapPost("/{id}/transition/{action}", async (string id, string action, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
@@ -92,7 +94,7 @@ internal static class TransitionHandler
 
             // Deserialize typed payload if required
             object? payload = null;
-            if (payloadMap is not null && payloadMap.TryGetValue(action.ToLowerInvariant(), out var payloadType))
+            if (payloadMap is not null && payloadMap.TryGetValue(action, out var payloadType))
             {
                 if (httpCtx.Request.ContentLength is null or 0 && !httpCtx.Request.HasJsonContentType())
                 {

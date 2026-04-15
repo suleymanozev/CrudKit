@@ -214,7 +214,6 @@ public interface ICurrentUser
     bool IsAuthenticated { get; }
     bool HasRole(string role);
     bool HasPermission(string entity, string action);
-    bool HasPermission(string entity, string action, PermScope scope);
     IReadOnlyList<string>? AccessibleTenants { get; }  // null = all tenants
 }
 ```

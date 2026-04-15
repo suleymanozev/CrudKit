@@ -28,13 +28,6 @@ public class CrudAuthorizationFilterTests
     }
 
     [Fact]
-    public void DetermineOperation_BulkCount_IsRead()
-    {
-        var result = CrudAuthorizationFilter.DetermineOperation("POST", "/api/products/bulk-count");
-        Assert.Equal(CrudOperation.Read, result);
-    }
-
-    [Fact]
     public void DetermineOperation_BulkDelete_IsDelete()
     {
         var result = CrudAuthorizationFilter.DetermineOperation("POST", "/api/products/bulk-delete");

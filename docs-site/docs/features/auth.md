@@ -82,7 +82,6 @@ public interface ICurrentUser
     bool IsAuthenticated { get; }
     bool HasRole(string role);
     bool HasPermission(string entity, string action);
-    bool HasPermission(string entity, string action, PermScope scope);
     IReadOnlyList<string>? AccessibleTenants { get; }
 }
 ```
@@ -119,9 +118,6 @@ public class JwtCurrentUser : ICurrentUser
 
     public bool HasPermission(string entity, string action)
         => Permissions.Any(p => p.Entity == entity && p.Action == action);
-
-    public bool HasPermission(string entity, string action, PermScope scope)
-        => HasPermission(entity, action); // extend for scope if needed
 
     public IReadOnlyList<string>? AccessibleTenants =>
         User?.FindAll("tenant").Select(c => c.Value).ToList();

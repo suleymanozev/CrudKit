@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CrudKit.Api.Endpoints.Handlers;
 
 /// <summary>
-/// Maps GET /bulk-count, POST /bulk-delete, and POST /bulk-update endpoints.
+/// Maps POST /bulk-delete and POST /bulk-update endpoints.
 /// <para>
 /// Bulk operations load entities into the EF Core change tracker and use <c>SaveChangesAsync</c>,
 /// so all lifecycle hooks run: <c>ProcessBeforeSave</c> (timestamps, soft-delete, cascade, audit),
@@ -23,18 +23,6 @@ internal static class BulkHandler
     public static void Map<TEntity>(RouteGroupBuilder group, string tag, bool isDeleteEnabled, bool isUpdateEnabled)
         where TEntity : class, IEntity
     {
-        // GET /api/{route}/bulk-count -- Count with filters
-        group.MapGet("/bulk-count", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
-        {
-            var apiOpts = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
-            var listParams = ListParams.FromQuery(httpCtx.Request.Query, apiOpts.MinPageSize, apiOpts.MaxPageSize);
-            var count = await repo.BulkCount(listParams.Filters, ct);
-            return Results.Ok(new { count });
-        })
-        .WithName($"BulkCount{tag}")
-        .Produces<object>(200)
-        .ProducesProblem(500);
-
         // POST /api/{route}/bulk-delete -- Bulk delete with filters
         if (isDeleteEnabled)
         group.MapPost("/bulk-delete", async (BulkDeleteRequest request, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
@@ -42,7 +30,7 @@ internal static class BulkHandler
             var filters = ParseFilters(request.Filters);
             var options = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
 
-            var count = await repo.BulkCount(filters, ct);
+            var count = await repo.Count(filters, ct);
             if (count > options.BulkLimit)
                 throw AppError.BadRequest($"Bulk operation affects {count} records, which exceeds the limit of {options.BulkLimit}.");
 
@@ -62,7 +50,7 @@ internal static class BulkHandler
             var values = ConvertValues(request.Values);
             var options = httpCtx.RequestServices.GetRequiredService<Configuration.CrudKitApiOptions>();
 
-            var count = await repo.BulkCount(filters, ct);
+            var count = await repo.Count(filters, ct);
             if (count > options.BulkLimit)
                 throw AppError.BadRequest($"Bulk operation affects {count} records, which exceeds the limit of {options.BulkLimit}.");
 

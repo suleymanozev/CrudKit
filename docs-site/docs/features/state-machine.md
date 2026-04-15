@@ -135,3 +135,4 @@ CrudKit deserializes the payload and passes it to hooks, but **does not persist 
 - Enum values are stored as strings when `opts.UseEnumAsString()` is configured.
 - Transition validation is strict — attempting a transition that is not listed in `Transitions` returns `400`.
 - `IStateMachineWithPayload<TState>` extends `IStateMachine<TState>` — existing entities without payloads continue to work unchanged.
+- **Transition hooks are separate from CRUD hooks.** `ICrudHooks<T>.BeforeUpdate` is **not** called during transitions — only `ITransitionHook<T>` runs. This is by design: transitions use a dedicated endpoint (`POST /transition/{action}`), not the Update endpoint.

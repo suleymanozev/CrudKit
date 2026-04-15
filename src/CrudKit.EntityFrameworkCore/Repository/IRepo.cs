@@ -27,5 +27,5 @@ public interface IRepo<T> where T : class, IEntity
     Task<int> BulkDelete(Dictionary<string, FilterOp> filters, CancellationToken ct = default);
 
     /// <summary>Count entities matching the given filters.</summary>
-    Task<long> BulkCount(Dictionary<string, FilterOp> filters, CancellationToken ct = default);
+    Task<long> Count(Dictionary<string, FilterOp> filters, CancellationToken ct = default);
 }

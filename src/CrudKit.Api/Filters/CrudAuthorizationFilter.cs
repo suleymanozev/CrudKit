@@ -108,8 +108,6 @@ public class CrudAuthorizationFilter : IEndpointFilter
             return CrudOperation.Export;
         if (path.Contains("/import", StringComparison.OrdinalIgnoreCase))
             return CrudOperation.Import;
-        if (path.Contains("/bulk-count", StringComparison.OrdinalIgnoreCase))
-            return CrudOperation.Read;
         if (path.Contains("/bulk-delete", StringComparison.OrdinalIgnoreCase))
             return CrudOperation.Delete;
         if (path.Contains("/bulk-update", StringComparison.OrdinalIgnoreCase))

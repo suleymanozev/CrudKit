@@ -315,7 +315,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
     // ---- Bulk operations ----
 
-    public async Task<long> BulkCount(Dictionary<string, FilterOp> filters, CancellationToken ct = default)
+    public async Task<long> Count(Dictionary<string, FilterOp> filters, CancellationToken ct = default)
     {
         EnsureTenantContext();
         var query = _db.Set<T>().AsNoTracking();
@@ -439,11 +439,8 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
         foreach (var m in mappings)
         {
-            if (!isCreate)
-            {
-                if (m.IsProtected) continue;
-                if (m.IsSkipUpdate) continue;
-            }
+            if (m.IsProtected) continue;
+            if (!isCreate && m.IsSkipUpdate) continue;
 
             var dtoValue = m.DtoProperty.GetValue(dto);
 
