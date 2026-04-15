@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'CrudKit',
   tagline: 'A convention-based CRUD framework for .NET 10',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.png',
 
   future: {
     v4: true,
@@ -55,7 +55,7 @@ const config: Config = {
       title: 'CrudKit',
       logo: {
         alt: 'CrudKit Logo',
-        src: 'img/logo.svg',
+        src: 'img/icon.png',
       },
       items: [
         {
