@@ -35,25 +35,7 @@ internal static class BulkHandler
             if (count > options.BulkLimit)
                 throw AppError.BadRequest($"Bulk operation affects {count} records, which exceeds the limit of {options.BulkLimit}.");
 
-            var entityHooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
-            var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
-            var appCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
-
-            // Call before hooks per entity
-            if (entityHooks is not null || globalHooks.Count > 0)
-            {
-                var entities = await repo.FindByFilter(filters, ct);
-                foreach (var entity in entities)
-                {
-                    if (entityHooks is not null)
-                        await entityHooks.BeforeDelete(entity, appCtx);
-                    foreach (var gh in globalHooks)
-                        await gh.BeforeDelete(entity, appCtx);
-                }
-            }
-
             var affected = await repo.BulkDelete(filters, ct);
-
             return Results.Ok(new { affected });
         })
         .WithName($"BulkDelete{tag}")
@@ -72,23 +54,6 @@ internal static class BulkHandler
             var count = await repo.Count(filters, ct);
             if (count > options.BulkLimit)
                 throw AppError.BadRequest($"Bulk operation affects {count} records, which exceeds the limit of {options.BulkLimit}.");
-
-            var entityHooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
-            var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
-            var appCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
-
-            // Call before hooks per entity
-            if (entityHooks is not null || globalHooks.Count > 0)
-            {
-                var entities = await repo.FindByFilter(filters, ct);
-                foreach (var entity in entities)
-                {
-                    if (entityHooks is not null)
-                        await entityHooks.BeforeUpdate(entity, appCtx);
-                    foreach (var gh in globalHooks)
-                        await gh.BeforeUpdate(entity, appCtx);
-                }
-            }
 
             var affected = await repo.BulkUpdate(filters, values, ct);
             return Results.Ok(new { affected });

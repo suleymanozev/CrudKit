@@ -404,10 +404,30 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         var entities = await query.ToListAsync(ct);
         if (entities.Count == 0) return 0;
 
+        var appCtx = BuildAppContext();
+        var globalHooks = _services.GetServices<IGlobalCrudHook>().ToList();
+
+        foreach (var entity in entities)
+        {
+            foreach (var gh in globalHooks)
+                await gh.BeforeDelete(entity, appCtx);
+            if (_hooks is not null)
+                await _hooks.BeforeDelete(entity, appCtx);
+        }
+
         foreach (var entity in entities)
             _db.Set<T>().Remove(entity);
 
         await _db.SaveChangesAsync(ct);
+
+        foreach (var entity in entities)
+        {
+            if (_hooks is not null)
+                await _hooks.AfterDelete(entity, appCtx);
+            foreach (var gh in globalHooks)
+                await gh.AfterDelete(entity, appCtx);
+        }
+
         return entities.Count;
     }
 
@@ -474,7 +494,27 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
             }
         }
 
+        var appCtx = BuildAppContext();
+        var globalHooks = _services.GetServices<IGlobalCrudHook>().ToList();
+
+        foreach (var entity in entities)
+        {
+            foreach (var gh in globalHooks)
+                await gh.BeforeUpdate(entity, null, appCtx);
+            if (_hooks is not null)
+                await _hooks.BeforeUpdate(entity, null, appCtx);
+        }
+
         await _db.SaveChangesAsync(ct);
+
+        foreach (var entity in entities)
+        {
+            if (_hooks is not null)
+                await _hooks.AfterUpdate(entity, null, appCtx);
+            foreach (var gh in globalHooks)
+                await gh.AfterUpdate(entity, null, appCtx);
+        }
+
         return entities.Count;
     }
 
