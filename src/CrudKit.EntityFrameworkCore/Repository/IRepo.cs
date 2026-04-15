@@ -14,6 +14,13 @@ public interface IRepo<T> where T : class, IEntity
     Task<Paginated<T>> List(ListParams listParams, CancellationToken ct = default);
     Task<List<T>> FindByField(string fieldName, object value, CancellationToken ct = default);
     Task<T> Create(object createDto, CancellationToken ct = default);
+
+    /// <summary>
+    /// Create with post-mapping customization. The <paramref name="configureEntity"/> callback runs after
+    /// DTO→entity mapping but before SaveChanges, allowing caller to set fields not present on the DTO
+    /// (e.g., foreign keys derived from route parameters).
+    /// </summary>
+    Task<T> Create(object createDto, Action<T> configureEntity, CancellationToken ct = default);
     Task<T> Update(Guid id, object updateDto, CancellationToken ct = default);
     Task Delete(Guid id, CancellationToken ct = default);
     Task Restore(Guid id, CancellationToken ct = default);

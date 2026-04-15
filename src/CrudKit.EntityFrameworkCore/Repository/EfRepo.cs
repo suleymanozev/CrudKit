@@ -142,7 +142,13 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         return await _db.Set<T>().AsNoTracking().Where(predicate).ToListAsync(ct);
     }
 
-    public async Task<T> Create(object createDto, CancellationToken ct = default)
+    public Task<T> Create(object createDto, CancellationToken ct = default)
+        => CreateCore(createDto, configureEntity: null, ct);
+
+    public Task<T> Create(object createDto, Action<T> configureEntity, CancellationToken ct = default)
+        => CreateCore(createDto, configureEntity, ct);
+
+    private async Task<T> CreateCore(object createDto, Action<T>? configureEntity, CancellationToken ct)
     {
         EnsureTenantContext();
         T entity;
@@ -158,6 +164,7 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         }
 
         MapDtoToEntity(createDto, entity, isCreate: true);
+        configureEntity?.Invoke(entity);
         _db.Set<T>().Add(entity);
 
         var appCtx = BuildAppContext();

@@ -180,12 +180,15 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             try
             {
-                var entity = await detailRepo.Create(dto, ct);
-
+                TDetail entity;
                 if (dtoFkProp is null)
                 {
-                    fkProp.SetValue(entity, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType));
-                    await db.SaveChangesAsync(ct);
+                    entity = await detailRepo.Create(dto, e =>
+                        fkProp.SetValue(e, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType)), ct);
+                }
+                else
+                {
+                    entity = await detailRepo.Create(dto, ct);
                 }
 
                 await tx.CommitAsync(ct);
@@ -252,15 +255,16 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
 
                 foreach (var dto in dtos)
                 {
+                    TDetail entity;
                     if (dtoFkProp is not null)
-                        dtoFkProp.SetValue(dto, CrudEndpointMapper.ConvertFkValue(masterId, dtoFkProp.PropertyType));
-
-                    var entity = await detailRepo.Create(dto, ct);
-
-                    if (dtoFkProp is null)
                     {
-                        fkProp.SetValue(entity, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType));
-                        await db.SaveChangesAsync(ct);
+                        dtoFkProp.SetValue(dto, CrudEndpointMapper.ConvertFkValue(masterId, dtoFkProp.PropertyType));
+                        entity = await detailRepo.Create(dto, ct);
+                    }
+                    else
+                    {
+                        entity = await detailRepo.Create(dto, e =>
+                            fkProp.SetValue(e, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType)), ct);
                     }
 
                     created.Add(entity);
