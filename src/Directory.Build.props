@@ -8,7 +8,7 @@
     <PackageProjectUrl>https://github.com/suleymanozev/CrudKit</PackageProjectUrl>
     <RepositoryUrl>https://github.com/suleymanozev/CrudKit</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>crud;efcore;api;dotnet;rest;source-generator;multi-tenant;soft-delete;audit</PackageTags>
+    <PackageTags>crud;efcore;api;dotnet;rest;multi-tenant;soft-delete;audit;domain-events</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
