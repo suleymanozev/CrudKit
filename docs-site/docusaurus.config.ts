@@ -11,8 +11,8 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://crudkit.dev',
-  baseUrl: '/',
+  url: 'https://suleymanozev.github.io',
+  baseUrl: '/CrudKit/',
 
   organizationName: 'suleymanozev',
   projectName: 'CrudKit',
