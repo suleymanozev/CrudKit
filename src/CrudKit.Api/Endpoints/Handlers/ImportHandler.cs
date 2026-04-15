@@ -40,6 +40,7 @@ internal static class ImportHandler
             // Create each valid row via direct entity creation
             var importAppCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
             var importGlobalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
+            var entityHooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
             foreach (var (row, rowIndex) in rows.Select((r, i) => (r, i + 2))) // +2: header=1, first data=2
@@ -55,14 +56,17 @@ internal static class ImportHandler
                             prop.SetValue(entity, value);
                     }
 
-                    // Call global before hooks per entity
+                    // Call hooks per entity
+                    if (entityHooks is not null)
+                        await entityHooks.BeforeCreate(entity, importAppCtx);
                     foreach (var gh in importGlobalHooks)
                         await gh.BeforeCreate(entity, importAppCtx);
 
                     db.Set<TEntity>().Add(entity);
                     await db.SaveChangesAsync(ct);
 
-                    // Call global after hooks per entity
+                    if (entityHooks is not null)
+                        await entityHooks.AfterCreate(entity, importAppCtx);
                     foreach (var gh in importGlobalHooks)
                         await gh.AfterCreate(entity, importAppCtx);
 

@@ -16,10 +16,13 @@ internal static class PurgeHandler
         where TEntity : class, IEntity
     {
         // DELETE /api/{route}/{id}/purge -- Permanently delete a single soft-deleted record
-        group.MapDelete("/{id}/purge", async (string id, IRepo<TEntity> repo, CancellationToken ct) =>
+        group.MapDelete("/{id}/purge", async (string id, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var guid = CrudEndpointMapper.ParseGuid(id, typeof(TEntity).Name);
+
+            await WritePurgeAudit<TEntity>(httpCtx, [guid.ToString()], ct);
             await repo.HardDelete(guid, ct);
+
             return Results.NoContent();
         })
         .WithName($"PurgeSingle{tag}")
@@ -41,10 +44,19 @@ internal static class PurgeHandler
             var softDeleteFilter = httpCtx.RequestServices.GetService<IDataFilter<ISoftDeletable>>();
             using (softDeleteFilter?.Disable())
             {
-                var query = db.Set<TEntity>()
-                    .Where(e => ((ISoftDeletable)e).DeletedAt != null && ((ISoftDeletable)e).DeletedAt < cutoff);
+                // Collect IDs before purging for audit trail
+                var ids = await db.Set<TEntity>()
+                    .Where(e => ((ISoftDeletable)e).DeletedAt != null && ((ISoftDeletable)e).DeletedAt < cutoff)
+                    .Select(e => e.Id.ToString())
+                    .ToListAsync(ct);
 
-                var purged = await query.ExecuteDeleteAsync(ct);
+                if (ids.Count > 0)
+                    await WritePurgeAudit<TEntity>(httpCtx, ids, ct);
+
+                var purged = await db.Set<TEntity>()
+                    .Where(e => ((ISoftDeletable)e).DeletedAt != null && ((ISoftDeletable)e).DeletedAt < cutoff)
+                    .ExecuteDeleteAsync(ct);
+
                 return Results.Ok(new { purged });
             }
         })
@@ -52,5 +64,26 @@ internal static class PurgeHandler
         .WithTags(tag)
         .Produces(200)
         .ProducesProblem(400);
+    }
+
+    private static async Task WritePurgeAudit<TEntity>(HttpContext httpCtx, List<string> entityIds, CancellationToken ct)
+    {
+        var auditWriter = httpCtx.RequestServices.GetService<IAuditWriter>();
+        if (auditWriter is null) return;
+
+        var currentUser = httpCtx.RequestServices.GetService<ICurrentUser>();
+        var correlationId = Guid.NewGuid().ToString();
+
+        var entries = entityIds.Select(id => new AuditEntry
+        {
+            EntityType = typeof(TEntity).Name,
+            EntityId = id,
+            Action = "Purge",
+            UserId = currentUser?.Id,
+            CorrelationId = correlationId,
+            Timestamp = DateTime.UtcNow,
+        }).ToList();
+
+        await auditWriter.WriteAsync(entries, ct);
     }
 }

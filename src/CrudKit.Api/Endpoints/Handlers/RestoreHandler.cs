@@ -23,12 +23,19 @@ internal static class RestoreHandler
             var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
             var appCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
 
+            if (hooks is not null)
+            {
+                var deletedEntity = await repo.FindDeletedById(guid, ct)
+                    ?? throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
+                await hooks.BeforeRestore(deletedEntity, appCtx);
+            }
+
             await repo.Restore(guid, ct);
 
             if (hooks is not null)
             {
                 var entity = await repo.FindById(guid, ct);
-                await hooks.BeforeRestore(entity, appCtx);
+                await hooks.AfterRestore(entity, appCtx);
             }
 
             await tx.CommitAsync(ct);

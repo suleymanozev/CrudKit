@@ -8,6 +8,9 @@ public interface IRepo<T> where T : class, IEntity
 {
     Task<T> FindById(Guid id, CancellationToken ct = default);
     Task<T?> FindByIdOrDefault(Guid id, CancellationToken ct = default);
+
+    /// <summary>Finds a soft-deleted entity by ID, bypassing the soft-delete filter. Returns null if not found.</summary>
+    Task<T?> FindDeletedById(Guid id, CancellationToken ct = default);
     Task<Paginated<T>> List(ListParams listParams, CancellationToken ct = default);
     Task<List<T>> FindByField(string fieldName, object value, CancellationToken ct = default);
     Task<T> Create(object createDto, CancellationToken ct = default);
@@ -28,4 +31,7 @@ public interface IRepo<T> where T : class, IEntity
 
     /// <summary>Count entities matching the given filters.</summary>
     Task<long> Count(Dictionary<string, FilterOp> filters, CancellationToken ct = default);
+
+    /// <summary>Find entities matching the given filters. Returns untracked entities.</summary>
+    Task<List<T>> FindByFilter(Dictionary<string, FilterOp> filters, CancellationToken ct = default);
 }

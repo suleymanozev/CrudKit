@@ -1,5 +1,4 @@
 using CrudKit.Api.Filters;
-using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Repository;
@@ -7,7 +6,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrudKit.Api.Endpoints.Handlers;
 
@@ -23,31 +21,8 @@ internal static class CreateHandler
             var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            var hooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
-            var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
             var entity = await repo.Create(dto, ct);
-
-            var appCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
-
-            // Global before hooks run first
-            foreach (var gh in globalHooks)
-                await gh.BeforeCreate(entity, appCtx);
-
-            if (hooks is not null)
-                await hooks.BeforeCreate(entity, appCtx);
-
-            // Only save again if hooks modified tracked state or added domain events
-            if (db.ChangeTracker.HasChanges() || (entity is IHasDomainEvents de && de.DomainEvents.Count > 0))
-                await db.SaveChangesAsync(ct);
-
             await tx.CommitAsync(ct);
-
-            if (hooks is not null)
-                await hooks.AfterCreate(entity, appCtx);
-
-            // Global after hooks run last
-            foreach (var gh in globalHooks)
-                await gh.AfterCreate(entity, appCtx);
 
             return Results.Created($"/api/{route}/{entity.Id}", entity);
         })

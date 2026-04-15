@@ -93,6 +93,16 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         return await query.FirstOrDefaultAsync(e => e.Id == id, ct);
     }
 
+    public async Task<T?> FindDeletedById(Guid id, CancellationToken ct = default)
+    {
+        EnsureTenantContext();
+        using (_softDeleteFilter!.Disable())
+        {
+            return await _db.Set<T>().AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Id == id, ct);
+        }
+    }
+
     public async Task<Paginated<T>> List(ListParams listParams, CancellationToken ct = default)
     {
         EnsureTenantContext();
@@ -148,8 +158,16 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         }
 
         MapDtoToEntity(createDto, entity, isCreate: true);
-
         _db.Set<T>().Add(entity);
+
+        var appCtx = BuildAppContext();
+        var globalHooks = _services.GetServices<IGlobalCrudHook>().ToList();
+
+        foreach (var gh in globalHooks)
+            await gh.BeforeCreate(entity, appCtx);
+        if (_hooks is not null)
+            await _hooks.BeforeCreate(entity, appCtx);
+
         try
         {
             await _db.SaveChangesAsync(ct);
@@ -158,6 +176,11 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         {
             throw AppError.Conflict($"A {typeof(T).Name} with the same unique value already exists.");
         }
+
+        if (_hooks is not null)
+            await _hooks.AfterCreate(entity, appCtx);
+        foreach (var gh in globalHooks)
+            await gh.AfterCreate(entity, appCtx);
 
         ClearSkipResponseFields(entity);
         return entity;
@@ -169,7 +192,24 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         var entity = await _db.Set<T>().FirstOrDefaultAsync(e => e.Id == id, ct)
             ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
 
+        var appCtx = BuildAppContext();
+        var globalHooks = _services.GetServices<IGlobalCrudHook>().ToList();
+
+        // Snapshot previous state for hooks (AsNoTracking clone)
+        T? existingSnapshot = null;
+        if (_hooks is not null || globalHooks.Count > 0)
+        {
+            existingSnapshot = await _db.Set<T>().AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Id == id, ct);
+        }
+
         MapDtoToEntity(updateDto, entity, isCreate: false);
+
+        foreach (var gh in globalHooks)
+            await gh.BeforeUpdate(entity, existingSnapshot, appCtx);
+        if (_hooks is not null)
+            await _hooks.BeforeUpdate(entity, existingSnapshot, appCtx);
+
         try
         {
             await _db.SaveChangesAsync(ct);
@@ -178,6 +218,11 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         {
             throw AppError.Conflict($"A {typeof(T).Name} with the same unique value already exists.");
         }
+
+        if (_hooks is not null)
+            await _hooks.AfterUpdate(entity, existingSnapshot, appCtx);
+        foreach (var gh in globalHooks)
+            await gh.AfterUpdate(entity, existingSnapshot, appCtx);
 
         ClearSkipResponseFields(entity);
         return entity;
@@ -189,9 +234,22 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         var entity = await _db.Set<T>().FirstOrDefaultAsync(e => e.Id == id, ct)
             ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
 
+        var appCtx = BuildAppContext();
+        var globalHooks = _services.GetServices<IGlobalCrudHook>().ToList();
+
+        foreach (var gh in globalHooks)
+            await gh.BeforeDelete(entity, appCtx);
+        if (_hooks is not null)
+            await _hooks.BeforeDelete(entity, appCtx);
+
         _db.Set<T>().Remove(entity);
         // CrudKitDbContext.BeforeSaveChanges intercepts DELETE for ISoftDeletable entities
         await _db.SaveChangesAsync(ct);
+
+        if (_hooks is not null)
+            await _hooks.AfterDelete(entity, appCtx);
+        foreach (var gh in globalHooks)
+            await gh.AfterDelete(entity, appCtx);
     }
 
     public async Task Restore(Guid id, CancellationToken ct = default)
@@ -322,6 +380,15 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         foreach (var (field, op) in filters)
             query = _filterApplier.Apply(query, field, op);
         return await query.LongCountAsync(ct);
+    }
+
+    public async Task<List<T>> FindByFilter(Dictionary<string, FilterOp> filters, CancellationToken ct = default)
+    {
+        EnsureTenantContext();
+        var query = _db.Set<T>().AsNoTracking();
+        foreach (var (field, op) in filters)
+            query = _filterApplier.Apply(query, field, op);
+        return await query.ToListAsync(ct);
     }
 
     public async Task<int> BulkDelete(Dictionary<string, FilterOp> filters, CancellationToken ct = default)
