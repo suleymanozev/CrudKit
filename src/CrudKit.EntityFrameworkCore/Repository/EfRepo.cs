@@ -265,6 +265,14 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
                 .FirstOrDefaultAsync(e => e.Id == id, ct)
                 ?? throw AppError.NotFound($"Deleted {typeof(T).Name} with id '{id}' was not found.");
 
+            var appCtx = BuildAppContext();
+            var globalHooks = _services.GetServices<IGlobalCrudHook>().ToList();
+
+            foreach (var gh in globalHooks)
+                await gh.BeforeRestore(entity, appCtx);
+            if (_hooks is not null)
+                await _hooks.BeforeRestore(entity, appCtx);
+
             // Capture the batch ID before clearing soft-delete state
             var deleteBatchId = ((ISoftDeletable)entity).DeleteBatchId;
 
@@ -338,6 +346,11 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
                     }
                 }
             }
+
+            if (_hooks is not null)
+                await _hooks.AfterRestore(entity, appCtx);
+            foreach (var gh in globalHooks)
+                await gh.AfterRestore(entity, appCtx);
         } // soft-delete filter re-enabled
     }
 

@@ -29,4 +29,7 @@ public interface IGlobalCrudHook
         => AfterUpdate(entity, ctx);
     Task BeforeDelete(object entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
     Task AfterDelete(object entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
+
+    Task BeforeRestore(object entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
+    Task AfterRestore(object entity, CrudKit.Core.Context.AppContext ctx) => Task.CompletedTask;
 }
