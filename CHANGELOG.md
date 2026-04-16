@@ -2,6 +2,55 @@
 
 All notable changes to CrudKit are documented in this file.
 
+## [1.2.0] - 2026-04-16
+
+### Architecture
+- **CrudKit.Api no longer references CrudKit.EntityFrameworkCore** — API depends only on Core. Enables future MongoDB/Dapper providers without API changes.
+- `IRepo<T>` and `IRepoTransaction` moved from EF to `CrudKit.Core.Interfaces`
+- `CrudKitEfOptions` moved to `CrudKit.Core.Configuration` (shared across providers)
+- `CrudKitStartupValidator` moved to `CrudKit.EntityFrameworkCore.Validation`
+- `IdempotencyRecord` moved to `CrudKit.Core.Models`
+- New `IIdempotencyStore` interface in Core; `EfIdempotencyStore` implementation in EF
+- `AddCrudKit<TContext>()` convenience removed — use `AddCrudKitEf<TContext>()` + `AddCrudKit()` separately
+
+### Hooks & Lifecycle
+- **Hooks moved into repo** — `ICrudHooks<T>` and `IGlobalCrudHook` now invoked inside `EfRepo.Create/Update/Delete/Restore`. All entry points (handlers, child endpoints, import, direct repo calls) get consistent hook behavior.
+- `IGlobalCrudHook.BeforeRestore/AfterRestore` added (default no-op)
+- `IRepo<T>.BeginTransactionAsync()` — handlers manage transactions via repo, not DbContext
+- `IRepo<T>.CreateEntity(T entity, ct)` — create from pre-built entity (used by Import)
+- `IRepo<T>.SetProperty(id, prop, value, ct)` — single property update (used by Transition)
+- `IRepo<T>.FindDeletedById` — find soft-deleted entities bypassing filter
+- `IRepo<T>.FindByFilter` — untracked entity list by filter dictionary
+- `IRepo<T>.BulkPurge(cutoff, ct)` — bulk purge with audit trail
+- `IRepo<T>.Create(dto, configureEntity, ct)` — post-mapping customization for child FK injection
+- Restore hook ordering fixed — `BeforeRestore` now runs before restore (was running after)
+- Import now invokes entity-specific hooks per row (was global-only)
+- BulkDelete/BulkUpdate now invoke Before + After hooks per entity
+- Child create no longer double-saves when DTO lacks FK
+
+### Audit
+- Purge operations write `Action = "Purge"` audit entries with serialized `OldValues` before physical deletion
+- `AuditEntry.Action` now includes `"Restore"` and `"Purge"` in addition to Create/Update/Delete
+
+### Transition
+- `IStateMachineWithPayload<TState>` — typed payload support per action
+- `ITransitionHook<T>` — before/after hooks with payload access
+- Payload dictionary lookup is case-insensitive
+- `[Protected]` now blocks writes on Create as well as Update
+
+### Removed
+- `/bulk-count` endpoint — use list endpoint's `total` field instead
+- `BulkCount` renamed to `Count(filters)` on IRepo
+- `CrudEntityAttribute.Workflow` / `WorkflowProtected` (never implemented)
+- `IModule.RegisterWorkflowActions` (never called)
+- `PermScope` references in docs (type never existed)
+
+### Breaking Changes
+- `AddCrudKit<TContext>()` removed — use `AddCrudKitEf<TContext>()` + `AddCrudKit()` 
+- `IRepo<T>` moved to `CrudKit.Core.Interfaces` (namespace change)
+- Custom `IRepo<T>` implementations must add new methods
+- `[Protected]` now ignored on Create (use `[SkipUpdate]` for write-on-create-only)
+
 ## [1.1.0] - 2026-04-15
 
 ### Added
