@@ -886,7 +886,8 @@ public class SearchIndexHook : IGlobalCrudHook
 }
 
 // Register
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.UseGlobalHook<SearchIndexHook>();
     opts.UseGlobalHook<CacheInvalidationHook>();
@@ -1209,8 +1210,8 @@ public class InventoryDbContext : CrudKitDbContext
 // Register both
 builder.Services.AddDbContext<OrderDbContext>(opts => opts.UseNpgsql("..."));
 builder.Services.AddDbContext<InventoryDbContext>(opts => opts.UseNpgsql("..."));
-builder.Services.AddCrudKit<OrderDbContext>();
-builder.Services.AddCrudKit<InventoryDbContext>();
+builder.Services.AddCrudKitEf<OrderDbContext>();
+builder.Services.AddCrudKitEf<InventoryDbContext>();
 ```
 
 `EfRepo<Order>` resolves `OrderDbContext`; `EfRepo<Product>` resolves `InventoryDbContext`. No extra configuration needed.
@@ -1257,7 +1258,8 @@ public class InventoryModule : IModule
 }
 
 // Program.cs — modules discovered automatically
-builder.Services.AddCrudKit<SharedDbContext>(opts =>
+builder.Services.AddCrudKitEf<SharedDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.ScanModulesFromAssembly = typeof(Program).Assembly;
 });
@@ -1489,7 +1491,8 @@ Register with Identity:
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseSqlite("Data Source=app.db"));
 
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.UseAuditTrail();
     opts.UseMultiTenancy().ResolveTenantFromClaim("tenant_id");

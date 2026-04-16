@@ -68,7 +68,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseSqlite("Data Source=app.db"));
 
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.DefaultPageSize = 25;
     opts.MaxPageSize = 100;
@@ -201,7 +202,8 @@ public class Invoice : FullAuditableAggregateRoot, IMultiTenant, IStateMachine<I
 ## Configuration
 
 ```csharp
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     // Pagination
     opts.DefaultPageSize = 25;           // Default: 20
@@ -266,7 +268,8 @@ builder.Services.AddDbContext<AppDbContext>(opts =>
 
 builder.Services.AddScoped<ICurrentUser, JwtCurrentUser>();
 
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.UseMultiTenancy()
         .ResolveTenantFromClaim("tenant_id")
