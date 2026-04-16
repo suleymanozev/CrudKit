@@ -2,6 +2,49 @@
 
 All notable changes to CrudKit are documented in this file.
 
+## [1.1.0] - 2026-04-15
+
+### Added
+- `IStateMachineWithPayload<TState>` — typed payload support for state transitions
+- `ITransitionHook<T>` — before/after hooks for state transitions with payload access
+- `IGlobalCrudHook.BeforeRestore/AfterRestore` — cross-cutting restore hooks
+- `IRepo<T>.FindByFilter` — untracked entity list by filter dictionary
+- `IRepo<T>.FindDeletedById` — find soft-deleted entity bypassing soft-delete filter
+- `IRepo<T>.BulkPurge` — bulk purge with audit trail
+- `IRepo<T>.Create(dto, configureEntity, ct)` — create with post-mapping customization (used by child endpoints for FK injection)
+- Purge audit entries — `IAuditWriter` now receives `Action = "Purge"` entries with serialized `OldValues` before physical deletion
+- Property attributes docs guide (`docs/features/property-attributes.md`)
+- Security guide (`docs/guides/security.md`)
+- Enriched feature docs (idempotency, domain-events, value-objects, concurrency, bulk-operations, import-export, auth, audit-trail) with client examples and complete scenarios
+
+### Changed
+- **Hooks moved into repository** — `ICrudHooks<T>` / `IGlobalCrudHook` now invoked inside `EfRepo.Create/Update/Delete/Restore/BulkDelete/BulkUpdate`. Handlers delegate completely to repo. Child endpoints now also trigger hooks (previously silently skipped).
+- `[Protected]` now blocks writes on Create as well as Update (previously only Update). Use `[SkipUpdate]` for the old "writable on Create" behavior.
+- Import handler now invokes entity-specific hooks (`ICrudHooks<T>`) in addition to global hooks
+- `RestoreHandler` now calls `BeforeRestore` **before** restore (previously called after, which made it misleading)
+- Transition payload dictionary lookup is now case-insensitive (`StringComparer.OrdinalIgnoreCase`)
+- Child create/batch endpoints no longer double-save when DTO lacks FK — uses new `Create(dto, configureEntity, ct)` overload
+- CI skips for docs-only and markdown-only changes
+
+### Removed
+- **`/bulk-count` endpoint** — list endpoint already returns `total` in response. Use `GET /api/{resource}?{filters}&per_page=1` and read `total`.
+- `IRepo<T>.BulkCount(filters)` renamed to `Count(filters)` (overload next to existing `Count()`)
+- `CrudEntityAttribute.Workflow` / `WorkflowProtected` — never implemented, removed
+- `IModule.RegisterWorkflowActions` — never called, removed
+- `PermScope` parameter references in docs — type never existed in source
+
+### Fixed
+- Stale `bulk-count` references across README, intro, endpoints table, bulk-operations page
+- `[Protected]` XML doc referenced non-existent `WorkflowProtectionFilter`
+- Docs-site GitHub Pages subpath redirect (missing `baseUrl` prefix)
+- NuGet Trusted Publishing workflow (added `NuGet/login@v1` step with user parameter)
+
+### Breaking Changes
+- Custom `IRepo<T>` implementations must add `FindByFilter`, `FindDeletedById`, `BulkPurge`, and the `Create(dto, configureEntity, ct)` overload
+- Custom `IGlobalCrudHook` implementations inherit new `BeforeRestore/AfterRestore` (default no-op)
+- Entity-as-DTO clients that relied on setting `[Protected]` fields on Create will no longer succeed — use `[SkipUpdate]` instead
+- Clients using `POST /bulk-count` must migrate to `GET /api/{resource}?per_page=1` and read `total`
+
 ## [1.0.0] - 2026-04-12
 
 ### Core
