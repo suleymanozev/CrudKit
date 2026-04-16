@@ -25,7 +25,6 @@ A convention-based CRUD framework for .NET 10. Define entities, get endpoints.
 - Bulk operations (`/bulk-delete`, `/bulk-update`)
 - ReadOnly entities (List + Get only)
 - CSV import/export (`[Exportable]`, `[Importable]`, per-property control)
-- Source generation — DTOs, mappers, endpoint mapping, hook stubs
 - `Optional<T>` for partial updates (distinguishes null from missing)
 - Property attributes: `[Hashed]`, `[SkipResponse]`, `[SkipUpdate]`, `[Protected]`, `[Unique]`, `[Searchable]`
 - Document numbering (e.g. `ORD-2026-00001`) with tenant-scoped sequences
@@ -45,7 +44,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseSqlite("Data Source=app.db"));
 
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.DefaultPageSize = 25;
     opts.MaxPageSize = 100;

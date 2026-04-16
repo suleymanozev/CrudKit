@@ -40,7 +40,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseSqlite("Data Source=app.db"));
 
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.DefaultPageSize = 25;
     opts.MaxPageSize = 100;

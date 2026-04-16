@@ -82,7 +82,8 @@ CrudKit limits query parameter values to prevent abuse:
 - **Filter fields** — only properties marked with `[Filterable]` or not marked with `[NotFilterable]` are accepted
 
 ```csharp
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.MinPageSize = 5;     // minimum items per page
     opts.MaxPageSize = 100;   // maximum items per page

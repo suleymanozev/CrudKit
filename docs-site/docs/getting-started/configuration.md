@@ -5,12 +5,13 @@ title: Configuration
 
 # Configuration
 
-All CrudKit options are configured via `AddCrudKit<TContext>(opts => ...)`.
+All CrudKit options are configured via `AddCrudKit(opts => ...)`. Register the EF provider separately with `AddCrudKitEf<TContext>()`.
 
 ## Full Example
 
 ```csharp
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     // Pagination
     opts.DefaultPageSize = 25;           // Default: 20

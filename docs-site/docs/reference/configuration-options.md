@@ -7,7 +7,7 @@ title: Configuration Options
 
 ## CrudKitApiOptions
 
-All options are set via `AddCrudKit<TContext>(opts => ...)`.
+All options are set via `AddCrudKit(opts => ...)`. Register the EF provider separately with `AddCrudKitEf<TContext>()`.
 
 ### Properties
 
@@ -62,7 +62,8 @@ All options are set via `AddCrudKit<TContext>(opts => ...)`.
 ## Full Configuration Example
 
 ```csharp
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.DefaultPageSize = 25;
     opts.MaxPageSize = 100;

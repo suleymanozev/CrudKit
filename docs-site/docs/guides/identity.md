@@ -38,7 +38,8 @@ Register CrudKit and Identity together:
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseSqlite("Data Source=app.db"));
 
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.UseAuditTrail();
     opts.UseMultiTenancy().ResolveTenantFromClaim("tenant_id");

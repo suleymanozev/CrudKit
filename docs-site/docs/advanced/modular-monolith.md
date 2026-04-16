@@ -81,8 +81,8 @@ public class InventoryDbContext : CrudKitDbContext
 // Register both
 builder.Services.AddDbContext<OrderDbContext>(opts => opts.UseNpgsql("..."));
 builder.Services.AddDbContext<InventoryDbContext>(opts => opts.UseNpgsql("..."));
-builder.Services.AddCrudKit<OrderDbContext>();
-builder.Services.AddCrudKit<InventoryDbContext>();
+builder.Services.AddCrudKitEf<OrderDbContext>();
+builder.Services.AddCrudKitEf<InventoryDbContext>();
 ```
 
 `EfRepo<Order>` resolves `OrderDbContext`; `EfRepo<Product>` resolves `InventoryDbContext`. No extra configuration needed — the resolution is automatic via `CrudKitContextRegistry`.
@@ -131,7 +131,8 @@ public class InventoryModule : IModule
 Program.cs stays minimal:
 
 ```csharp
-builder.Services.AddCrudKit<SharedDbContext>(opts =>
+builder.Services.AddCrudKitEf<SharedDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.ScanModulesFromAssembly = typeof(Program).Assembly;
 });

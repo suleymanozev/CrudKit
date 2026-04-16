@@ -10,7 +10,8 @@ CrudKit supports idempotency keys to prevent duplicate processing of retried req
 ## Enabling Idempotency
 
 ```csharp
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.EnableIdempotency = true;
 });

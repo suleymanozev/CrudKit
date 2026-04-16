@@ -118,7 +118,8 @@ builder.Services.AddDbContext<AppDbContext>(opts =>
 
 builder.Services.AddScoped<ICurrentUser, JwtCurrentUser>();
 
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.UseMultiTenancy()
         .ResolveTenantFromClaim("tenant_id")

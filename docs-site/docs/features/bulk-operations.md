@@ -30,7 +30,8 @@ Use the standard list endpoint to get a count: `GET /api/products?price=gte:100&
 The global bulk limit is `CrudKitApiOptions.BulkLimit` (default: 1,000). Override per entity with `[CrudEntity(BulkLimit = N)]`.
 
 ```csharp
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.BulkLimit = 5_000;  // global default
 });

@@ -124,7 +124,8 @@ public class SearchIndexHook : IGlobalCrudHook
 }
 
 // Register
-builder.Services.AddCrudKit<AppDbContext>(opts =>
+builder.Services.AddCrudKitEf<AppDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.UseGlobalHook<SearchIndexHook>();
     opts.UseGlobalHook<CacheInvalidationHook>();

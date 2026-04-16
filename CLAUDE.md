@@ -40,12 +40,11 @@ CrudKit is a convention-based CRUD framework for .NET 10. Entity definition driv
 
 ```
 CrudKit.Core (no dependencies)
-    ↓
-CrudKit.EntityFrameworkCore (→ Core)
-    ↓
-CrudKit.Api (→ Core + EF)
-
-CrudKit.Identity (→ EF, adds ASP.NET Identity compatibility)
+    ↓              ↓
+CrudKit.Api      CrudKit.EntityFrameworkCore
+(→ Core only)    (→ Core only)
+                     ↓
+                 CrudKit.Identity (→ EF + Core)
 ```
 
 ### Key Abstraction: ICrudKitDbContext
