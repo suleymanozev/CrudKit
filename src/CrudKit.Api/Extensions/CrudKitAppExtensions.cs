@@ -14,7 +14,6 @@ using CrudKit.Core.Interfaces;
 using CrudKit.Core.Tenancy;
 using CrudKit.EntityFrameworkCore;
 using CrudKit.EntityFrameworkCore.Auditing;
-using CrudKit.EntityFrameworkCore.Idempotency;
 using CrudKit.EntityFrameworkCore.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Json;
@@ -25,13 +24,27 @@ namespace CrudKit.Api.Extensions;
 
 public static class CrudKitAppExtensions
 {
+    /// <summary>
+    /// Registers CrudKit with EF Core provider. Convenience method that calls
+    /// <c>AddCrudKitEf&lt;TContext&gt;()</c> + <c>AddCrudKit()</c>.
+    /// </summary>
     public static IServiceCollection AddCrudKit<TContext>(
         this IServiceCollection services,
         Action<CrudKitApiOptions>? configure = null)
         where TContext : CrudKitDbContext
     {
         services.AddCrudKitEf<TContext>();
+        return services.AddCrudKit(configure);
+    }
 
+    /// <summary>
+    /// Registers CrudKit API services (options, hooks, validation, idempotency, domain events).
+    /// Provider-agnostic — call <c>AddCrudKitEf&lt;TContext&gt;()</c> or another provider separately.
+    /// </summary>
+    public static IServiceCollection AddCrudKit(
+        this IServiceCollection services,
+        Action<CrudKitApiOptions>? configure = null)
+    {
         var opts = new CrudKitApiOptions();
         configure?.Invoke(opts);
         services.TryAddSingleton(opts);
@@ -50,14 +63,9 @@ public static class CrudKitAppExtensions
         // When UseContext<T>() is configured, audit goes to that dedicated context.
         services.AddSingleton(new AuditDbContextAccessor(opts.AuditContextType));
 
-        // Register audit writer when audit trail is enabled
-        if (opts.AuditTrailEnabled)
-        {
-            if (opts.CustomAuditWriterType is not null)
-                services.TryAddScoped(typeof(IAuditWriter), opts.CustomAuditWriterType);
-            else
-                services.TryAddScoped<IAuditWriter, DbAuditWriter>();
-        }
+        // Register custom audit writer if configured (overrides EF default)
+        if (opts.AuditTrailEnabled && opts.CustomAuditWriterType is not null)
+            services.AddScoped(typeof(IAuditWriter), opts.CustomAuditWriterType);
 
         services.TryAddScoped<ICurrentUser, AnonymousCurrentUser>();
 
@@ -99,9 +107,6 @@ public static class CrudKitAppExtensions
         });
 
         services.AddHostedService<CrudKitStartupValidator>();
-
-        // Register idempotency store
-        services.TryAddScoped<IIdempotencyStore, EfIdempotencyStore>();
 
         // Register global hooks
         foreach (var hookType in opts.GlobalHookTypes)

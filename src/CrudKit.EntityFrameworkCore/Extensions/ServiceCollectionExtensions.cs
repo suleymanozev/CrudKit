@@ -1,6 +1,8 @@
 using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
+using CrudKit.EntityFrameworkCore.Auditing;
 using CrudKit.EntityFrameworkCore.Dialect;
+using CrudKit.EntityFrameworkCore.Idempotency;
 using CrudKit.EntityFrameworkCore.Query;
 using CrudKit.EntityFrameworkCore.Repository;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,6 +60,11 @@ public static class ServiceCollectionExtensions
 
         // Runtime filter toggles — one scoped instance per filter type per request.
         services.TryAdd(ServiceDescriptor.Scoped(typeof(IDataFilter<>), typeof(DataFilter<>)));
+
+        // Default EF implementations for framework abstractions
+        services.TryAddSingleton(new AuditDbContextAccessor(null));
+        services.TryAddScoped<IAuditWriter, DbAuditWriter>();
+        services.TryAddScoped<IIdempotencyStore, EfIdempotencyStore>();
 
         // Bundled dependency bag — lets DbContext subclasses use a 2-param constructor.
         services.TryAddScoped(sp => new CrudKitDbContextDependencies
