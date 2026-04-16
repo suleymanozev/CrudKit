@@ -5,7 +5,6 @@ using CrudKit.EntityFrameworkCore.Repository;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CrudKit.Api.Endpoints.Handlers;
@@ -53,12 +52,9 @@ internal static class TransitionHandler
         group.MapPost("/{id}/transition/{action}", async (string id, string action, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var guid = CrudEndpointMapper.ParseGuid(id, typeof(TEntity).Name);
-            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            // Load entity for update (tracked)
-            var dbSet = db.Set<TEntity>();
-            var entity = await dbSet.FirstOrDefaultAsync(e => e.Id == guid, ct)
+            // Load entity to validate current state (untracked — SetProperty will reload tracked)
+            var entity = await repo.FindByIdOrDefault(guid, ct)
                 ?? throw AppError.NotFound($"{typeof(TEntity).Name} with id '{id}' was not found.");
 
             var currentStatus = statusProp.GetValue(entity)!;
@@ -68,7 +64,6 @@ internal static class TransitionHandler
             var found = false;
             object? targetStatus = null;
 
-            // Iterate the transitions list via reflection
             foreach (var t in (System.Collections.IEnumerable)transitions)
             {
                 var tType = t.GetType();
@@ -119,15 +114,15 @@ internal static class TransitionHandler
             if (hook is not null)
                 await hook.BeforeTransition(entity, action, payload, appCtx);
 
-            statusProp.SetValue(entity, targetStatus);
-            await db.SaveChangesAsync(ct);
-
-            if (hook is not null)
-                await hook.AfterTransition(entity, action, payload, appCtx);
-
+            // Set status via repo — no direct DbContext access
+            await using var tx = await repo.BeginTransactionAsync(ct);
+            var updated = await repo.SetProperty(guid, "Status", targetStatus, ct);
             await tx.CommitAsync(ct);
 
-            return Results.Ok(entity);
+            if (hook is not null)
+                await hook.AfterTransition(updated, action, payload, appCtx);
+
+            return Results.Ok(updated);
         })
         .WithName($"Transition{tag}")
         .Produces<TEntity>(200)

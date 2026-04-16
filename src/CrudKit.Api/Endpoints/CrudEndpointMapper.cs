@@ -176,29 +176,21 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
             if (dtoFkProp is not null)
                 dtoFkProp.SetValue(dto, CrudEndpointMapper.ConvertFkValue(masterId, dtoFkProp.PropertyType));
 
-            var db = CrudEndpointMapper.ResolveDbContextFor<TDetail>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
-            {
-                TDetail entity;
-                if (dtoFkProp is null)
-                {
-                    entity = await detailRepo.Create(dto, e =>
-                        fkProp.SetValue(e, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType)), ct);
-                }
-                else
-                {
-                    entity = await detailRepo.Create(dto, ct);
-                }
+            await using var tx = await detailRepo.BeginTransactionAsync(ct);
 
-                await tx.CommitAsync(ct);
-                return Results.Created($"/api/{masterRoute}/{masterId}/{detailRoute}/{entity.Id}", entity);
-            }
-            catch
+            TDetail entity;
+            if (dtoFkProp is null)
             {
-                await tx.RollbackAsync(ct);
-                throw;
+                entity = await detailRepo.Create(dto, e =>
+                    fkProp.SetValue(e, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType)), ct);
             }
+            else
+            {
+                entity = await detailRepo.Create(dto, ct);
+            }
+
+            await tx.CommitAsync(ct);
+            return Results.Created($"/api/{masterRoute}/{masterId}/{detailRoute}/{entity.Id}", entity);
         })
         .WithName($"Create{tag}")
         .AddEndpointFilter<ValidationFilter<TCreateDetail>>()
@@ -241,43 +233,35 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
             if (!await masterRepo.Exists(masterGuid, ct))
                 throw AppError.NotFound($"{typeof(TMaster).Name} with id '{masterId}' was not found.");
 
-            var db = CrudEndpointMapper.ResolveDbContextFor<TDetail>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
+            await using var tx = await detailRepo.BeginTransactionAsync(ct);
+
+            var existing = await detailRepo.FindByField(foreignKeyProperty, masterId, ct);
+            foreach (var e in existing)
+                await detailRepo.Delete(e.Id, ct);
+
+            var created = new List<TDetail>();
+            var dtoFkProp = typeof(TCreateDetail).GetProperty(foreignKeyProperty,
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
+            foreach (var dto in dtos)
             {
-                var existing = await detailRepo.FindByField(foreignKeyProperty, masterId, ct);
-                foreach (var e in existing)
-                    await detailRepo.Delete(e.Id, ct);
-
-                var created = new List<TDetail>();
-                var dtoFkProp = typeof(TCreateDetail).GetProperty(foreignKeyProperty,
-                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-
-                foreach (var dto in dtos)
+                TDetail entity;
+                if (dtoFkProp is not null)
                 {
-                    TDetail entity;
-                    if (dtoFkProp is not null)
-                    {
-                        dtoFkProp.SetValue(dto, CrudEndpointMapper.ConvertFkValue(masterId, dtoFkProp.PropertyType));
-                        entity = await detailRepo.Create(dto, ct);
-                    }
-                    else
-                    {
-                        entity = await detailRepo.Create(dto, e =>
-                            fkProp.SetValue(e, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType)), ct);
-                    }
-
-                    created.Add(entity);
+                    dtoFkProp.SetValue(dto, CrudEndpointMapper.ConvertFkValue(masterId, dtoFkProp.PropertyType));
+                    entity = await detailRepo.Create(dto, ct);
+                }
+                else
+                {
+                    entity = await detailRepo.Create(dto, e =>
+                        fkProp.SetValue(e, CrudEndpointMapper.ConvertFkValue(masterId, fkProp.PropertyType)), ct);
                 }
 
-                await tx.CommitAsync(ct);
-                return Results.Ok(created);
+                created.Add(entity);
             }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
+
+            await tx.CommitAsync(ct);
+            return Results.Ok(created);
         })
         .WithName($"BatchUpsert{tag}")
         .Produces<List<TDetail>>(200)
@@ -334,19 +318,10 @@ public class CrudEndpointGroup<TMaster> where TMaster : class, IEntity
             if (fkValue != masterId)
                 throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
 
-            var db = CrudEndpointMapper.ResolveDbContextFor<TDetail>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
-            {
-                var entity = await detailRepo.Update(detailGuid, dto, ct);
-                await tx.CommitAsync(ct);
-                return Results.Ok(entity);
-            }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
+            await using var tx = await detailRepo.BeginTransactionAsync(ct);
+            var entity = await detailRepo.Update(detailGuid, dto, ct);
+            await tx.CommitAsync(ct);
+            return Results.Ok(entity);
         })
         .WithName($"Update{tag}")
         .AddEndpointFilter<ValidationFilter<TUpdateDetail>>()
@@ -744,19 +719,10 @@ public static class CrudEndpointMapper
                 fkProp.SetValue(dto, fkValue);
             }
 
-            var db = ResolveDbContextFor<TDetail>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
-            {
-                var entity = await detailRepo.Create(dto, ct);
-                await tx.CommitAsync(ct);
-                return Results.Created($"/api/{masterRoute}/{masterId}/{detailRoute}/{entity.Id}", entity);
-            }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
+            await using var tx = await detailRepo.BeginTransactionAsync(ct);
+            var entity = await detailRepo.Create(dto, ct);
+            await tx.CommitAsync(ct);
+            return Results.Created($"/api/{masterRoute}/{masterId}/{detailRoute}/{entity.Id}", entity);
         })
         .AddEndpointFilter<ValidationFilter<TCreateDto>>()
         .WithName($"Create{tag}__auto")
@@ -801,19 +767,10 @@ public static class CrudEndpointMapper
             if (fkValue != masterId)
                 throw AppError.NotFound($"{typeof(TDetail).Name} with id '{id}' was not found.");
 
-            var db = ResolveDbContextFor<TDetail>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            try
-            {
-                var entity = await detailRepo.Update(detailGuid, dto, ct);
-                await tx.CommitAsync(ct);
-                return Results.Ok(entity);
-            }
-            catch
-            {
-                await tx.RollbackAsync(ct);
-                throw;
-            }
+            await using var tx = await detailRepo.BeginTransactionAsync(ct);
+            var entity = await detailRepo.Update(detailGuid, dto, ct);
+            await tx.CommitAsync(ct);
+            return Results.Ok(entity);
         })
         .WithName($"Update{tag}__auto")
         .AddEndpointFilter<ValidationFilter<TUpdateDto>>()

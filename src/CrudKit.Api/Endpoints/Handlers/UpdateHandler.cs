@@ -5,7 +5,6 @@ using CrudKit.EntityFrameworkCore.Repository;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
 
 namespace CrudKit.Api.Endpoints.Handlers;
 
@@ -16,15 +15,12 @@ internal static class UpdateHandler
         where TEntity : class, IEntity
         where TUpdate : class
     {
-        group.MapPut("/{id}", async (string id, TUpdate dto, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
+        group.MapPut("/{id}", async (string id, TUpdate dto, IRepo<TEntity> repo, CancellationToken ct) =>
         {
             var guid = CrudEndpointMapper.ParseGuid(id, typeof(TEntity).Name);
-            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-
+            await using var tx = await repo.BeginTransactionAsync(ct);
             var entity = await repo.Update(guid, dto, ct);
             await tx.CommitAsync(ct);
-
             return Results.Ok(entity);
         })
         .WithName($"Update{tag}")

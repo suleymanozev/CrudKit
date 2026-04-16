@@ -5,7 +5,6 @@ using CrudKit.EntityFrameworkCore.Repository;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
 
 namespace CrudKit.Api.Endpoints.Handlers;
 
@@ -16,14 +15,11 @@ internal static class CreateHandler
         where TEntity : class, IEntity
         where TCreate : class
     {
-        group.MapPost("/", async (TCreate dto, HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
+        group.MapPost("/", async (TCreate dto, IRepo<TEntity> repo, CancellationToken ct) =>
         {
-            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-
+            await using var tx = await repo.BeginTransactionAsync(ct);
             var entity = await repo.Create(dto, ct);
             await tx.CommitAsync(ct);
-
             return Results.Created($"/api/{route}/{entity.Id}", entity);
         })
         .WithName($"Create{tag}")

@@ -72,6 +72,22 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         };
     }
 
+    // ---- Transaction ----
+
+    public async Task<IRepoTransaction> BeginTransactionAsync(CancellationToken ct = default)
+    {
+        var tx = await _db.Database.BeginTransactionAsync(ct);
+        return new RepoTransaction(tx);
+    }
+
+    private sealed class RepoTransaction(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx) : IRepoTransaction
+    {
+        public Task CommitAsync(CancellationToken ct = default) => tx.CommitAsync(ct);
+        public ValueTask DisposeAsync() => tx.DisposeAsync();
+    }
+
+    // ---- Query ----
+
     public async Task<T> FindById(Guid id, CancellationToken ct = default)
     {
         EnsureTenantContext();
@@ -165,6 +181,37 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
 
         MapDtoToEntity(createDto, entity, isCreate: true);
         configureEntity?.Invoke(entity);
+        _db.Set<T>().Add(entity);
+
+        var appCtx = BuildAppContext();
+        var globalHooks = _services.GetServices<IGlobalCrudHook>().ToList();
+
+        foreach (var gh in globalHooks)
+            await gh.BeforeCreate(entity, appCtx);
+        if (_hooks is not null)
+            await _hooks.BeforeCreate(entity, appCtx);
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            throw AppError.Conflict($"A {typeof(T).Name} with the same unique value already exists.");
+        }
+
+        if (_hooks is not null)
+            await _hooks.AfterCreate(entity, appCtx);
+        foreach (var gh in globalHooks)
+            await gh.AfterCreate(entity, appCtx);
+
+        ClearSkipResponseFields(entity);
+        return entity;
+    }
+
+    public async Task<T> CreateEntity(T entity, CancellationToken ct = default)
+    {
+        EnsureTenantContext();
         _db.Set<T>().Add(entity);
 
         var appCtx = BuildAppContext();
@@ -587,6 +634,21 @@ public class EfRepo<T> : IRepo<T> where T : class, IEntity
         }
 
         return entities.Count;
+    }
+
+    public async Task<T> SetProperty(Guid id, string propertyName, object? value, CancellationToken ct = default)
+    {
+        EnsureTenantContext();
+        var entity = await _db.Set<T>().FirstOrDefaultAsync(e => e.Id == id, ct)
+            ?? throw AppError.NotFound($"{typeof(T).Name} with id '{id}' was not found.");
+
+        var prop = typeof(T).GetProperty(propertyName,
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
+            ?? throw new InvalidOperationException($"Property '{propertyName}' not found on {typeof(T).Name}.");
+
+        prop.SetValue(entity, value);
+        await _db.SaveChangesAsync(ct);
+        return entity;
     }
 
     // ---- Unique constraint detection ----

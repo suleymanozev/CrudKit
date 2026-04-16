@@ -17,9 +17,8 @@ internal static class ImportHandler
     public static void Map<TEntity>(RouteGroupBuilder group, string tag)
         where TEntity : class, IEntity
     {
-        group.MapPost("/import", async (HttpContext httpCtx, CancellationToken ct) =>
+        group.MapPost("/import", async (HttpContext httpCtx, IRepo<TEntity> repo, CancellationToken ct) =>
         {
-            var db = CrudEndpointMapper.ResolveDbContextFor<TEntity>(httpCtx.RequestServices);
             var form = await httpCtx.Request.ReadFormAsync(ct);
             var file = form.Files.FirstOrDefault();
             if (file is null || file.Length == 0)
@@ -37,13 +36,9 @@ internal static class ImportHandler
             var importResult = new ImportResult { Total = rows.Count + parseErrors.Count };
             importResult.Errors.AddRange(parseErrors);
 
-            var importAppCtx = CrudEndpointMapper.BuildAppContext(httpCtx);
-            var globalHooks = httpCtx.RequestServices.GetServices<IGlobalCrudHook>().ToList();
-            var entityHooks = httpCtx.RequestServices.GetService<ICrudHooks<TEntity>>();
+            await using var tx = await repo.BeginTransactionAsync(ct);
 
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-            foreach (var (row, rowIndex) in rows.Select((r, i) => (r, i + 2))) // +2: header=1, first data=2
+            foreach (var (row, rowIndex) in rows.Select((r, i) => (r, i + 2)))
             {
                 try
                 {
@@ -56,21 +51,7 @@ internal static class ImportHandler
                             prop.SetValue(entity, value);
                     }
 
-                    // Before hooks (global → entity)
-                    foreach (var gh in globalHooks)
-                        await gh.BeforeCreate(entity, importAppCtx);
-                    if (entityHooks is not null)
-                        await entityHooks.BeforeCreate(entity, importAppCtx);
-
-                    db.Set<TEntity>().Add(entity);
-                    await db.SaveChangesAsync(ct);
-
-                    // After hooks (entity → global)
-                    if (entityHooks is not null)
-                        await entityHooks.AfterCreate(entity, importAppCtx);
-                    foreach (var gh in globalHooks)
-                        await gh.AfterCreate(entity, importAppCtx);
-
+                    await repo.CreateEntity(entity, ct);
                     importResult.Created++;
                 }
                 catch (Exception ex)
