@@ -1,3 +1,4 @@
+using CrudKit.Core.Configuration;
 using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
 

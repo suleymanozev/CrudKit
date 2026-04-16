@@ -1,6 +1,5 @@
 using CrudKit.Core.Models;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -35,7 +34,7 @@ public class AppErrorFilter : IEndpointFilter
                 details = ex.Details
             }, statusCode: ex.StatusCode);
         }
-        catch (DbUpdateConcurrencyException ex)
+        catch (Exception ex) when (ex.GetType().Name == "DbUpdateConcurrencyException")
         {
             logger.LogWarning(ex, "Concurrency conflict");
 

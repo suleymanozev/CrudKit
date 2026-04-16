@@ -1,3 +1,5 @@
+using CrudKit.EntityFrameworkCore.Extensions;
+using CrudKit.Core.Configuration;
 using CrudKit.Api.Configuration;
 using CrudKit.Api.Extensions;
 using CrudKit.Api.Tests.Helpers;
@@ -38,7 +40,7 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
     public void AddCrudKit_RegistersIRepo()
     {
         var builder = CreateBuilder();
-        builder.Services.AddCrudKit<ApiTestDbContext>();
+        builder.Services.AddCrudKitEf<ApiTestDbContext>(); builder.Services.AddCrudKit();
 
         using var app = builder.Build();
         using var scope = app.Services.CreateScope();
@@ -51,7 +53,7 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
     public void AddCrudKit_RegistersCrudKitApiOptions_WithDefaults()
     {
         var builder = CreateBuilder();
-        builder.Services.AddCrudKit<ApiTestDbContext>();
+        builder.Services.AddCrudKitEf<ApiTestDbContext>(); builder.Services.AddCrudKit();
 
         using var app = builder.Build();
         var opts = app.Services.GetRequiredService<CrudKitApiOptions>();
@@ -67,7 +69,7 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
     public void AddCrudKit_CustomOptions_AreApplied()
     {
         var builder = CreateBuilder();
-        builder.Services.AddCrudKit<ApiTestDbContext>(o =>
+        builder.Services.AddCrudKitEf<ApiTestDbContext>(); builder.Services.AddCrudKit(o =>
         {
             o.DefaultPageSize = 50;
             o.MaxPageSize = 200;
@@ -90,7 +92,7 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
     public void AddCrudKit_FallsBackToAnonymousCurrentUser_WhenNotRegistered()
     {
         var builder = CreateBuilder();
-        builder.Services.AddCrudKit<ApiTestDbContext>();
+        builder.Services.AddCrudKitEf<ApiTestDbContext>(); builder.Services.AddCrudKit();
 
         using var app = builder.Build();
         using var scope = app.Services.CreateScope();
@@ -103,7 +105,7 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
     public void AddCrudKitModule_RegistersModule()
     {
         var builder = CreateBuilder();
-        builder.Services.AddCrudKit<ApiTestDbContext>();
+        builder.Services.AddCrudKitEf<ApiTestDbContext>(); builder.Services.AddCrudKit();
         builder.Services.AddCrudKitModule<TestModule>();
 
         using var app = builder.Build();
@@ -118,8 +120,8 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
         var builder = CreateBuilder();
 
         // Calling AddCrudKit twice should not throw.
-        builder.Services.AddCrudKit<ApiTestDbContext>();
-        builder.Services.AddCrudKit<ApiTestDbContext>();
+        builder.Services.AddCrudKitEf<ApiTestDbContext>(); builder.Services.AddCrudKit();
+        builder.Services.AddCrudKitEf<ApiTestDbContext>(); builder.Services.AddCrudKit();
 
         // Build should succeed without exception.
         using var app = builder.Build();
@@ -130,7 +132,7 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
     public async Task UseCrudKit_CallsModuleMapEndpoints()
     {
         var builder = CreateBuilder();
-        builder.Services.AddCrudKit<ApiTestDbContext>();
+        builder.Services.AddCrudKitEf<ApiTestDbContext>(); builder.Services.AddCrudKit();
 
         var wasCalled = false;
         builder.Services.AddSingleton<IModule>(new CallbackModule(_ => wasCalled = true));
@@ -166,11 +168,11 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
     public void EnableAuditFailedOperations_PropagatesFlag_ToCrudKitEfOptions()
     {
         var builder = CreateBuilder();
-        builder.Services.AddCrudKit<ApiTestDbContext>(o =>
+        builder.Services.AddCrudKitEf<ApiTestDbContext>(); builder.Services.AddCrudKit(o =>
             o.UseAuditTrail().EnableAuditFailedOperations());
 
         using var app = builder.Build();
-        var efOptions = app.Services.GetRequiredService<CrudKit.EntityFrameworkCore.CrudKitEfOptions>();
+        var efOptions = app.Services.GetRequiredService<CrudKit.Core.Configuration.CrudKitEfOptions>();
 
         Assert.True(efOptions.AuditTrailEnabled);
         Assert.True(efOptions.AuditFailedOperations);
@@ -198,11 +200,11 @@ public class CrudKitAppExtensionsTests : IAsyncDisposable
     public void UseSchema_PropagatesTo_CrudKitEfOptions()
     {
         var builder = CreateBuilder();
-        builder.Services.AddCrudKit<ApiTestDbContext>(o =>
+        builder.Services.AddCrudKitEf<ApiTestDbContext>(); builder.Services.AddCrudKit(o =>
             o.UseAuditTrail(audit => audit.UseSchema("my_audit")));
 
         using var app = builder.Build();
-        var efOptions = app.Services.GetRequiredService<CrudKit.EntityFrameworkCore.CrudKitEfOptions>();
+        var efOptions = app.Services.GetRequiredService<CrudKit.Core.Configuration.CrudKitEfOptions>();
         Assert.Equal("my_audit", efOptions.AuditSchema);
     }
 

@@ -10,10 +10,8 @@ using CrudKit.Core.Attributes;
 using CrudKit.Core.Auth;
 using CrudKit.Core.Events;
 using CrudKit.Core.Interfaces;
+using CrudKit.Core.Configuration;
 using CrudKit.Core.Tenancy;
-using CrudKit.EntityFrameworkCore;
-using CrudKit.EntityFrameworkCore.Auditing;
-using CrudKit.EntityFrameworkCore.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,19 +21,6 @@ namespace CrudKit.Api.Extensions;
 
 public static class CrudKitAppExtensions
 {
-    /// <summary>
-    /// Registers CrudKit with EF Core provider. Convenience method that calls
-    /// <c>AddCrudKitEf&lt;TContext&gt;()</c> + <c>AddCrudKit()</c>.
-    /// </summary>
-    public static IServiceCollection AddCrudKit<TContext>(
-        this IServiceCollection services,
-        Action<CrudKitApiOptions>? configure = null)
-        where TContext : CrudKitDbContext
-    {
-        services.AddCrudKitEf<TContext>();
-        return services.AddCrudKit(configure);
-    }
-
     /// <summary>
     /// Registers CrudKit API services (options, hooks, validation, idempotency, domain events).
     /// Provider-agnostic — call <c>AddCrudKitEf&lt;TContext&gt;()</c> or another provider separately.
@@ -58,11 +43,7 @@ public static class CrudKitAppExtensions
             DomainEventsEnabled = opts.DomainEventsEnabled,
         });
 
-        // Register the accessor that determines which DbContext audit entries are written to.
-        // When UseContext<T>() is configured, audit goes to that dedicated context.
-        services.AddSingleton(new AuditDbContextAccessor(opts.AuditContextType));
-
-        // Register custom audit writer if configured (overrides EF default)
+        // Register custom audit writer if configured (overrides provider default)
         if (opts.AuditTrailEnabled && opts.CustomAuditWriterType is not null)
             services.AddScoped(typeof(IAuditWriter), opts.CustomAuditWriterType);
 

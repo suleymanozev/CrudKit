@@ -1,4 +1,4 @@
-namespace CrudKit.EntityFrameworkCore;
+namespace CrudKit.Core.Configuration;
 
 /// <summary>
 /// Runtime options for the CrudKit EF Core layer.

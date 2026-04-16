@@ -1,3 +1,4 @@
+using CrudKit.Core.Configuration;
 using CrudKit.Core.Interfaces;
 
 using Microsoft.Data.Sqlite;

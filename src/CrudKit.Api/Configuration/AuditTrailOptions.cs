@@ -1,5 +1,3 @@
-using CrudKit.EntityFrameworkCore;
-
 namespace CrudKit.Api.Configuration;
 
 /// <summary>
@@ -38,7 +36,7 @@ public class AuditTrailOptions
     /// Store audit logs in a separate DbContext (different database).
     /// All modules will write audit entries to this centralized context.
     /// </summary>
-    public AuditTrailOptions UseContext<TAuditContext>() where TAuditContext : CrudKitDbContext
+    public AuditTrailOptions UseContext<TAuditContext>() where TAuditContext : class
     {
         _parent.AuditContextType = typeof(TAuditContext);
         return this;

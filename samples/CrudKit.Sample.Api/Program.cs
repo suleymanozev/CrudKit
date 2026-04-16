@@ -1,3 +1,4 @@
+using CrudKit.EntityFrameworkCore.Extensions;
 using CrudKit.Api.Endpoints;
 using CrudKit.Api.Extensions;
 using CrudKit.Sample.Api.Data;
@@ -15,7 +16,8 @@ builder.Services.AddDbContext<SampleDbContext>((_, opts) =>
     opts.UseSqlite("Data Source=sample.db"));
 
 // CrudKit
-builder.Services.AddCrudKit<SampleDbContext>(opts =>
+builder.Services.AddCrudKitEf<SampleDbContext>();
+builder.Services.AddCrudKit(opts =>
 {
     opts.DefaultPageSize = 25;
     opts.MaxPageSize = 100;

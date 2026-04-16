@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\CrudKit.Api\CrudKit.Api.csproj" />
+    <ProjectReference Include="..\..\src\CrudKit.EntityFrameworkCore\CrudKit.EntityFrameworkCore.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.*" />
     <PackageReference Include="FluentValidation" Version="11.*" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.*" />

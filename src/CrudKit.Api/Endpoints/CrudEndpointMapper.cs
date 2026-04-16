@@ -6,8 +6,6 @@ using CrudKit.Api.Helpers;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
-using CrudKit.EntityFrameworkCore;
-
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -972,18 +970,6 @@ public static class CrudEndpointMapper
             CurrentUser = httpCtx.RequestServices.GetRequiredService<ICurrentUser>(),
             TenantContext = httpCtx.RequestServices.GetService<ITenantContext>()
         };
-    }
-
-    /// <summary>
-    /// Resolve the correct ICrudKitDbContext for entity type <typeparamref name="TEntity"/>
-    /// using the context registry when available, falling back to the default ICrudKitDbContext.
-    /// </summary>
-    internal static ICrudKitDbContext ResolveDbContextFor<TEntity>(IServiceProvider services) where TEntity : class
-    {
-        var registry = services.GetService<CrudKitContextRegistry>();
-        if (registry is not null)
-            return registry.ResolveFor<TEntity>(services);
-        return services.GetRequiredService<ICrudKitDbContext>();
     }
 
     /// <summary>
