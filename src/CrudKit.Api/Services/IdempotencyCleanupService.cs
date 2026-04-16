@@ -1,6 +1,4 @@
-using CrudKit.Api.Models;
-using CrudKit.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
+using CrudKit.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -8,8 +6,8 @@ using Microsoft.Extensions.Logging;
 namespace CrudKit.Api.Services;
 
 /// <summary>
-/// Background service that periodically removes expired <see cref="IdempotencyRecord"/> rows.
-/// Runs once per hour. Uses <c>ExecuteDeleteAsync</c> for a single bulk-delete statement.
+/// Background service that periodically removes expired idempotency records.
+/// Uses <see cref="IIdempotencyStore"/> — no direct DbContext access.
 /// </summary>
 public class IdempotencyCleanupService : BackgroundService
 {
@@ -28,7 +26,6 @@ public class IdempotencyCleanupService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Delay slightly at startup so the application is fully initialised
         await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -51,12 +48,9 @@ public class IdempotencyCleanupService : BackgroundService
         try
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<CrudKitDbContext>();
-            var now = DateTime.UtcNow;
+            var store = scope.ServiceProvider.GetRequiredService<IIdempotencyStore>();
 
-            var deleted = await db.Set<IdempotencyRecord>()
-                .Where(r => r.ExpiresAt <= now)
-                .ExecuteDeleteAsync(ct);
+            var deleted = await store.CleanupExpiredAsync(ct);
 
             if (deleted > 0)
                 _logger.LogInformation("Idempotency cleanup: removed {Count} expired records.", deleted);

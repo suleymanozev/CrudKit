@@ -14,6 +14,7 @@ using CrudKit.Core.Interfaces;
 using CrudKit.Core.Tenancy;
 using CrudKit.EntityFrameworkCore;
 using CrudKit.EntityFrameworkCore.Auditing;
+using CrudKit.EntityFrameworkCore.Idempotency;
 using CrudKit.EntityFrameworkCore.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Json;
@@ -98,6 +99,9 @@ public static class CrudKitAppExtensions
         });
 
         services.AddHostedService<CrudKitStartupValidator>();
+
+        // Register idempotency store
+        services.TryAddScoped<IIdempotencyStore, EfIdempotencyStore>();
 
         // Register global hooks
         foreach (var hookType in opts.GlobalHookTypes)

@@ -1,4 +1,5 @@
 using CrudKit.Api.Models;
+using CrudKit.Core.Models;
 using CrudKit.Api.Tests.Events;
 using CrudKit.Api.Tests.Security;
 using CrudKit.Api.Tests.Sequencing;

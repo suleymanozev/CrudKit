@@ -1,7 +1,9 @@
-using CrudKit.Api.Models;
+using CrudKit.Core.Interfaces;
+using CrudKit.Core.Models;
 using CrudKit.Api.Services;
 using CrudKit.Api.Tests.Helpers;
 using CrudKit.Core.Auth;
+using CrudKit.EntityFrameworkCore.Idempotency;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -40,6 +42,7 @@ public class IdempotencyCleanupServiceTests : IAsyncDisposable
         services.AddSingleton(_db);
         services.AddSingleton<CrudKit.EntityFrameworkCore.CrudKitDbContext>(_db);
         services.AddSingleton<CrudKit.EntityFrameworkCore.ICrudKitDbContext>(_db);
+        services.AddScoped<IIdempotencyStore, EfIdempotencyStore>();
         return services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
     }
 
@@ -126,6 +129,7 @@ public class IdempotencyCleanupServiceTests : IAsyncDisposable
 
         services.AddSingleton<CrudKit.EntityFrameworkCore.CrudKitDbContext>(disposedDb);
         services.AddSingleton<CrudKit.EntityFrameworkCore.ICrudKitDbContext>(disposedDb);
+        services.AddScoped<IIdempotencyStore, EfIdempotencyStore>();
         var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
 
         var service = new IdempotencyCleanupService(scopeFactory, NullLogger<IdempotencyCleanupService>.Instance);

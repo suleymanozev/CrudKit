@@ -1,4 +1,4 @@
-namespace CrudKit.Api.Models;
+namespace CrudKit.Core.Models;
 
 /// <summary>
 /// Stores a cached response for an idempotency key so that repeated requests
