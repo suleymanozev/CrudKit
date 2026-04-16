@@ -5,6 +5,7 @@ using CrudKit.EntityFrameworkCore.Dialect;
 using CrudKit.EntityFrameworkCore.Idempotency;
 using CrudKit.EntityFrameworkCore.Query;
 using CrudKit.EntityFrameworkCore.Repository;
+using CrudKit.EntityFrameworkCore.Validation;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -61,6 +62,9 @@ public static class ServiceCollectionExtensions
 
         // Runtime filter toggles — one scoped instance per filter type per request.
         services.TryAdd(ServiceDescriptor.Scoped(typeof(IDataFilter<>), typeof(DataFilter<>)));
+
+        // Startup validation
+        services.AddHostedService<CrudKitStartupValidator>();
 
         // Default EF implementations for framework abstractions
         services.TryAddSingleton(new AuditDbContextAccessor(null));

@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using CrudKit.Api.Endpoints;
 using CrudKit.Api.Tests.Helpers;

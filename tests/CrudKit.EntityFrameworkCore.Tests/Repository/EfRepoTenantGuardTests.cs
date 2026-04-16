@@ -1,4 +1,3 @@
-using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Dialect;
 using CrudKit.EntityFrameworkCore.Query;

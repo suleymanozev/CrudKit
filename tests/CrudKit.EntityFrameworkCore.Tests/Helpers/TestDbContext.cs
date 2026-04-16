@@ -1,5 +1,5 @@
 using CrudKit.Core.Interfaces;
-using CrudKit.EntityFrameworkCore;
+
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 

@@ -1,7 +1,6 @@
 using CrudKit.Core.Auth;
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Tenancy;
-using CrudKit.EntityFrameworkCore;
 using CrudKit.EntityFrameworkCore.Tests.Helpers;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;

@@ -1,10 +1,9 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
-using CrudKit.Api.Configuration;
+
 using CrudKit.Api.Endpoints;
 using CrudKit.Api.Tests.Helpers;
-using Microsoft.Extensions.DependencyInjection;
+
 using Xunit;
 
 namespace CrudKit.Api.Tests.Endpoints;

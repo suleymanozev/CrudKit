@@ -1,5 +1,5 @@
 using System.Reflection;
-using CrudKit.Core.Auth;
+
 using CrudKit.Core.Tenancy;
 using CrudKit.EntityFrameworkCore.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;

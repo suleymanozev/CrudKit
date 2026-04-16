@@ -1,11 +1,9 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using CrudKit.Api.Filters;
 using CrudKit.Api.Tests.Helpers;
 using CrudKit.Core.Auth;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
+
 using Xunit;
 
 namespace CrudKit.Api.Tests.Filters;

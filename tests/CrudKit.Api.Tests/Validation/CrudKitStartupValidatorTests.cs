@@ -1,13 +1,11 @@
-using CrudKit.Api.Models;
-using CrudKit.Api.Validation;
+using CrudKit.EntityFrameworkCore.Validation;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
 using CrudKit.EntityFrameworkCore;
 using CrudKit.EntityFrameworkCore.Concurrency;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+
 using Xunit;
 
 namespace CrudKit.Api.Tests.Validation;
@@ -38,24 +36,6 @@ public class CrudKitStartupValidatorTests
 
         Assert.Contains(testLogger.Messages,
             m => m.level == LogLevel.Warning && m.message.Contains("bulk update") && m.message.Contains("concurrent"));
-    }
-
-    [Fact]
-    public void Validate_MultiTenantEntitiesWithoutResolver_LogsWarning()
-    {
-        // Arrange: DbContext has an IMultiTenant entity but no TenantResolverOptions registered
-        var services = BuildServiceProvider<MultiTenantDbContext>();
-        var testLogger = new TestLogger<CrudKitStartupValidator>();
-        var validator = new CrudKitStartupValidator(services, testLogger);
-
-        // Act: should not throw — only a warning
-        validator.Validate();
-
-        // Assert: warning about missing tenant resolver
-        Assert.Contains(testLogger.Messages,
-            m => m.level == LogLevel.Warning &&
-                 m.message.Contains("IMultiTenant") &&
-                 m.message.Contains("tenant resolver"));
     }
 
     [Fact]

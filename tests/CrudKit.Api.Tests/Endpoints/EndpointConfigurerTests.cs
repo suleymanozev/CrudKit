@@ -1,9 +1,7 @@
 using System.Net;
 using CrudKit.Api.Endpoints;
 using CrudKit.Api.Tests.Helpers;
-using CrudKit.Core.Interfaces;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
+
 using Xunit;
 
 namespace CrudKit.Api.Tests.Endpoints;

@@ -1,14 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using CrudKit.Api.Filters;
 using CrudKit.Api.Tests.Helpers;
 using FluentValidation;
-using FluentValidation.Results;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
+
 using Xunit;
 
 namespace CrudKit.Api.Tests.Filters;

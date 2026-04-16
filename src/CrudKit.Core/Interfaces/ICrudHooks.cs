@@ -1,5 +1,3 @@
-using CrudKit.Core.Context;
-
 namespace CrudKit.Core.Interfaces;
 
 /// <summary>

@@ -1,5 +1,4 @@
 using CrudKit.Core.Interfaces;
-using CrudKit.Core.Models;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;

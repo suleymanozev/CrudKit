@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using CrudKit.Core.Attributes;
-using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 
 namespace CrudKit.EntityFrameworkCore.Repository;

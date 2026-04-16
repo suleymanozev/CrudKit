@@ -1,9 +1,8 @@
-using System.Net.Http.Json;
 using System.Text.Json;
 using CrudKit.Api.Endpoints;
 using CrudKit.Api.Tests.Helpers;
 using CrudKit.Core.Interfaces;
-using Microsoft.Extensions.DependencyInjection;
+
 using Xunit;
 using AppContext = CrudKit.Core.Context.AppContext;
 

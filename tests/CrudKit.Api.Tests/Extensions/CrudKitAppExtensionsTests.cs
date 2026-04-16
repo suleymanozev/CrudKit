@@ -3,12 +3,10 @@ using CrudKit.Api.Extensions;
 using CrudKit.Api.Tests.Helpers;
 using CrudKit.Core.Auth;
 using CrudKit.Core.Interfaces;
-using CrudKit.EntityFrameworkCore.Repository;
-using Microsoft.AspNetCore.Builder;
+
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+
 using Xunit;
 
 namespace CrudKit.Api.Tests.Extensions;

@@ -1,5 +1,5 @@
 using CrudKit.Identity.Tests.Helpers;
-using Microsoft.AspNetCore.Identity;
+
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 

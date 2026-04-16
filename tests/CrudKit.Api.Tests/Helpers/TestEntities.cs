@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
-using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Concurrency;
 
 namespace CrudKit.Api.Tests.Helpers;

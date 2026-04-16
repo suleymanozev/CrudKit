@@ -1,6 +1,6 @@
 using CrudKit.Api.Events;
 using CrudKit.Core.Events;
-using Microsoft.Extensions.DependencyInjection;
+
 using Xunit;
 
 namespace CrudKit.Api.Tests.Events;

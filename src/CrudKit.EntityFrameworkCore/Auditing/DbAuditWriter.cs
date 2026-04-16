@@ -1,7 +1,6 @@
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Models;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrudKit.EntityFrameworkCore.Auditing;
 

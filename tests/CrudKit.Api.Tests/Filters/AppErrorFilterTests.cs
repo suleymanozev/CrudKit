@@ -2,8 +2,7 @@ using System.Net;
 using System.Text.Json;
 using CrudKit.Api.Filters;
 using CrudKit.Core.Models;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
+
 using Microsoft.EntityFrameworkCore;
 using CrudKit.Api.Tests.Helpers;
 using Xunit;

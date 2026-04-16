@@ -1,5 +1,5 @@
 // tests/CrudKit.EntityFrameworkCore.Tests/Repository/EfRepoTests.cs
-using CrudKit.Core.Auth;
+
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 using CrudKit.EntityFrameworkCore.Dialect;

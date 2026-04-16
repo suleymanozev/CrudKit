@@ -1,5 +1,4 @@
 using CrudKit.Api.Tenancy;
-using Microsoft.AspNetCore.Http;
 
 namespace CrudKit.Api.Configuration;
 

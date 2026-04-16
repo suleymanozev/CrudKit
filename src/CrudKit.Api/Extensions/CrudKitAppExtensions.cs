@@ -6,7 +6,6 @@ using CrudKit.Api.Configuration;
 using CrudKit.Api.Endpoints;
 using CrudKit.Api.Events;
 using CrudKit.Api.Tenancy;
-using CrudKit.Api.Validation;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Auth;
 using CrudKit.Core.Events;
@@ -106,7 +105,7 @@ public static class CrudKitAppExtensions
             };
         });
 
-        services.AddHostedService<CrudKitStartupValidator>();
+        // CrudKitStartupValidator is registered by AddCrudKitEf
 
         // Register global hooks
         foreach (var hookType in opts.GlobalHookTypes)

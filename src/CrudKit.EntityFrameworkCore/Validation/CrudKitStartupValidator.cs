@@ -1,15 +1,12 @@
 using System.Reflection;
-using CrudKit.Api.Tenancy;
 using CrudKit.Core.Attributes;
 using CrudKit.Core.Interfaces;
-using CrudKit.EntityFrameworkCore;
 using CrudKit.EntityFrameworkCore.Concurrency;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace CrudKit.Api.Validation;
+namespace CrudKit.EntityFrameworkCore.Validation;
 
 /// <summary>
 /// Validates entity metadata at application startup.
@@ -44,18 +41,6 @@ public class CrudKitStartupValidator : IHostedService
         var db = scope.ServiceProvider.GetService<CrudKitDbContext>();
         if (db is null) return;
 
-        // Warn if IMultiTenant entities exist but no tenant resolver is configured.
-        var tenantResolver = _services.GetService<TenantResolverOptions>();
-        var hasMultiTenantEntities = db.Model.GetEntityTypes()
-            .Any(et => typeof(IMultiTenant).IsAssignableFrom(et.ClrType));
-
-        if (hasMultiTenantEntities && tenantResolver is null)
-        {
-            _logger.LogWarning(
-                "One or more entities implement IMultiTenant but no tenant resolver is configured. " +
-                "Call UseMultiTenancy().ResolveTenantFrom*() to configure tenant resolution.");
-        }
-
         var entityTypes = db.Model.GetEntityTypes()
             .Where(t => t.ClrType is not null && typeof(IEntity).IsAssignableFrom(t.ClrType))
             .Select(t => t.ClrType)
@@ -71,9 +56,6 @@ public class CrudKitStartupValidator : IHostedService
         }
     }
 
-    /// <summary>
-    /// Checks that the OwnerField property actually exists on the entity.
-    /// </summary>
     private void ValidateOwnerField(Type entityType, CrudEntityAttribute attr)
     {
         if (string.IsNullOrEmpty(attr.OwnerField)) return;
@@ -89,10 +71,6 @@ public class CrudKitStartupValidator : IHostedService
         }
     }
 
-    /// <summary>
-    /// Logs a warning (does not throw) when an entity implements IConcurrent and has EnableBulkUpdate.
-    /// Bulk updates bypass optimistic concurrency checks.
-    /// </summary>
     private void ValidateConcurrentBulkUpdate(Type entityType, CrudEntityAttribute attr)
     {
         if (!attr.EnableBulkUpdate) return;

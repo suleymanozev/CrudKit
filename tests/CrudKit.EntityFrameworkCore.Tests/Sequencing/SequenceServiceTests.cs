@@ -1,6 +1,6 @@
 using CrudKit.EntityFrameworkCore.Sequencing;
 using CrudKit.EntityFrameworkCore.Tests.Helpers;
-using Microsoft.EntityFrameworkCore;
+
 using Xunit;
 
 namespace CrudKit.EntityFrameworkCore.Tests.Sequencing;

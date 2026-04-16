@@ -1,5 +1,5 @@
 using CrudKit.Integration.Tests.Fixtures;
-using Microsoft.EntityFrameworkCore;
+
 using Xunit;
 
 namespace CrudKit.Integration.Tests.Unique;

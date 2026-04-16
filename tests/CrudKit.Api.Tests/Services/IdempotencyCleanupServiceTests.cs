@@ -5,7 +5,6 @@ using CrudKit.Api.Tests.Helpers;
 using CrudKit.Core.Auth;
 using CrudKit.EntityFrameworkCore.Idempotency;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
