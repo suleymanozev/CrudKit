@@ -1,7 +1,6 @@
-using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
 
-namespace CrudKit.EntityFrameworkCore.Repository;
+namespace CrudKit.Core.Interfaces;
 
 /// <summary>Disposable transaction handle returned by <see cref="IRepo{T}.BeginTransactionAsync"/>.</summary>
 public interface IRepoTransaction : IAsyncDisposable

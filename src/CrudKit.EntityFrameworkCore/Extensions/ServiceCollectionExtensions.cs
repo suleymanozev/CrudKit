@@ -5,6 +5,7 @@ using CrudKit.EntityFrameworkCore.Dialect;
 using CrudKit.EntityFrameworkCore.Idempotency;
 using CrudKit.EntityFrameworkCore.Query;
 using CrudKit.EntityFrameworkCore.Repository;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 

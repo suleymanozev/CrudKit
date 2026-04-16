@@ -1,6 +1,6 @@
 using CrudKit.Core.Interfaces;
 using CrudKit.Core.Models;
-using CrudKit.EntityFrameworkCore.Repository;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
